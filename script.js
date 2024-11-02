@@ -114,21 +114,21 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add submit handler for the form
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const username = document.getElementById('username').value;
-            const age = parseInt(document.getElementById('age').value);
-            const gender = document.getElementById('gender').value;
-            const countryName = document.getElementById('country-name').textContent;
-            const countryFlag = document.getElementById('country-flag').src;
-            const countryCode = countryFlag.split('/').pop().split('.')[0];
-
-            // Validate form data
-            if (!username || !age || !gender || !countryName) {
-                alert('Please fill in all fields');
-                return;
-            }
 
             try {
+                const username = document.getElementById('username').value.trim();
+                const age = parseInt(document.getElementById('age').value);
+                const gender = document.getElementById('gender').value;
+                const countryName = document.getElementById('country-name').textContent;
+                const countryFlag = document.getElementById('country-flag').src;
+                const countryCode = countryFlag.split('/').pop().split('.')[0];
+    
+                // Validate data before sending
+                if (!username || !age || !gender || !countryName || !countryCode) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+    
                 const response = await fetch('/api/temp-users/create', {
                     method: 'POST',
                     headers: {
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         countryCode
                     }),
                 });
-
+    
                 const data = await response.json();
                 
                 if (response.ok) {
@@ -151,7 +151,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Redirect to chat page
                     window.location.href = '/chat';
                 } else {
+                    // Show specific error message from server
                     alert(data.error || 'Error creating temporary user');
+                    console.error('Server error:', data);
                 }
             } catch (error) {
                 console.error('Error:', error);

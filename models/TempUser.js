@@ -5,11 +5,14 @@ const tempUserSchema = new mongoose.Schema({
     username: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        trim: true
     },
     age: {
         type: Number,
-        required: true
+        required: true,
+        min: 13,
+        max: 100
     },
     gender: {
         type: String,

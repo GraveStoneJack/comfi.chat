@@ -6,11 +6,23 @@ const TempUser = require('../models/TempUser');
 // Create temporary user
 router.post('/create', async (req, res) => {
     try {
+        console.log('Received request body:', req.body); // Added for debugging
+
         const { username, age, gender, country, countryCode } = req.body;
         
+        // Validate required fields
+        if (!username || !age || !gender || !country || !countryCode) {
+            console.log('Missing required fields:', { username, age, gender, country, countryCode });
+            return res.status(400).json({ 
+                error: 'Missing required fields',
+                details: { username, age, gender, country, countryCode }
+            });
+        }
+
         // Check if username already exists
         const existingUser = await TempUser.findOne({ username });
         if (existingUser) {
+            console.log('Username already exists:', username);
             return res.status(400).json({ error: 'Username already taken' });
         }
 
@@ -23,9 +35,14 @@ router.post('/create', async (req, res) => {
         });
 
         await tempUser.save();
+        console.log('User created successfully:', tempUser);
         res.status(201).json(tempUser);
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error creating temporary user:', error);
+        res.status(500).json({ 
+            error: 'Error creating temporary user',
+            details: error.message
+        });
     }
 });
 
