@@ -87,10 +87,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span id="country-name"></span>
                     </div>
                 </div>
-                <button type="button" id="start-chatting-btn" class="submit-btn">Start Chatting</button>
+                <button type="submit" id="start-chatting-btn" class="submit-btn">Start Chatting</button>
             </form>
         `;
-    
+
+        // Get the form element
+        const form = document.getElementById('talk-to-strangers-form');
+        
         // Automatically detect and display the user's country
         fetch('https://ipapi.co/json/')
             .then(response => response.json())
@@ -108,23 +111,52 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('country-display').textContent = 'Unable to detect country';
             });
     
-        // Add click handler for the Start Chatting button
-        const startChattingBtn = document.getElementById('start-chatting-btn');
-        startChattingBtn.addEventListener('click', () => {
-            console.log('Start Chatting button clicked');
-            const handleFormSubmission = () => {
-                console.log('Form submitted with data:', {
-                    username: document.getElementById('username').value,
-                    age: document.getElementById('age').value,
-                    gender: document.getElementById('gender').value,
-                    country: document.getElementById('country-name').textContent
+        // Add submit handler for the form
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const age = parseInt(document.getElementById('age').value);
+            const gender = document.getElementById('gender').value;
+            const countryName = document.getElementById('country-name').textContent;
+            const countryFlag = document.getElementById('country-flag').src;
+            const countryCode = countryFlag.split('/').pop().split('.')[0];
+
+            // Validate form data
+            if (!username || !age || !gender || !countryName) {
+                alert('Please fill in all fields');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/temp-users/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username,
+                        age,
+                        gender,
+                        country: countryName,
+                        countryCode
+                    }),
                 });
-    
-                // Show a message to the user
-                alert('Form submitted! (This is a placeholder. In a real app, you would send this data to your backend)');
-            };
-    
-            handleFormSubmission();
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Store user data in sessionStorage
+                    sessionStorage.setItem('tempUser', JSON.stringify(data));
+                    // Redirect to chat page
+                    window.location.href = '/chat';
+                } else {
+                    alert(data.error || 'Error creating temporary user');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error creating temporary user. Please try again.');
+            }
         });
     }
 

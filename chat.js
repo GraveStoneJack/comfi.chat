@@ -1,4 +1,11 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // Check if user is logged in
+    const currentUser = JSON.parse(sessionStorage.getItem('tempUser'));
+    if (!currentUser) {
+        window.location.href = '/'; // Redirect to home if not logged in
+        return;
+    }
+
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     const onlineTab = document.getElementById('online-tab');
@@ -15,27 +22,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const ageMaxSelect = document.getElementById('age-max');
     const applyFiltersBtn = document.getElementById('apply-filters');
     const clearFiltersBtn = document.getElementById('clear-filters');
-    const blockUserBtn = document.getElementById('block-user-btn');
-    const reportUserBtn = document.getElementById('report-user-btn');
     const reportPopup = document.getElementById('report-popup');
     const reportForm = document.getElementById('report-form');
     const chatArea = document.querySelector('.chat-area');
+
+    let onlineUsers = [];
+    let activeChats = [];
+    let currentChatUser = null;
+
+    // Initialize chat area as inactive
     chatArea.classList.remove('active');
 
-    // Sample data for online users and chats
-    let originalOnlineUsers = [
-        { id: 1, name: 'Alice', age: 25, country: 'us', countryName: 'United States', gender: 'female', avatar: 'https://i.pravatar.cc/150?img=1' },
-        { id: 2, name: 'Bob', age: 30, country: 'gb', countryName: 'United Kingdom', gender: 'male', avatar: 'https://i.pravatar.cc/150?img=2' },
-        { id: 3, name: 'Charlie', age: 22, country: 'ca', countryName: 'Canada', gender: 'male', avatar: 'https://i.pravatar.cc/150?img=3' },
-        { id: 4, name: 'Diana', age: 28, country: 'au', countryName: 'Australia', gender: 'female', avatar: 'https://i.pravatar.cc/150?img=4' },
-    ];
-
-    let onlineUsers = [...originalOnlineUsers];
-
-    let activeChats = [
-        { id: 1, name: 'Alice', age: 25, country: 'us', countryName: 'United States', lastMessage: 'Hey there!', avatar: 'https://i.pravatar.cc/150?img=1' },
-        { id: 2, name: 'Bob', age: 30, country: 'gb', countryName: 'United Kingdom', lastMessage: 'How are you?', avatar: 'https://i.pravatar.cc/150?img=2' },
-    ];
+    // Fetch online users from the server
+    async function fetchOnlineUsers() {
+        try {
+            const response = await fetch('/api/temp-users/online');
+            if (response.ok) {
+                const users = await response.json();
+                // Filter out current user from the list
+                onlineUsers = users.filter(user => user.username !== currentUser.username);
+                updateOnlineUsers();
+                populateCountryFilter();
+            }
+        } catch (error) {
+            console.error('Error fetching online users:', error);
+        }
+    }
 
     function updateOnlineUsers() {
         const onlineUsersContainer = document.getElementById('online-users');
@@ -44,11 +56,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const userElement = document.createElement('div');
             userElement.classList.add('user-item');
             userElement.innerHTML = `
-            <img src="${user.avatar}" alt="${user.name}" class="user-avatar">
-            <div class="user-info">
-                <div class="user-name">${user.name}</div>
-                <div class="user-details">${user.age} | <img src="https://flagcdn.com/w160/${user.country}.png" alt="${user.countryName}" class="flag-icon"> ${user.countryName}</div>
-            </div>
+                <div class="user-info">
+                    <div class="user-name">${user.username}</div>
+                    <div class="user-details">
+                        ${user.age} | 
+                        <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png" 
+                             alt="${user.country}" class="flag-icon"> 
+                        ${user.country}
+                    </div>
+                </div>
             `;
             userElement.addEventListener('click', () => openChat(user));
             onlineUsersContainer.appendChild(userElement);
@@ -62,12 +78,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const chatElement = document.createElement('div');
             chatElement.classList.add('chat-item');
             chatElement.innerHTML = `
-        <img src="${chat.avatar}" alt="${chat.name}" class="chat-avatar">
-        <div class="chat-info">
-            <div class="chat-name">${chat.name}</div>
-            <div class="chat-details">${chat.age} | <img src="https://flagcdn.com/w160/${chat.country}.png" alt="${chat.countryName}" class="flag-icon"> ${chat.countryName}</div>
-            <div class="chat-preview">${chat.lastMessage}</div>
-        </div>
+                <div class="chat-info">
+                    <div class="chat-name">${chat.username}</div>
+                    <div class="chat-details">
+                        ${chat.age} | 
+                        <img src="https://flagcdn.com/w160/${chat.countryCode.toLowerCase()}.png" 
+                             alt="${chat.country}" class="flag-icon"> 
+                        ${chat.country}
+                    </div>
+                    <div class="chat-preview">${chat.lastMessage || 'Start chatting...'}</div>
+                </div>
             `;
             chatElement.addEventListener('click', () => openChat(chat));
             chatsTab.appendChild(chatElement);
@@ -75,94 +95,122 @@ document.addEventListener('DOMContentLoaded', () => {
         chatsCount.textContent = activeChats.length;
     }
 
-    function populateCountryFilter() {
-        const countries = [...new Set(originalOnlineUsers.map(user => user.country))];
-        countries.forEach(country => {
-            const user = originalOnlineUsers.find(u => u.country === country);
+    async function populateCountryFilter() {
+        const countries = [...new Set(onlineUsers.map(user => user.countryCode))];
+        countryFilter.innerHTML = '<option value="all">All Countries</option>';
+        countries.forEach(countryCode => {
+            const user = onlineUsers.find(u => u.countryCode === countryCode);
             const option = document.createElement('option');
-            option.value = country;
-            option.innerHTML = `<img src="https://flagcdn.com/w160/${country}.png" alt="${user.countryName}" class="flag-icon"> ${user.countryName}`;
+            option.value = countryCode;
+            option.innerHTML = `${user.country}`;
             countryFilter.appendChild(option);
         });
     }
-   
+
     function applyFilters() {
         const gender = genderFilter.value;
         const country = countryFilter.value;
         const minAge = parseInt(ageMinSelect.value) || 13;
         const maxAge = parseInt(ageMaxSelect.value) || 100;
 
-        onlineUsers = originalOnlineUsers.filter(user => {
+        const filteredUsers = onlineUsers.filter(user => {
             return (gender === 'all' || user.gender === gender) &&
-                   (country === 'all' || user.country === country) &&
+                   (country === 'all' || user.countryCode === country) &&
                    (user.age >= minAge && user.age <= maxAge);
         });
 
-        updateOnlineUsers();
+        updateOnlineUsers(filteredUsers);
     }
 
     function resetFilters() {
         genderFilter.value = 'all';
         countryFilter.value = 'all';
         ageMinSelect.value = '';
-        ageMaxSelect.innerHTML = '<option value="">Max Age</option>';
-        for (let i = 13; i <= 100; i++) {
-            const option = document.createElement('option');
-            option.value = i;
-            option.textContent = i;
-            ageMaxSelect.appendChild(option);
-        }
-        onlineUsers = [...originalOnlineUsers];
-        updateOnlineUsers();
+        ageMaxSelect.value = '';
+        fetchOnlineUsers(); // Fetch fresh list of online users
     }
 
     function openChat(user) {
-        const chatArea = document.querySelector('.chat-area');
-        const chatHeader = document.querySelector('.chat-header');
-        const chatActions = document.querySelector('.chat-actions');
-        const messages = document.querySelector('.messages');
-        
-        // Add active class to chat area
+        currentChatUser = user;
         chatArea.classList.add('active');
-    
+
         chatHeader.innerHTML = `
-            <h2>${user.name}</h2>
-            <div class="user-info">${user.age} | <img src="https://flagcdn.com/w160/${user.country}.png" alt="${user.countryName}" class="flag-icon"> ${user.countryName}</div>
+            <h2>${user.username}</h2>
+            <div class="user-info">
+                ${user.age} | 
+                <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png" 
+                     alt="${user.country}" class="flag-icon"> 
+                ${user.country}
+            </div>
         `;
-    
+
+        const chatActions = document.querySelector('.chat-actions');
         chatActions.innerHTML = `
             <button id="block-user-btn" class="action-btn">Block</button>
             <button id="report-user-btn" class="action-btn">Report</button>
         `;
-    
+
         messages.innerHTML = ''; // Clear previous messages
-    
+
+        // Add to active chats if not already present
+        if (!activeChats.find(chat => chat.username === user.username)) {
+            activeChats.push(user);
+            updateActiveChats();
+        }
+
         // Reattach event listeners
-        const blockUserBtn = document.getElementById('block-user-btn');
-        const reportUserBtn = document.getElementById('report-user-btn');
-    
-        blockUserBtn.addEventListener('click', () => {
-            console.log('Block user clicked');
+        document.getElementById('block-user-btn').addEventListener('click', () => {
+            if (confirm(`Are you sure you want to block ${user.username}?`)) {
+                // Implement block user functionality
+                console.log(`Blocked user: ${user.username}`);
+                // Remove user from active chats
+                activeChats = activeChats.filter(chat => chat.username !== user.username);
+                updateActiveChats();
+                chatArea.classList.remove('active');
+            }
         });
-    
-        reportUserBtn.addEventListener('click', () => {
+
+        document.getElementById('report-user-btn').addEventListener('click', () => {
             reportPopup.style.display = 'block';
         });
     }
 
-    reportForm.addEventListener('submit', (e) => {
+    reportForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        // Implement report user functionality
-        console.log('Report submitted:', {
-            reason: document.querySelector('input[name="report-reason"]:checked').value,
-            additionalInfo: document.getElementById('additional-info').value
-        });
-        // You'll add the actual reporting logic here later
+        if (!currentChatUser) return;
+
+        const reason = document.querySelector('input[name="report-reason"]:checked').value;
+        const additionalInfo = document.getElementById('additional-info').value;
+
+        try {
+            const response = await fetch('/api/reports/create', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    reportedUser: currentChatUser.username,
+                    reportingUser: currentUser.username,
+                    reason,
+                    additionalInfo
+                }),
+            });
+
+            if (response.ok) {
+                alert('Report submitted successfully');
+            } else {
+                alert('Failed to submit report');
+            }
+        } catch (error) {
+            console.error('Error submitting report:', error);
+            alert('Error submitting report');
+        }
+
         reportPopup.style.display = 'none';
     });
 
-     // Close popup when clicking outside
-     window.addEventListener('click', (e) => {
+    // Close popup when clicking outside
+    window.addEventListener('click', (e) => {
         if (e.target === reportPopup) {
             reportPopup.style.display = 'none';
         }
@@ -177,43 +225,69 @@ document.addEventListener('DOMContentLoaded', () => {
         ageMaxSelect.appendChild(option);
     }
 
-        // Event listeners
-        tabBtns.forEach(btn => {
-            btn.addEventListener('click', () => {
-                tabBtns.forEach(b => b.classList.remove('active'));
-                tabContents.forEach(c => c.classList.remove('active'));
-                btn.classList.add('active');
-                document.getElementById(`${btn.dataset.tab}-tab`).classList.add('active');
-            });
+    // Event listeners
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById(`${btn.dataset.tab}-tab`).classList.add('active');
         });
-    
-        ageMinSelect.addEventListener('change', () => {
-            const minAge = parseInt(ageMinSelect.value);
-            ageMaxSelect.innerHTML = '<option value="">Max Age</option>';
-            for (let i = minAge; i <= 100; i++) {
-                const option = document.createElement('option');
-                option.value = i;
-                option.textContent = i;
-                ageMaxSelect.appendChild(option);
-            }
-        });
-    
-        applyFiltersBtn.addEventListener('click', applyFilters);
-    
-        clearFiltersBtn.addEventListener('click', resetFilters);
-    
-        sendBtn.addEventListener('click', () => {
-            const message = messageInput.value.trim();
-            if (message) {
-                // Add logic to send message
-                console.log('Sending message:', message);
-                messageInput.value = '';
-            }
-        });
-    
-        // Initialize
-        updateOnlineUsers();
-        updateActiveChats();
-        populateCountryFilter();
     });
-    
+
+    ageMinSelect.addEventListener('change', () => {
+        const minAge = parseInt(ageMinSelect.value);
+        ageMaxSelect.innerHTML = '<option value="">Max Age</option>';
+        for (let i = minAge; i <= 100; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = i;
+            ageMaxSelect.appendChild(option);
+        }
+    });
+
+    applyFiltersBtn.addEventListener('click', applyFilters);
+    clearFiltersBtn.addEventListener('click', resetFilters);
+
+    sendBtn.addEventListener('click', () => {
+        const message = messageInput.value.trim();
+        if (message && currentChatUser) {
+            // Add message to chat
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', 'outgoing');
+            messageElement.innerHTML = `
+                <div class="message-content">${message}</div>
+            `;
+            messages.appendChild(messageElement);
+            
+            // Clear input
+            messageInput.value = '';
+            
+            // Update last message in active chats
+            const chatIndex = activeChats.findIndex(chat => chat.username === currentChatUser.username);
+            if (chatIndex !== -1) {
+                activeChats[chatIndex].lastMessage = message;
+                updateActiveChats();
+            }
+        }
+    });
+
+    // Initialize
+    fetchOnlineUsers();
+    setInterval(fetchOnlineUsers, 30000); // Refresh online users every 30 seconds
+
+    // Update user's online status when leaving
+    window.addEventListener('beforeunload', async () => {
+        try {
+            await fetch(`/api/temp-users/status/${currentUser.username}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ isOnline: false }),
+            });
+        } catch (error) {
+            console.error('Error updating status:', error);
+        }
+    });
+});
