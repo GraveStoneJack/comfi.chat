@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxeonChat - Chat Room</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="chat-container">
+        <div class="user-list">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="online">Online (<span id="online-count">0</span>)</button>
+                <button class="tab-btn" data-tab="chats">Chats (<span id="chats-count">0</span>)</button>
+            </div>
+            <div class="tab-content active" id="online-tab">
+                <div class="filter-section">
+                    <select id="gender-filter">
+                        <option value="all">All Genders</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                    <select id="country-filter">
+                        <option value="all">All Countries</option>
+                        <!-- Countries will be populated dynamically -->
+                    </select>
+                    <div class="age-filter">
+                        <select id="age-min">
+                            <option value="">Min Age</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                        <select id="age-max">
+                            <option value="">Max Age</option>
+                            <!-- Options will be populated dynamically -->
+                        </select>
+                    </div>
+                    <div class="filter-buttons">
+                        <button id="apply-filters">Apply Filters</button>
+                        <button id="clear-filters">Clear Filters</button>
+                    </div>
+                </div>
+                <div id="online-users">
+                    <!-- Online users will be populated here -->
+                </div>
+            </div>
+            <div class="tab-content" id="chats-tab">
+                <!-- Active chats will be populated here -->
+            </div>
+        </div>
+        <div class="chat-area">
+            <div class="chat-header">
+                <h2 id="chat-user-name"></h2>
+                <div class="user-info">
+                    <span id="chat-user-age"></span> | 
+                    <img id="chat-user-flag" src="" alt="" class="flag-icon"> 
+                    <span id="chat-user-country"></span>
+                </div>
+            </div>
+            <div class="default-state">
+                <div class="default-message">
+                    <i class="fas fa-comments"></i>
+                    <h2>Welcome to LuxeonChat</h2>
+                    <p>Select a user from the list to start chatting</p>
+                </div>
+            </div>
+            <div class="chat-actions">
+                <button id="block-user-btn" class="action-btn">Block</button>
+                <button id="report-user-btn" class="action-btn">Report</button>
+            </div>
+            <div class="messages">
+                <!-- Messages will be populated here -->
+            </div>
+            <div class="message-input">
+                <input type="text" id="message-text" placeholder="Type your message...">
+                <button id="send-btn">Send</button>
+            </div>
+        </div>
+    </div>
+    <script src="chat.js"></script>
+    <div id="report-popup">
+        <h3>Report User</h3>
+        <form id="report-form">
+            <label>
+                <input type="radio" name="report-reason" value="harassment" required>
+                Harassment
+            </label>
+            <label>
+                <input type="radio" name="report-reason" value="spam" required>
+                Spam
+            </label>
+            <label>
+                <input type="radio" name="report-reason" value="inappropriate-content" required>
+                Inappropriate Content
+            </label>
+            <label>
+                <input type="radio" name="report-reason" value="other" required>
+                Other
+            </label>
+            <textarea id="additional-info" placeholder="Additional information (optional)"></textarea>
+            <div class="popup-actions">
+                <button type="button" onclick="document.getElementById('report-popup').style.display='none';">Cancel</button>
+                <button type="submit">Submit Report</button>
+            </div>
+        </form>
+    </div>
+</body>
+</html>
