@@ -4,12 +4,21 @@ const router = express.Router();
 const TempUser = require('../models/TempUser');
 
 // Create temporary user
-router.post('/create', async (req, res) => {
+outer.post('/create', async (req, res) => {
     try {
-        console.log('Received request body:', req.body); // Added for debugging
+        console.log('Received request body:', req.body);
 
         const { username, age, gender, country, countryCode } = req.body;
         
+        // Log all received data
+        console.log('Parsed data:', {
+            username,
+            age,
+            gender,
+            country,
+            countryCode
+        });
+
         // Validate required fields
         if (!username || !age || !gender || !country || !countryCode) {
             console.log('Missing required fields:', { username, age, gender, country, countryCode });
@@ -26,22 +35,30 @@ router.post('/create', async (req, res) => {
             return res.status(400).json({ error: 'Username already taken' });
         }
 
+        // Create new user with explicit data
         const tempUser = new TempUser({
-            username,
-            age,
-            gender,
-            country,
-            countryCode
+            username: username,
+            age: parseInt(age),
+            gender: gender,
+            country: country,
+            countryCode: countryCode,
+            isOnline: true,
+            createdAt: new Date()
         });
 
-        await tempUser.save();
-        console.log('User created successfully:', tempUser);
-        res.status(201).json(tempUser);
+        // Log the user object before saving
+        console.log('Attempting to save user:', tempUser);
+
+        const savedUser = await tempUser.save();
+        console.log('User created successfully:', savedUser);
+        res.status(201).json(savedUser);
     } catch (error) {
         console.error('Error creating temporary user:', error);
+        // Send more detailed error information
         res.status(500).json({ 
             error: 'Error creating temporary user',
-            details: error.message
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });
