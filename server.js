@@ -17,7 +17,7 @@ app.use(express.static('public'));
 
 // Debug middleware
 app.use((req, res, next) => {
-    console.log(`${req.method} ${req.url}`);
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
     if (req.method === 'POST') {
         console.log('Request body:', req.body);
     }

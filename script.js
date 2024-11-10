@@ -90,8 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button type="submit" id="start-chatting-btn" class="submit-btn">Start Chatting</button>
             </form>
         `;
-
-        // Get the form element
+    
         const form = document.getElementById('talk-to-strangers-form');
         
         // Automatically detect and display the user's country
@@ -105,30 +104,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('country-flag').src = `https://flagcdn.com/w160/${countryCode}.png`;
                 document.getElementById('country-flag').alt = countryName;
                 document.getElementById('country-display').style.display = 'flex';
+                
+                // Debug log - add this
+                console.log('Country detection:', { countryName, countryCode });
             })
             .catch(error => {
                 console.error('Error detecting country:', error);
                 document.getElementById('country-display').textContent = 'Unable to detect country';
             });
     
-        // Add submit handler for the form
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-
+            
+            // Get form values
+            const username = document.getElementById('username').value.trim();
+            const age = parseInt(document.getElementById('age').value);
+            const gender = document.getElementById('gender').value;
+            const countryName = document.getElementById('country-name').textContent;
+            const countryFlag = document.getElementById('country-flag').src;
+            const countryCode = countryFlag.split('/').pop().split('.')[0];
+    
+            // Debug log - add this
+            console.log('Form Data:', {
+                username,
+                age,
+                gender,
+                country: countryName,
+                countryCode
+            });
+    
+            // Validate data before sending
+            if (!username || !age || !gender || !countryName || !countryCode) {
+                const missingFields = [];
+                if (!username) missingFields.push('username');
+                if (!age) missingFields.push('age');
+                if (!gender) missingFields.push('gender');
+                if (!countryName) missingFields.push('country');
+                if (!countryCode) missingFields.push('countryCode');
+                
+                console.log('Validation failed - missing fields:', missingFields);
+                alert('Please fill in all fields');
+                return;
+            }
+    
             try {
-                const username = document.getElementById('username').value.trim();
-                const age = parseInt(document.getElementById('age').value);
-                const gender = document.getElementById('gender').value;
-                const countryName = document.getElementById('country-name').textContent;
-                const countryFlag = document.getElementById('country-flag').src;
-                const countryCode = countryFlag.split('/').pop().split('.')[0];
-    
-                // Validate data before sending
-                if (!username || !age || !gender || !countryName || !countryCode) {
-                    alert('Please fill in all fields');
-                    return;
-                }
-    
+                console.log('Sending request to server...');
                 const response = await fetch('/api/temp-users/create', {
                     method: 'POST',
                     headers: {
@@ -143,24 +163,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     }),
                 });
     
-                const data = await response.json();
+                // Debug log - add this
+                console.log('Response status:', response.status);
                 
+                const data = await response.json();
+                console.log('Response data:', data);
+    
                 if (response.ok) {
-                    // Store user data in sessionStorage
+                    console.log('User created successfully:', data);
                     sessionStorage.setItem('tempUser', JSON.stringify(data));
-                    // Redirect to chat page
                     window.location.href = '/chat';
                 } else {
-                    // Show specific error message from server
-                    alert(data.error || 'Error creating temporary user');
                     console.error('Server error:', data);
+                    alert(data.error || 'Error creating temporary user');
                 }
             } catch (error) {
-                console.error('Error:', error);
+                console.error('Fetch error:', error);
                 alert('Error creating temporary user. Please try again.');
             }
         });
     }
+    
 
     function showPage(title, content) {
         authSection.innerHTML = `
