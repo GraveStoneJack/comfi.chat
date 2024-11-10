@@ -8,19 +8,30 @@ const tempUsersRoutes = require('./routes/tempUsers');
 
 dotenv.config();
 
+// Initialize express only once
 const app = express();
 
 // Middleware
 app.use(express.json());
+app.use(express.static('public'));
 
 // CORS configuration
 const corsOptions = {
     origin: ['https://steady-lollipop-53e11c.netlify.app'],
     credentials: true,
     optionsSuccessStatus: 200
-},
+};
 
 app.use(cors(corsOptions));
+
+// Debug middleware
+app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    if (req.method === 'POST') {
+        console.log('Request body:', req.body);
+    }
+    next();
+});
 
 // Routes
 app.use('/api/temp-users', tempUsersRoutes);
@@ -46,14 +57,14 @@ mongoose.connect(process.env.MONGODB_URI, {
     console.log('Database:', mongoose.connection.db.databaseName);
 
     // Initialize server only after successful database connection
-    const PORT = process.env.PORT || 10000; // Changed to 10000 for Render
+    const PORT = process.env.PORT || 10000;
     app.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });
 })
 .catch(err => {
     console.error('MongoDB connection error:', err);
-    process.exit(1); // Exit if unable to connect to database
+    process.exit(1);
 });
 
 // Error handling
