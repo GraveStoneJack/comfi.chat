@@ -1,4 +1,9 @@
 // routes/tempUsers.js
+const express = require('express');
+const router = express.Router(); // Add this line at the top
+const TempUser = require('../models/TempUser');
+
+// Create temporary user
 router.post('/create', async (req, res) => {
     try {
         console.log('[TempUser Create] Request body:', req.body);
@@ -83,3 +88,30 @@ router.post('/create', async (req, res) => {
         });
     }
 });
+
+// Get online users
+router.get('/online', async (req, res) => {
+    try {
+        const onlineUsers = await TempUser.find({ isOnline: true });
+        res.json(onlineUsers);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update user online status
+router.put('/status/:username', async (req, res) => {
+    try {
+        const { isOnline } = req.body;
+        const user = await TempUser.findOneAndUpdate(
+            { username: req.params.username },
+            { isOnline },
+            { new: true }
+        );
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+module.exports = router;
