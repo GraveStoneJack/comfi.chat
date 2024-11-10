@@ -1,5 +1,5 @@
 // script.js
-const API_URL = 'https://luxeonchat-backend.onrender.com'; https://luxeonchat-backend.onrender.com
+const API_URL = 'https://luxeonchat-backend.onrender.com';
 
 document.addEventListener('DOMContentLoaded', () => {
     const googleBtn = document.querySelector('.google-btn');
