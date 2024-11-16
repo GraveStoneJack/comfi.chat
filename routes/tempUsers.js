@@ -89,16 +89,6 @@ router.post('/create', async (req, res) => {
     }
 });
 
-// Get online users
-router.get('/online', async (req, res) => {
-    try {
-        const onlineUsers = await TempUser.find({ isOnline: true });
-        res.json(onlineUsers);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
 // Update user online status
 router.put('/status/:username', async (req, res) => {
     try {
@@ -119,7 +109,7 @@ router.put('/status/:username', async (req, res) => {
         console.log(`User ${user.username} status updated to ${isOnline}`);
         res.json(user);
     } catch (error) {
-        console.error('Error updating user status:' error);
+        console.error('Error updating user status:', error);
         res.status(500).json({ error: 'Failed to update user status' });
     }
 });
@@ -130,10 +120,14 @@ router.get('/online', async (req, res) => {
         const onlineUsers = await TempUser.find({ isOnline: true })
             .sort({ lastSeen: -1 }); // Sort by most recently active
 
-        console.log(`Fetch ${onlineUsers.length} online users`);
+        console.log('[TempUser Online] Fetched online users:', {
+            count: onlineUsers.length,
+            usernames: onlineUsers.map(user => user.username)
+        });
+
         res.json(onlineUsers);
     } catch (error) {
-        console.error('Error fetching online users:' error);
+        console.error('[TempUser Online] Error fetching online users:' error);
         res.status(500).json({ error: 'Failed to fetch online users' });
     }
 });
