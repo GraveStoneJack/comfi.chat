@@ -137,6 +137,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentChatUser = user;
         chatArea.classList.add('active');
 
+        // Auto switch to chat tab
+        tabBtns.forEach(btn => btn.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+        const chatsTabBtn = document.querySelector('[data-tab="chats"]');
+        chatsTabBtn.classList.add('active');
+        document.getElementById('chats-tab').classList.add('active');
+
         chatHeader.innerHTML = `
             <h2>${user.username}</h2>
             <div class="user-info">
