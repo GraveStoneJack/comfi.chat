@@ -17,7 +17,7 @@ app.use(express.static('public'));
 
 // CORS configuration
 const corsOptions = {
-    origin: ['https://steady-lollipop-53e11c.netlify.app'],
+    origin: ['https://luxeonchat.netlify.app'],
     credentials: true,
     optionsSuccessStatus: 200
 };

@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </select>
                 </div>
                 <div class="form-group">
-                    <div class="country-display">
+                    <div id="country-display" class="country-display">
                         <img id="country-flag" src="" alt="" class="flag-icon">
                         <span id="country-name"></span>
                     </div>
@@ -103,17 +103,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 const countryName = data.country_name;
                 const countryCode = data.country_code.toLowerCase();
 
-                document.getElementById('country-name').textContent = countryName;
-                document.getElementById('country-flag').src = `https://flagcdn.com/w160/${countryCode}.png`;
-                document.getElementById('country-flag').alt = countryName;
-                document.getElementById('country-display').style.display = 'flex';
+                const countryNameElement = document.getElementById('country-name');
+                const countryFlagElement = document.getElementById('country-flag');
+                const countryDisplayElement = document.getElementById('country-display');
 
-                // Debug log - add this
-                console.log('Country detection:', { countryName, countryCode });
+                if (countryNameElement && countryFlagElement && countryDisplayElement) {
+                    countryNameElement.textContent = countryName;
+                    countryFlagElement.src = `https://flagcdn.com/w160/${countryCode}.png`;
+                    countryFlagElement.alt = countryName;
+                    countryDisplayElement.style.display = 'flex';
+
+                    // Debug log
+                    console.log('Country detection:', { countryName, countryCode });
+                }
             })
             .catch(error => {
                 console.error('Error detecting country:', error);
-                document.getElementById('country-display').textContent = 'Unable to detect country';
+                const countryDisplay = document.getElementById('country-display');
+                if (countryDisplay) {
+                    countryDisplay.textContent = 'Unable to detect country';
+                }
             });
 
         form.addEventListener('submit', async (e) => {
@@ -127,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const countryFlag = document.getElementById('country-flag').src;
             const countryCode = countryFlag.split('/').pop().split('.')[0];
 
-            // Debug log - add this
+            // Debug log
             console.log('Form Data:', {
                 username,
                 age,
@@ -152,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 console.log('Sending request to server...');
-                const response = await fetch('/api/temp-users/create', {
+                const response = await fetch(`${API_URL}/api/temp-users/create`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -166,7 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }),
                 });
 
-                // Debug log - add this
+                // Debug log
                 console.log('Response status:', response.status);
 
                 const data = await response.json();
