@@ -1,3 +1,6 @@
+// Backend
+const API_URL = 'https://luxeonchat-backend.onrender.com';
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Check if user is logged in
     const currentUser = JSON.parse(sessionStorage.getItem('tempUser'));
@@ -36,7 +39,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Fetch online users from the server
     async function fetchOnlineUsers() {
         try {
-            const response = await fetch('/api/temp-users/online');
+            const response = await fetch(`${API_URL}/api/temp-users/online`);
             if (response.ok) {
                 const users = await response.json();
                 // Filter out current user from the list
@@ -59,9 +62,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="user-info">
                     <div class="user-name">${user.username}</div>
                     <div class="user-details">
-                        ${user.age} | 
-                        <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png" 
-                             alt="${user.country}" class="flag-icon"> 
+                        ${user.age} |
+                        <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
+                             alt="${user.country}" class="flag-icon">
                         ${user.country}
                     </div>
                 </div>
@@ -81,9 +84,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="chat-info">
                     <div class="chat-name">${chat.username}</div>
                     <div class="chat-details">
-                        ${chat.age} | 
-                        <img src="https://flagcdn.com/w160/${chat.countryCode.toLowerCase()}.png" 
-                             alt="${chat.country}" class="flag-icon"> 
+                        ${chat.age} |
+                        <img src="https://flagcdn.com/w160/${chat.countryCode.toLowerCase()}.png"
+                             alt="${chat.country}" class="flag-icon">
                         ${chat.country}
                     </div>
                     <div class="chat-preview">${chat.lastMessage || 'Start chatting...'}</div>
@@ -137,9 +140,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         chatHeader.innerHTML = `
             <h2>${user.username}</h2>
             <div class="user-info">
-                ${user.age} | 
-                <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png" 
-                     alt="${user.country}" class="flag-icon"> 
+                ${user.age} |
+                <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
+                     alt="${user.country}" class="flag-icon">
                 ${user.country}
             </div>
         `;
@@ -183,7 +186,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const additionalInfo = document.getElementById('additional-info').value;
 
         try {
-            const response = await fetch('/api/reports/create', {
+            const response = await fetch(`${API_URL}/api/reports/create`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -259,10 +262,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="message-content">${message}</div>
             `;
             messages.appendChild(messageElement);
-            
+
             // Clear input
             messageInput.value = '';
-            
+
             // Update last message in active chats
             const chatIndex = activeChats.findIndex(chat => chat.username === currentChatUser.username);
             if (chatIndex !== -1) {
@@ -279,7 +282,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update user's online status when leaving
     window.addEventListener('beforeunload', async () => {
         try {
-            await fetch(`/api/temp-users/status/${currentUser.username}`, {
+            await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
