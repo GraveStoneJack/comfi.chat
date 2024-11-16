@@ -46,33 +46,76 @@ document.addEventListener('DOMContentLoaded', async () => {
                 onlineUsers = users.filter(user => user.username !== currentUser.username);
                 updateOnlineUsers();
                 populateCountryFilter();
+
+                // Debug log to check updates
+                console.log('Fetched online users:', onlineUsers);
             }
         } catch (error) {
             console.error('Error fetching online users:', error);
         }
     }
 
+    // Initial fetch
+    await fetchOnlineUsers();
+
+    // frequent polling for online users (every 3 seconds)
+    const onlineUsersInterval = setInterval(fetchOnlineUsers, 3000);
+
+    // Clean up intervals when leaving the page
+    window.addEventListener('beforeunload', async () => {
+        // Clear the polling interval
+        clearInterval(onlineUsersInterval);
+
+        try {
+            await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ isOnline: false }),
+            });
+        } catch (error) {
+            console.error('Error updating status:', error);
+        }
+    });
+
     function updateOnlineUsers() {
         const onlineUsersContainer = document.getElementById('online-users');
-        onlineUsersContainer.innerHTML = '';
+        if (!onlineUsersContainer) return;
+
+        // Fragment for better performance
+        const fragment = document.createDocumentFragment();
+
         onlineUsers.forEach(user => {
             const userElement = document.createElement('div');
             userElement.classList.add('user-item');
+            userElement.dataset.username = user.username; // Add data attribute for easy reference
             userElement.innerHTML = `
                 <div class="user-info">
                     <div class="user-name">${user.username}</div>
                     <div class="user-details">
                         ${user.age} |
                         <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
-                             alt="${user.country}" class="flag-icon">
+                            alt="${user.country}" class="flag-icon">
                         ${user.country}
                     </div>
                 </div>
             `;
             userElement.addEventListener('click', () => openChat(user));
-            onlineUsersContainer.appendChild(userElement);
+            fragment.appendChild(userElement);
         });
-        onlineCount.textContent = onlineUsers.length;
+
+        // Clear and update the container
+        onlineUsersContainer.innerHTML = '';
+        onlineUsersContainer.appendChild(fragment);
+
+        // Update the counter
+        if (onlineCount) {
+            onlineCount.textContent = onlineUsers.length;
+        }
+
+        // Debug log
+        console.log(`Updated online users list. Count: ${onlineUsers.length}`);
     }
 
     function updateActiveChats() {
@@ -281,10 +324,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
     });
-
-    // Initialize
-    fetchOnlineUsers();
-    setInterval(fetchOnlineUsers, 30000); // Refresh online users every 30 seconds
 
     // Update user's online status when leaving
     window.addEventListener('beforeunload', async () => {
