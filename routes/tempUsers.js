@@ -127,7 +127,7 @@ router.get('/online', async (req, res) => {
 
         res.json(onlineUsers);
     } catch (error) {
-        console.error('[TempUser Online] Error fetching online users:' error);
+        console.error('[TempUser Online] Error fetching online users:', error);
         res.status(500).json({ error: 'Failed to fetch online users' });
     }
 });
