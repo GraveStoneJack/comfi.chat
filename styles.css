@@ -24,7 +24,7 @@ body {
     -webkit-backdrop-filter: blur(10px);
     border-radius: 20px;
     padding: 40px;
-    box-shadow: 
+    box-shadow:
         0 10px 30px rgba(47, 6, 66, 0.3),
         0 0 60px rgba(215, 154, 255, 0.2),
         inset 0 0 15px rgba(255, 255, 255, 0.5);
@@ -37,7 +37,7 @@ body {
 
 .container:hover {
     transform: translateY(-5px);
-    box-shadow: 
+    box-shadow:
         0 15px 40px rgba(47, 6, 66, 0.35),
         0 0 80px rgba(215, 154, 255, 0.25),
         inset 0 0 20px rgba(255, 255, 255, 0.6);
@@ -304,7 +304,7 @@ select::-webkit-scrollbar-thumb:hover {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-radius: 20px;
-    box-shadow: 
+    box-shadow:
         0 10px 30px rgba(47, 6, 66, 0.3),
         0 0 60px rgba(215, 154, 255, 0.2),
         inset 0 0 15px rgba(255, 255, 255, 0.5);
@@ -698,4 +698,37 @@ select::-webkit-scrollbar-thumb:hover {
 
 .chat-area:not(.active) .default-state {
     display: flex;
+}
+
+.logout-container {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 1000;
+}
+
+.logout-btn {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5253 100%);
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 10px rgba(238, 82, 82, 0.3);
+}
+
+.logout-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(238, 82, 82, 0.4);
+    background: linear-gradient(135deg, #ff5252 0%, #dd4444 100%);
+}
+
+.logout-btn i {
+    font-size: 16px;
 }

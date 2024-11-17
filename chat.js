@@ -79,6 +79,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+        // Logout button handler
+        const logoutBtn = document.getElementById('logout-btn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', async () => {
+            try {
+                // Update user status to offline
+                await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type: 'application/json',
+                    },
+                    body: JSON.stringify({ isOnline: false }),
+                });
+
+                // Clear session storage
+                sessionStorage.removeItem('tempUser');
+
+                // Redirect to home page
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Error during logout:', error);
+                // Redirect anyway
+                sessionStorage.removeItem('tempUser');
+                window.location.href = '/';
+            }
+        });
+    }
+
     function updateOnlineUsers() {
         const onlineUsersContainer = document.getElementById('online-users');
         if (!onlineUsersContainer) return;

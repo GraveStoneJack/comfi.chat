@@ -9,6 +9,11 @@
 </head>
 <body>
     <div class="chat-container">
+        <div class="logout-container">
+            <button id="logout-btn" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+        </div>
         <div class="user-list">
             <div class="tabs">
                 <button class="tab-btn active" data-tab="online">Online (<span id="online-count">0</span>)</button>
@@ -52,8 +57,8 @@
             <div class="chat-header">
                 <h2 id="chat-user-name"></h2>
                 <div class="user-info">
-                    <span id="chat-user-age"></span> | 
-                    <img id="chat-user-flag" src="" alt="" class="flag-icon"> 
+                    <span id="chat-user-age"></span> |
+                    <img id="chat-user-flag" src="" alt="" class="flag-icon">
                     <span id="chat-user-country"></span>
                 </div>
             </div>
