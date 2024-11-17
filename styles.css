@@ -299,11 +299,13 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .chat-container {
+    position: relative;
     display: flex;
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 230, 255, 0.9) 100%);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border-radius: 20px;
+    overflow: hidden;
     box-shadow:
         0 10px 30px rgba(47, 6, 66, 0.3),
         0 0 60px rgba(215, 154, 255, 0.2),
@@ -703,7 +705,7 @@ select::-webkit-scrollbar-thumb:hover {
 .logout-container {
     position: absolute;
     top: 20px;
-    right: 20px;  /* Changed from left: 20px to right: 20px */
+    right: 20px;
     z-index: 1000;
 }
 

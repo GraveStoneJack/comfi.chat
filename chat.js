@@ -5,10 +5,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Check if user is logged in
     const currentUser = JSON.parse(sessionStorage.getItem('tempUser'));
     if (!currentUser) {
-        window.location.href = '/'; // Redirect to home if not logged in
+        window.location.href = '/';
         return;
     }
 
+    // DOM element references
+    const logoutBtn = document.getElementById('logout-btn');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     const onlineTab = document.getElementById('online-tab');
@@ -36,6 +38,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize chat area as inactive
     chatArea.classList.remove('active');
 
+    // Update user's online status when page loads
+    try {
+        await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ isOnline: true }),
+        });
+    } catch (error) {
+        console.error('Error updating initial online status:', error);
+    }
+
     // Fetch online users from the server
     async function fetchOnlineUsers() {
         try {
@@ -58,53 +73,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initial fetch
     await fetchOnlineUsers();
 
-    // frequent polling for online users (every 3 seconds)
+    // Frequent polling for online users (every 3 seconds)
     const onlineUsersInterval = setInterval(fetchOnlineUsers, 3000);
 
-    // Clean up intervals when leaving the page
-    window.addEventListener('beforeunload', async () => {
-        // Clear the polling interval
-        clearInterval(onlineUsersInterval);
-
-        try {
-            await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ isOnline: false }),
-            });
-        } catch (error) {
-            console.error('Error updating status:', error);
-        }
-    });
-
-        // Logout button handler
-        const logoutBtn = document.getElementById('logout-btn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', async () => {
+    // Logout button handler
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async () => {
             try {
-                // Update user status to offline
                 await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
                     method: 'PUT',
                     headers: {
-                        'Content-Type: 'application/json',
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ isOnline: false }),
                 });
 
-                // Clear session storage
                 sessionStorage.removeItem('tempUser');
-
-                // Redirect to home page
                 window.location.href = '/';
             } catch (error) {
                 console.error('Error during logout:', error);
-                // Redirect anyway
                 sessionStorage.removeItem('tempUser');
                 window.location.href = '/';
             }
         });
+    } else {
+        console.error('Logout button not found in the DOM');
     }
 
     function updateOnlineUsers() {
@@ -117,18 +110,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         onlineUsers.forEach(user => {
             const userElement = document.createElement('div');
             userElement.classList.add('user-item');
-            userElement.dataset.username = user.username; // Add data attribute for easy reference
+            userElement.dataset.username = user.username;
             userElement.innerHTML = `
-                <div class="user-info">
-                    <div class="user-name">${user.username}</div>
-                    <div class="user-details">
-                        ${user.age} |
-                        <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
-                            alt="${user.country}" class="flag-icon">
-                        ${user.country}
-                    </div>
-                </div>
-            `;
+<div class="user-info">
+    <div class="user-name">${user.username}</div>
+    <div class="user-details">
+        ${user.age} |
+        <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
+            alt="${user.country}" class="flag-icon">
+            ${user.country}
+    </div>
+</div>
+`;
             userElement.addEventListener('click', () => openChat(user));
             fragment.appendChild(userElement);
         });
@@ -152,17 +145,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             const chatElement = document.createElement('div');
             chatElement.classList.add('chat-item');
             chatElement.innerHTML = `
-                <div class="chat-info">
-                    <div class="chat-name">${chat.username}</div>
-                    <div class="chat-details">
-                        ${chat.age} |
-                        <img src="https://flagcdn.com/w160/${chat.countryCode.toLowerCase()}.png"
-                             alt="${chat.country}" class="flag-icon">
-                        ${chat.country}
-                    </div>
-                    <div class="chat-preview">${chat.lastMessage || 'Start chatting...'}</div>
-                </div>
-            `;
+<div class="chat-info">
+    <div class="chat-name">${chat.username}</div>
+    <div class="chat-details">
+        ${chat.age} |
+        <img src="https://flagcdn.com/w160/${chat.countryCode.toLowerCase()}.png"
+            alt="${chat.country}" class="flag-icon">
+            ${chat.country}
+    </div>
+    <div class="chat-preview">${chat.lastMessage || 'Start chatting...'}</div>
+</div>
+`;
             chatElement.addEventListener('click', () => openChat(chat));
             chatsTab.appendChild(chatElement);
         });
@@ -189,8 +182,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const filteredUsers = onlineUsers.filter(user => {
             return (gender === 'all' || user.gender === gender) &&
-                   (country === 'all' || user.countryCode === country) &&
-                   (user.age >= minAge && user.age <= maxAge);
+                (country === 'all' || user.countryCode === country) &&
+                (user.age >= minAge && user.age <= maxAge);
         });
 
         updateOnlineUsers(filteredUsers);
@@ -216,20 +209,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chats-tab').classList.add('active');
 
         chatHeader.innerHTML = `
-            <h2>${user.username}</h2>
-            <div class="user-info">
-                ${user.age} |
-                <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
-                     alt="${user.country}" class="flag-icon">
-                ${user.country}
-            </div>
-        `;
+<h2>${user.username}</h2>
+<div class="user-info">
+    ${user.age} |
+    <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
+        alt="${user.country}" class="flag-icon">
+        ${user.country}
+</div>
+`;
 
         const chatActions = document.querySelector('.chat-actions');
         chatActions.innerHTML = `
-            <button id="block-user-btn" class="action-btn">Block</button>
-            <button id="report-user-btn" class="action-btn">Report</button>
-        `;
+<button id="block-user-btn" class="action-btn">Block</button>
+<button id="report-user-btn" class="action-btn">Report</button>
+`;
 
         messages.innerHTML = ''; // Clear previous messages
 
@@ -242,9 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Reattach event listeners
         document.getElementById('block-user-btn').addEventListener('click', () => {
             if (confirm(`Are you sure you want to block ${user.username}?`)) {
-                // Implement block user functionality
                 console.log(`Blocked user: ${user.username}`);
-                // Remove user from active chats
                 activeChats = activeChats.filter(chat => chat.username !== user.username);
                 updateActiveChats();
                 chatArea.classList.remove('active');
@@ -337,8 +328,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', 'outgoing');
             messageElement.innerHTML = `
-                <div class="message-content">${message}</div>
-            `;
+<div class="message-content">${message}</div>
+`;
             messages.appendChild(messageElement);
 
             // Clear input
@@ -355,6 +346,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Update user's online status when leaving
     window.addEventListener('beforeunload', async () => {
+        // Clear intervals
+        clearInterval(onlineUsersInterval);
+
         try {
             await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
                 method: 'PUT',
@@ -367,4 +361,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Error updating status:', error);
         }
     });
+
+    // Add enter key support for sending messages
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendBtn.click();
+        }
+    });
 });
+
