@@ -132,4 +132,19 @@ router.get('/online', async (req, res) => {
     }
 });
 
+// Delete user from database at logoff
+router.delete('/delete/:username', async (req, res) => {
+    try {
+        const deleteUser = await TempUser.findOneAndUpdate({
+            username: req.params.username
+        });
+
+        if (!deleteUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ message" 'User deleted successfully' });
+    }
+});
+
 module.exports = router;

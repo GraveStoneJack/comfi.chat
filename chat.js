@@ -80,7 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             try {
-                // Fist set user as offline
+                // Set user as offline
                 await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
                     method: 'PUT',
                     headers: {
@@ -89,12 +89,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     body: JSON.stringify({ isOnline: false }),
                 });
 
-                // Then delete the user
+                // Delete the user
                 const deleteResponse = await fetch(`${API_URL}/api/temp-users/delete/${currentUser.username}`, {
                     method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
                 });
 
                 if (!deleteResponse.ok) {
@@ -384,9 +381,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Delete the user
             await fetch(`${API_URL}/api/temp-users/delete/${currentUser.username}`, {
                 method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
             });
         } catch (error) {
             console.error('Error updating status:', error);
