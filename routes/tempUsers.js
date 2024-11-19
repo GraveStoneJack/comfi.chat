@@ -143,7 +143,10 @@ router.delete('/delete/:username', async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json({ message" 'User deleted successfully' });
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting user:' error);
+        res.status(500).json({ error: 'Failed to delete user' });
     }
 });
 
