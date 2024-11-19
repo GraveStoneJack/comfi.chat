@@ -17,7 +17,9 @@ app.use(express.static('public'));
 
 // CORS configuration
 const corsOptions = {
-    origin: ['https://luxeonchat.netlify.app'],
+    origin: ['https://luxeonchat.netlify.app', 'https://localhost:3000'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type'],
     credentials: true,
     optionsSuccessStatus: 200
 };
@@ -81,3 +83,6 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
+app.get('/favicon.ico', (req, res) => {
+    res.status(204).end();
+});

@@ -388,22 +388,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         clearInterval(onlineUsersInterval);
 
         try {
-            const statusData = new Blob(
-                [JSON.stringify({ isOnline: false })],
-                { type: 'application/json' }
-            );
-            const statusSent = navigator.sendBeacon(
-                `${API_URL}/api/temp-users/status/${currentUser.username}`,
-                statusData
-            );
+            // Use fetch with keepalive instead of sendBeacon
+            fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ isOnline: false }),
+                keepalive: true
+            });
 
-            const deleteSent = navigator.sendBeacon(
-                `${API_URL}/api/temp-users/delete/${currentUser.username}`
-            );
-
-            if (!statusSent || !deleteSent) {
-                console.error('Failed to send one or more beacon requests');
-            }
+            fetch(`${API_URL}/api/temp-users/delete/${currentUser.username}`, {
+                method: 'DELETE',
+                keepalive: true
+            });
         } catch (error) {
             console.error('Error in beforeunload handler:', error);
         }
