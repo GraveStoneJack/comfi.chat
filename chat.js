@@ -390,10 +390,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         messageElement.innerHTML = `
-            <div class="message-content">
-                ${message}
-            </div>
-            <div> class="message-timestamp">${timestamp}</div>
+            <div class="message-content">${message}</div>
+            <div class="message-timestamp">${timestamp}</div>
         `;
         messages.appendChild(messageElement);
         messages.scrolltop = messages.scrollHeight;
@@ -401,11 +399,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     sendBtn.addEventListener('click', () => {
         const message = messageInput.value.trim();
-        if (message && currentChatUser) {
+        if (message && currentChatUser && socket.readyState === WebSocket.OPEN) {
             // Send message through WebSocket
             socket.send(JSON.stringify({
                 type: 'message',
                 recipient: currentChatUser.username,
+                sender: currentUser.username,
                 message: message
             }));
 

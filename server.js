@@ -26,6 +26,42 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// WebSocket server implementation
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ server });
+
+const clients = new Map();
+
+wss.on('connection', (ws) => {
+    ws.on('message', (message) => {
+        const data = JSON.parse(message);
+
+        if (data.type === 'identify') {
+            clients.set(data.username, ws);
+        } else if (data.type === 'message') {
+            const recipientWs = clients.get(data.recipient);
+            if (recipientWs) {
+                recipientWs.send(JSON.stringify({
+                    type: 'message',
+                    message: data.message,
+                    sender: data.sender,
+                    timestamp: new Date()
+                }));
+            }
+        }
+    });
+
+    ws.on('close', () => {
+        // Remove client from map when they disconnect
+        for (const [username, socket] of clients.entries()) {
+            if (socket === ws) {
+                clients.delete(username);
+                break;
+            }
+        }
+    });
+});
+
 // Debug middleware
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);

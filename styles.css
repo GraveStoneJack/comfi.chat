@@ -426,10 +426,10 @@ select::-webkit-scrollbar-thumb:hover {
 .message {
     max-width: 70%;
     margin: 8px;
-    padding: 10px;
+    padding: 12px 15px;
     border-radius: 15px;
     position: relative;
-    box-shadow: 0 2px 5px rgba(47, 6, 66,0.1);
+    box-shadow: 20px
 }
 
 .message-sender {
@@ -741,9 +741,10 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .message.incoming {
-    background: linear-gradient(135deg, rgba(215, 154, 255, 0.2) 0%, rgba(155, 77, 202, 0.2) 100%);
+    background: linear-gradient(135deg, #d79aff 0%, #9b4dca 100%);
     align-self: flex-start;
     border-bottom-left-radius: 5px;
+    color: white;
 }
 
 .message.outgoing {
@@ -754,13 +755,16 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .message-timestamp {
+    position: absolute;
+    bottom: -18px;
     font-size: 0.7em;
-    margin-top: 4px;
-    text-align: right;
+    color: rgba(59, 3, 55, 0.5);
+    right: 0;
 }
 
 .message.incoming .message-timestamp {
-    color: rgba(59, 3, 55, 0.6);
+    left: 0;
+    right: auto;
 }
 
 .message.outgoing .message-timestamp {
