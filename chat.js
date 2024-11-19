@@ -387,23 +387,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Clear intervals
         clearInterval(onlineUsersInterval);
 
-        try {
-            // Use fetch with keepalive instead of sendBeacon
-            fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ isOnline: false }),
-                keepalive: true
-            });
+        // Create a synchronous XMLHttpRequest
+        const xhr = new XMLHttpRequest();
 
-            fetch(`${API_URL}/api/temp-users/delete/${currentUser.username}`, {
-                method: 'DELETE',
-                keepalive: true
-            });
+        // Set offline status
+        xhr.open('PUT', `${API_URL}/api/temp-users/status/${currentUser.username}`, false); // false makes it synchronous
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        try {
+            xhr.send(JSON.stringify({ isOnline: false }));
         } catch (error) {
-            console.error('Error in beforeunload handler:', error);
+            console.error('Error updating status:', error);
+        }
+
+        // Delete user
+        const deleteXhr = new XMLHttpRequest();
+        deleteXhr.open('DELETE', `${API_URL}/api/temp-users/delete/${currentUser.username}`, false);
+        try {
+            deleteXhr.send();
+        } catch (error) {
+            console.error('Error deleting user:', error);
         }
     });
 });
