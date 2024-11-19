@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             try {
+                // Fist set user as offline
                 await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
                     method: 'PUT',
                     headers: {
@@ -88,6 +89,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     body: JSON.stringify({ isOnline: false }),
                 });
 
+                // Then delete the user
+                const deleteResponse = await fetch(`${API_URL}/api/temp-users/delete/${currentUser.username}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!deleteResponse.ok) {
+                    console.error('Failed to delete user form the database');
+                }
+
+                // Clear session storage and redirect
                 sessionStorage.removeItem('tempUser');
                 window.location.href = '/';
             } catch (error) {
@@ -358,12 +372,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         clearInterval(onlineUsersInterval);
 
         try {
+            // Set user as offline
             await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ isOnline: false }),
+            });
+
+            // Delete the user
+            await fetch(`${API_URL}/api/temp-users/delete/${currentUser.username}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
         } catch (error) {
             console.error('Error updating status:', error);
