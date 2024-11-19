@@ -344,6 +344,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Send message on Enter kyy press
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault(); //Prevent default to avoid new line
+            sendBtn.click(); // Trigger the send button click
+        }
+    });
+
     // Update user's online status when leaving
     window.addEventListener('beforeunload', async () => {
         // Clear intervals
@@ -359,14 +367,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         } catch (error) {
             console.error('Error updating status:', error);
-        }
-    });
-
-    // Add enter key support for sending messages
-    messageInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendBtn.click();
         }
     });
 });
