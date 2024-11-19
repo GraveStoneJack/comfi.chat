@@ -1,6 +1,6 @@
 // routes/tempUsers.js
 const express = require('express');
-const router = express.Router(); // Add this line at the top
+const router = express.Router();
 const TempUser = require('../models/TempUser');
 
 // Create temporary user
@@ -89,30 +89,35 @@ router.post('/create', async (req, res) => {
     }
 });
 
-// Update user online status
-router.put('/status/:username', async (req, res) => {
+// Update user online status with combined handlers
+router.put('/status/:username', handleStatus);
+router.post('/status/:username', handleStatus);
+
+async function handleStatus(req, res) {
     try {
-        const { isOnline } = req.body;
-        const user = await TempUser.findOneAndUpdate(
+        console.log('[TempUser Status] Updating status for:', req.params.username, 'to:', req.body.isOnline);
+
+        const updatedUser = await TempUser.findOneAndUpdate(
             { username: req.params.username },
             {
-                isOnline,
-                lastSeen: new Date() // Track last activity
+                isOnline: req.body.isOnline,
+                lastSeen: new Date()
             },
             { new: true }
         );
 
-        if (!user) {
+        if (!updatedUser) {
+            console.log('[TempUser Status] User not found:', req.params.username);
             return res.status(404).json({ error: 'User not found' });
         }
 
-        console.log(`User ${user.username} status updated to ${isOnline}`);
-        res.json(user);
+        console.log('[TempUser Status] Successfully updated user:', updatedUser);
+        res.json(updatedUser);
     } catch (error) {
-        console.error('Error updating user status:', error);
+        console.error('[TempUser Status] Error:', error);
         res.status(500).json({ error: 'Failed to update user status' });
     }
-});
+}
 
 // Get online users - add sorting by lastSeen
 router.get('/online', async (req, res) => {
@@ -133,21 +138,28 @@ router.get('/online', async (req, res) => {
 });
 
 // Delete user from database at logoff
-router.delete('/delete/:username', async (req, res) => {
+router.delete('/delete/:username', handleDelete);
+router.post('/delete/:username', handleDelete);
+
+async function handleDelete(req, res) {
     try {
-        const deleteUser = await TempUser.findOneAndUpdate({
+        console.log('[TempUser Delete] Attempting to delete user:', req.params.username);
+
+        const deletedUser = await TempUser.findOneAndDelete({
             username: req.params.username
         });
 
-        if (!deleteUser) {
+        if (!deletedUser) {
+            console.log('[TempUser Delete] User not found:', req.params.username);
             return res.status(404).json({ error: 'User not found' });
         }
 
+        console.log('[TempUser Delete] Successfully deleted user:', deletedUser);
         res.json({ message: 'User deleted successfully' });
     } catch (error) {
-        console.error('Error deleting user:' error);
+        console.error('[TempUser Delete] Error:', error);
         res.status(500).json({ error: 'Failed to delete user' });
     }
-});
+}
 
 module.exports = router;

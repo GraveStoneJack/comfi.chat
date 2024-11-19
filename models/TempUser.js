@@ -35,6 +35,10 @@ const tempUserSchema = new mongoose.Schema({
     isOnline: {
         type: Boolean,
         default: true
+    },
+    lastSeen: {
+        type: Date,
+        default: Date.now
     }
 });
 

@@ -80,14 +80,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (logoutBtn) {
         logoutBtn.addEventListener('click', async () => {
             try {
+                // Disable the logout button to prevent double-clicks
+                logoutBtn.disabled = true;
+
                 // Set user as offline
-                await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
+               const statusResponse =  await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({ isOnline: false }),
                 });
+
+                if (!statusResponse.ok) {
+                    console.error('Failed to update online status');
+                }
 
                 // Delete the user
                 const deleteResponse = await fetch(`${API_URL}/api/temp-users/delete/${currentUser.username}`, {
@@ -98,13 +105,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.error('Failed to delete user form the database');
                 }
 
-                // Clear session storage and redirect
+                // Clear intervals before redirector
+                clearInterval(onlineUsersInterval);
+
+                // Clear session storage
                 sessionStorage.removeItem('tempUser');
-                window.location.href = '/';
+
+                // Add a small delay before redirecting to ensure requests complete
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 100);
+
             } catch (error) {
                 console.error('Error during logout:', error);
-                sessionStorage.removeItem('tempUser');
+                // Still clear session and redirect even if there's an erorr
+                clearInterval(onlineUsersInterval);
+                sessionstorage.removeItem('tempUser');
                 window.location.href = '/';
+            } finally {
+                logoutBtn.disable = false;
             }
         });
     } else {
@@ -364,27 +383,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Update user's online status when leaving
-    window.addEventListener('beforeunload', async () => {
+    window.addEventListener('beforeunload', (event) => {
         // Clear intervals
         clearInterval(onlineUsersInterval);
 
-        try {
-            // Set user as offline
-            await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ isOnline: false }),
-            });
+       const statusData = new Blob(
+        [JSON.stringify({ isOnline: false })],
+        { type: 'application/json' }
+    };
+    navigator.sendBeacon(
+        `${API_URL}/api/temp-users/status/${currentUser.username}`,
+        statusData
+    };
 
-            // Delete the user
-            await fetch(`${API_URL}/api/temp-users/delete/${currentUser.username}`, {
-                method: 'DELETE',
-            });
-        } catch (error) {
-            console.error('Error updating status:', error);
-        }
-    });
+    navigator.sendBeacon(
+        `${API_URL}/api/temp-users/delete/${currentUser.username}`
+    };
 });
 
