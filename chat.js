@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Send message on Enter kyy press
+    // Send message on Enter key press
     messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault(); // Prevent default to avoid new line
@@ -390,14 +390,14 @@ document.addEventListener('DOMContentLoaded', async () => {
        const statusData = new Blob(
         [JSON.stringify({ isOnline: false })],
         { type: 'application/json' }
-    };
+    );
     navigator.sendBeacon(
         `${API_URL}/api/temp-users/status/${currentUser.username}`,
         statusData
-    };
+    );
 
     navigator.sendBeacon(
         `${API_URL}/api/temp-users/delete/${currentUser.username}`
-    };
+    );
 });
 
