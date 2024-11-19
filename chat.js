@@ -1,5 +1,7 @@
 // Backend
 const API_URL = 'https://luxeonchat-backend.onrender.com';
+const WS_URL = 'wss://luxeonchat-backend.onrender.com';
+let socket;
 
 document.addEventListener('DOMContentLoaded', async () => {
     // Check if user is logged in
@@ -8,6 +10,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = '/';
         return;
     }
+
+    function initializeWebSocket() {
+        socket = new WebSocket(WS_URL);
+
+        socket.onopen = () => {
+            console.log('WebSocket connected');
+            socket.send(JSON.stringify({
+                type: 'identify',
+                username: currentUser.username
+            }));
+        };
+
+        socket.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.type === 'message') {
+                displayMessage(data.message, data.sender, false);
+            }
+        };
+
+        socket.onclose = () => {
+            console.log('WebSocket disconnected');
+            // Attempt to reconnect after 3 seconds
+            setTimeout(initializeWebSocket, 3000);
+        };
+    }
+
+    initializeWebSocket();
 
     // DOM element references
     const logoutBtn = document.getElementById('logout-btn');
@@ -84,7 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 logoutBtn.disabled = true;
 
                 // Set user as offline
-               const statusResponse =  await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
+                const statusResponse =  await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -142,16 +171,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             userElement.classList.add('user-item');
             userElement.dataset.username = user.username;
             userElement.innerHTML = `
-<div class="user-info">
-    <div class="user-name">${user.username}</div>
-    <div class="user-details">
-        ${user.age} |
-        <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
-            alt="${user.country}" class="flag-icon">
-            ${user.country}
-    </div>
-</div>
-`;
+                <div class="user-info">
+                    <div class="user-name">${user.username}</div>
+                    <div class="user-details">
+                        ${user.age} |
+                        <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
+                            alt="${user.country}" class="flag-icon">
+                            ${user.country}
+                    </div>
+                </div>
+            `;
             userElement.addEventListener('click', () => openChat(user));
             fragment.appendChild(userElement);
         });
@@ -175,17 +204,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             const chatElement = document.createElement('div');
             chatElement.classList.add('chat-item');
             chatElement.innerHTML = `
-<div class="chat-info">
-    <div class="chat-name">${chat.username}</div>
-    <div class="chat-details">
-        ${chat.age} |
-        <img src="https://flagcdn.com/w160/${chat.countryCode.toLowerCase()}.png"
-            alt="${chat.country}" class="flag-icon">
-            ${chat.country}
-    </div>
-    <div class="chat-preview">${chat.lastMessage || 'Start chatting...'}</div>
-</div>
-`;
+                <div class="chat-info">
+                    <div class="chat-name">${chat.username}</div>
+                    <div class="chat-details">
+                        ${chat.age} |
+                        <img src="https://flagcdn.com/w160/${chat.countryCode.toLowerCase()}.png"
+                            alt="${chat.country}" class="flag-icon">
+                            ${chat.country}
+                    </div>
+                    <div class="chat-preview">${chat.lastMessage || 'Start chatting...'}</div>
+                </div>
+            `;
             chatElement.addEventListener('click', () => openChat(chat));
             chatsTab.appendChild(chatElement);
         });
@@ -239,20 +268,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chats-tab').classList.add('active');
 
         chatHeader.innerHTML = `
-<h2>${user.username}</h2>
-<div class="user-info">
-    ${user.age} |
-    <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
-        alt="${user.country}" class="flag-icon">
-        ${user.country}
-</div>
-`;
+            <h2>${user.username}</h2>
+            <div class="user-info">
+                ${user.age} |
+                <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
+                    alt="${user.country}" class="flag-icon">
+                    ${user.country}
+            </div>
+       `;
 
         const chatActions = document.querySelector('.chat-actions');
         chatActions.innerHTML = `
-<button id="block-user-btn" class="action-btn">Block</button>
-<button id="report-user-btn" class="action-btn">Report</button>
-`;
+            <button id="block-user-btn" class="action-btn">Block</button>
+            <button id="report-user-btn" class="action-btn">Report</button>
+       `;
 
         messages.innerHTML = ''; // Clear previous messages
 
@@ -351,16 +380,37 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyFiltersBtn.addEventListener('click', applyFilters);
     clearFiltersBtn.addEventListener('click', resetFilters);
 
+    function displayMessage(message, sender, isOutgoing) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', isOutgoing ? 'outgoing' : 'incoming');
+
+        const timestamp = new Date().toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+
+        messageElement.innerHTML = `
+            <div class="message-content">
+                ${message}
+            </div>
+            <div> class="message-timestamp">${timestamp}</div>
+        `;
+        messages.appendChild(messageElement);
+        messages.scrolltop = messages.scrollHeight;
+    }
+
     sendBtn.addEventListener('click', () => {
         const message = messageInput.value.trim();
         if (message && currentChatUser) {
-            // Add message to chat
-            const messageElement = document.createElement('div');
-            messageElement.classList.add('message', 'outgoing');
-            messageElement.innerHTML = `
-<div class="message-content">${message}</div>
-`;
-            messages.appendChild(messageElement);
+            // Send message through WebSocket
+            socket.send(JSON.stringify({
+                type: 'message',
+                recipient: currentChatUser.username,
+                message: message
+            }));
+
+            // Display message locally
+            displayMessage(message, currentUser.username, true);
 
             // Clear input
             messageInput.value = '';
