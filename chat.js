@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Send message on Enter kyy press
     messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault(); //Prevent default to avoid new line
+            e.preventDefault(); // Prevent default to avoid new line
             sendBtn.click(); // Trigger the send button click
         }
     });
