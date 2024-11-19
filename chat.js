@@ -102,10 +102,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 if (!deleteResponse.ok) {
-                    console.error('Failed to delete user form the database');
+                    console.error('Failed to delete user from the database');
                 }
 
-                // Clear intervals before redirector
+                // Clear intervals before redirecting
                 clearInterval(onlineUsersInterval);
 
                 // Clear session storage
@@ -118,12 +118,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             } catch (error) {
                 console.error('Error during logout:', error);
-                // Still clear session and redirect even if there's an erorr
+                // Still clear session and redirect even if there's an error
                 clearInterval(onlineUsersInterval);
-                sessionstorage.removeItem('tempUser');
+                sessionStorage.removeItem('tempUser');
                 window.location.href = '/';
             } finally {
-                logoutBtn.disable = false;
+                logoutBtn.disabled = false;
             }
         });
     } else {
@@ -387,17 +387,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Clear intervals
         clearInterval(onlineUsersInterval);
 
-       const statusData = new Blob(
-        [JSON.stringify({ isOnline: false })],
-        { type: 'application/json' }
-    );
-    navigator.sendBeacon(
-        `${API_URL}/api/temp-users/status/${currentUser.username}`,
-        statusData
-    );
+        try {
+            const statusData = new Blob(
+                [JSON.stringify({ isOnline: false })],
+                { type: 'application/json' }
+            );
+            const statusSent = navigator.sendBeacon(
+                `${API_URL}/api/temp-users/status/${currentUser.username}`,
+                statusData
+            );
 
-    navigator.sendBeacon(
-        `${API_URL}/api/temp-users/delete/${currentUser.username}`
-    );
+            const deleteSent = navigator.sendBeacon(
+                `${API_URL}/api/temp-users/delete/${currentUser.username}`
+            );
+
+            if (!statusSent || !deleteSent) {
+                console.error('Failed to send one or more beacon requests');
+            }
+        } catch (error) {
+            console.error('Error in beforeunload handler:', error);
+        }
+    });
 });
-
