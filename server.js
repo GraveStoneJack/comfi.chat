@@ -10,8 +10,11 @@ const tempUsersRoutes = require('./routes/tempUsers');
 
 dotenv.config();
 
-// Initialize express only once
+// Initialize express and create HTTP server
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
+const clients = new Map();
 
 // Middleware
 app.use(express.json());
@@ -19,7 +22,7 @@ app.use(express.static('public'));
 
 // CORS configuration
 const corsOptions = {
-    origin: ['https://luxeonchat.netlify.app', 'https://localhost:3000'],
+    origin: ['https://luxeonchat.netlify.app', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type'],
     credentials: true,
@@ -35,12 +38,12 @@ wss.on('connection', (ws) => {
     ws.on('message', (message) => {
         try {
             const data = JSON.parse(message);
-            console.log('Received', data);
+            console.log('Received:', data);
 
             if (data.type === 'identify') {
                 clients.set(data.username, ws);
                 console.log(`User ${data.username} identified`);
-           } else if (data.type === 'message') {
+            } else if (data.type === 'message') {
                 const recipientWs = clients.get(data.recipient);
                 if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
                     recipientWs.send(JSON.stringify({
