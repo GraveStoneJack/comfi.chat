@@ -1,4 +1,4 @@
-[![Netlify Status](https://api.netlify.com/api/v1/badges/5c3d606c-9cc1-4767-837c-c0ef5f10f47b/deploy-status)](https://app.netlify.com/sites/steady-lollipop-53e11c/deploys)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/5c3d606c-9cc1-4767-837c-c0ef5f10f47b/deploy-status)](https://app.netlify.com/sites/luxeonchat/deploys)
 
 # luxeon.chat
 
