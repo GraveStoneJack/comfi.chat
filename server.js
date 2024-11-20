@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const path = require('path');
+const http = require('http');
+const WebSocket = require('ws');
 const tempUsersRoutes = require('./routes/tempUsers');
 
 dotenv.config();
@@ -27,35 +29,41 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // WebSocket server implementation
-const WebSocket = require('ws');
-const wss = new WebSocket.Server({ server });
-
-const clients = new Map();
-
 wss.on('connection', (ws) => {
-    ws.on('message', (message) => {
-        const data = JSON.parse(message);
+    console.log('New WebSocket connection');
 
-        if (data.type === 'identify') {
-            clients.set(data.username, ws);
-        } else if (data.type === 'message') {
-            const recipientWs = clients.get(data.recipient);
-            if (recipientWs) {
-                recipientWs.send(JSON.stringify({
-                    type: 'message',
-                    message: data.message,
-                    sender: data.sender,
-                    timestamp: new Date()
-                }));
+    ws.on('message', (message) => {
+        try {
+            const data = JSON.parse(message);
+            console.log('Received', data);
+
+            if (data.type === 'identify') {
+                clients.set(data.username, ws);
+                console.log(`User ${data.username} identified`);
+           } else if (data.type === 'message') {
+                const recipientWs = clients.get(data.recipient);
+                if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
+                    recipientWs.send(JSON.stringify({
+                        type: 'message',
+                        message: data.message,
+                        sender: data.sender,
+                        timestamp: new Date()
+                    }));
+                    console.log(`Message sent to ${data.recipient}`);
+                } else {
+                    console.log(`Recipient ${data.recipient} not found or not connected`);
+                }
             }
+        } catch (error) {
+            console.error('Error processing message:', error);
         }
     });
 
     ws.on('close', () => {
-        // Remove client from map when they disconnect
         for (const [username, socket] of clients.entries()) {
             if (socket === ws) {
                 clients.delete(username);
+                console.log(`User ${username} disconnected`);
                 break;
             }
         }
@@ -96,7 +104,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 
     // Initialize server only after successful database connection
     const PORT = process.env.PORT || 10000;
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
         console.log(`Server running on port ${PORT}`);
     });
 })
