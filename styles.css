@@ -446,10 +446,6 @@ select::-webkit-scrollbar-thumb:hover {
     word-wrap: break-word;
 }
 
-.message.outgoing {
-    margin-left: auto;
-}
-
 .message.outgoing .message-content {
     background-color: rgba(155, 77, 202, 0.4);
     color: #fff;
@@ -744,15 +740,16 @@ select::-webkit-scrollbar-thumb:hover {
 
 .message.incoming {
     align-self: flex-start;
-    background: #e9ecef;
-    border-bottom-left-radius: 5px;
+    background: rgba(240, 240, 255, 0.9);
+    border-bottom-left-radius: 18px;
     color: #2f0642;
 }
 
 .message.outgoing {
     align-self: flex-end;
+    margin-left: auto;
     background: linear-gradient(135deg, #d79aff 0%, #9b4dca 100%);
-    border-bottom-right-radius: 5px;
+    border-bottom-right-radius: 18px;
     color: white;
 }
 
