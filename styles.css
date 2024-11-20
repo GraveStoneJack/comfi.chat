@@ -743,7 +743,11 @@ select::-webkit-scrollbar-thumb:hover {
     background: #e9ecef;
     border-radius: 18px;
     color: #2f0642;
-    position: relative;;
+    position: relative;
+    padding: 12px 15px;
+    max-width: 70%;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .message.incoming::after {
@@ -754,10 +758,9 @@ select::-webkit-scrollbar-thumb:hover {
     width: 0;
     height: 0;
     border: 10px solid transparent;
-    border-top-color: #e9ecef; /* Match the bubble color */
+    border-top-color: #e9ecef;
     border-bottom: 0;
     border-left: 0;
-    margin-right: -5px;
     margin-bottom: -10px;
 }
 
@@ -768,6 +771,10 @@ select::-webkit-scrollbar-thumb:hover {
     border-radius: 18px;
     color: white;
     position: relative;
+    padding: 12px 15px;
+    max-width: 70%;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .message.outgoing::after {
@@ -781,8 +788,7 @@ select::-webkit-scrollbar-thumb:hover {
     border-top-color: #9b4dca;
     border-bottom: 0;
     border-right: 0;
-    margin-left: -5px;
-    margin-bottom: -10px
+    margin-bottom: -10px;
 }
 
 .message-timestamp {
