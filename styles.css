@@ -427,11 +427,9 @@ select::-webkit-scrollbar-thumb:hover {
     max-width: 70%;
     margin: 8px;
     padding: 12px 15px;
-    border-radius: 18px;
+    border-radius: 15px;
     position: relative;
-    margin-bottom: 24px;
-    animation: messageAppear 0.3s ease-out;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 20px
 }
 
 .message-sender {
@@ -444,6 +442,10 @@ select::-webkit-scrollbar-thumb:hover {
     font-size: 0.95rem;
     line-height: 1.4;
     word-wrap: break-word;
+}
+
+.message.outgoing {
+    margin-left: auto;
 }
 
 .message.outgoing .message-content {
@@ -739,62 +741,34 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .message.incoming {
+    background: linear-gradient(135deg, #d79aff 0%, #9b4dca 100%);
     align-self: flex-start;
-    background: #e9ecef;
-    border-radius: 18px;
-    color: #2f0642;
-    position: relative;
-}
-
-.message.incoming::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: -10px;
-    width: 0;
-    height: 0;
-    border: 10px solid transparent;
-    border-top-color: #e9ecef;
-    border-bottom: 0;
-    border-left: 0;
-    margin-bottom: -10px;
+    border-bottom-left-radius: 5px;
+    color: white;
 }
 
 .message.outgoing {
-    align-self: flex-end;
     background: linear-gradient(135deg, #d79aff 0%, #9b4dca 100%);
-    border-radius: 18px;
+    align-self: flex-end;
+    border-bottom-right-radius: 5px;
     color: white;
-    position: relative;
-}
-
-.message.outgoing::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    right: -10px;
-    width: 0;
-    height: 0;
-    border: 10px solid transparent;
-    border-top-color: #d79aff;
-    border-bottom: 0;
-    border-right: 0;
-    margin-bottom: -10px;
 }
 
 .message-timestamp {
     position: absolute;
-    bottom: -20px;
-    font-size: 0.75rem;
-    color: #6c757d;
+    bottom: -18px;
+    font-size: 0.7em;
+    color: rgba(59, 3, 55, 0.5);
+    right: 0;
 }
 
 .message.incoming .message-timestamp {
     left: 0;
+    right: auto;
 }
 
 .message.outgoing .message-timestamp {
-    right: 0;
+    color: rgba(255, 255, 255, 0.8);
 }
 
 /* Smooth message animations */
