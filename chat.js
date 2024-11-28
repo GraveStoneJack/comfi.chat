@@ -11,16 +11,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    let socket;
     let currentChatUser = null;
     let activeChats = [];
     let onlineUsers = [];
 
     function initializeWebSocket() {
         socket = new WebSocket(WS_URL);
-
+    
+        function updateConnectionStatus(connected) {
+            console.log('WebSocket status:', connected ? 'Connected' : 'Disconnected');
+            if (!connected) {
+                // Optionally show a connection status indicator to the user
+                const statusElement = document.createElement('div');
+                statusElement.className = 'connection-status';
+                statusElement.textContent = 'Disconnected. Reconnecting...';
+                document.body.appendChild(statusElement);
+            } else {
+                const statusElement = document.querySelector('.connection-status');
+                if (statusElement) {
+                    statusElement.remove();
+                }
+            }
+        }
+    
         socket.onopen = () => {
             console.log('WebSocket connected');
+            updateConnectionStatus(true);
             if (currentUser) {
                 socket.send(JSON.stringify({
                     type: 'identify',
@@ -28,39 +44,52 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }));
             }
         };
-
+    
         socket.onmessage = (event) => {
-            const data = JSON.parse(event.data);
-            console.log('Received message:', data);
-
-            if (data.type === 'message') {
-                // Add to active chats if not exists
-                const chatExists = activeChats.some(chat =>
-                    chat.username === data.sender || chat.username === data.recipient
-                );
-
-                if (!chatExists) {
-                    addToActiveChats(data.sender);
+            try {
+                const data = JSON.parse(event.data);
+                console.log('Received message:', data);
+    
+                if (data.type === 'message') {
+                    // Add to active chats if not exists
+                    const chatExists = activeChats.some(chat =>
+                        chat.username === data.sender || chat.username === data.recipient
+                    );
+    
+                    if (!chatExists) {
+                        addToActiveChats(data.sender);
+                    }
+    
+                    // Display message if it's from current chat
+                    if (currentChatUser && (data.sender === currentChatUser.username || data.recipient === currentChatUser.username)) {
+                        displayMessage(data.message, data.sender, data.sender === currentUser.username);
+                        
+                        // Update last message in active chats
+                        const chatIndex = activeChats.findIndex(chat => 
+                            chat.username === (data.sender === currentUser.username ? data.recipient : data.sender)
+                        );
+                        if (chatIndex !== -1) {
+                            activeChats[chatIndex].lastMessage = data.message;
+                            updateActiveChats();
+                        }
+                    }
                 }
-
-                // Display message if it's from current chat
-                if (currentChatUser && (data.sender === currentChatUser.username || data.recipient === currentChatUser.username)) {
-                    displayMessage(data.message, data.sender, data.sender === currentUser.username);
-                }
-
-                updateActiveChats();
+            } catch (error) {
+                console.error('Error processing received message:', error);
             }
         };
-
+    
         socket.onerror = (error) => {
             console.error('WebSocket error:', error);
+            updateConnectionStatus(false);
         };
-
+    
         socket.onclose = () => {
             console.log('WebSocket disconnected. Attempting to reconnect...');
+            updateConnectionStatus(false);
             setTimeout(initializeWebSocket, 3000);
         };
-    }
+    }    
 
     initializeWebSocket();
 
@@ -76,8 +105,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             sender: currentUser.username,
             message: message
         };
-
-        socket.send(JSON.stringify(messageData));
+        try {
+            socket.send(JSON.stringify(messageData));
+            // Display message locally immediately after sending
+            displayMessage(message, currentUser.username, true);
+            console.log('Message sent:', messageData);
+        } catch (error) {
+            console.error('Error sending message:', error);
+        }
     }
 
     // Function to start a chat with a user
@@ -96,6 +131,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Function to display a message
     function displayMessage(message, sender, isOutgoing) {
+        console.log('Displaying message:', { message, sender, isOutgoing });
+
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', isOutgoing ? 'outgoing' : 'incoming');
     
@@ -109,7 +146,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="message-timestamp">${timestamp}</div>
         `;
         messages.appendChild(messageElement);
-        messages.scrollTop = messages.scrollHeight;
+        messages.scrolltop = messages.scrollHeight;
     }
 
     // Event listener for send button
@@ -514,26 +551,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     sendBtn.addEventListener('click', () => {
         const message = messageInput.value.trim();
-        if (message && currentChatUser && socket.readyState === WebSocket.OPEN) {
-            // Send message through WebSocket
-            socket.send(JSON.stringify({
-                type: 'message',
-                recipient: currentChatUser.username,
-                sender: currentUser.username,
-                message: message
-            }));
+        if (message && currentChatUser) {
+            if (socket.readyState === WebSocket.OPEN) {
+                sendMessage(message);
 
-            // Display message locally
-            displayMessage(message, currentUser.username, true);
+                // Update last message in active chats
+                const chatIndex = activeChats.findIndex(chat => chat.username === currentChatUser.username);
+                if (chatIndex !== -1) {
+                    activeChats[chatIndex].lastMessage = message;
+                    updateActiveChats();
+                }
 
-            // Clear input
+            // Clear input after successful send
             messageInput.value = '';
-
-            // Update last message in active chats
-            const chatIndex = activeChats.findIndex(chat => chat.username === currentChatUser.username);
-            if (chatIndex !== -1) {
-                activeChats[chatIndex].lastMessage = message;
-                updateActiveChats();
+            } else {
+                console.error('WebSocket is not connected');
+                alert('Connection lost. Please refresh the page.');
             }
         }
     });
