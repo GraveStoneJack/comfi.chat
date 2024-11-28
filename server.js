@@ -50,11 +50,24 @@ wss.on('connection', (ws) => {
                         type: 'message',
                         message: data.message,
                         sender: data.sender,
+                        recipient: data.recipient,
                         timestamp: new Date()
                     }));
                     console.log(`Message sent to ${data.recipient}`);
                 } else {
                     console.log(`Recipient ${data.recipient} not found or not connected`);
+                }
+
+                // Send back to sender for confirmation
+                const senderWs = clients.get(data.sender);
+                if (snederWs && senderWs.readyState === WebSocket.OPEN) {
+                    senderWs.send(JSON.stringify({
+                        type: 'message',
+                        message: data.message,
+                        sender: data.sender,
+                        recipient: data.recipient,
+                        timestamp: new Date()
+                    }));
                 }
             }
         } catch (error) {

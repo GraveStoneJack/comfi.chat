@@ -11,32 +11,151 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    let socket;
+    let currentChatUser = null;
+    let activeChats = [];
+    let onlineUsers = [];
+
     function initializeWebSocket() {
         socket = new WebSocket(WS_URL);
 
         socket.onopen = () => {
             console.log('WebSocket connected');
-            socket.send(JSON.stringify({
-                type: 'identify',
-                username: currentUser.username
-            }));
+            if (currentUser) {
+                socket.send(JSON.stringify({
+                    type: 'identify',
+                    username: currentUser.username
+                }));
+            }
         };
 
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            console.log('Received message:', data);
+
             if (data.type === 'message') {
-                displayMessage(data.message, data.sender, false);
+                // Add to active chats if not exists
+                const chatExists = activeChats.some(chat =>
+                    chat.username === data.sender || chat.username === data.recipient
+                );
+
+                if (!chatExists) {
+                    addToActiveChats(data.sender);
+                }
+
+                // Display message if it's from current chat
+                if (currentChatUser && (data.sender === currentChatUser.username || data.recipient === currentChatUser.username)) {
+                    displayMessage(data.message, data.sender, data.sender === currentUser.username);
+                }
+
+                updateActiveChats();
             }
         };
 
+        socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
         socket.onclose = () => {
-            console.log('WebSocket disconnected');
-            // Attempt to reconnect after 3 seconds
+            console.log('WebSocket disconnected. Attempting to reconnect...');
             setTimeout(initializeWebSocket, 3000);
         };
     }
 
     initializeWebSocket();
+
+    function sendMessage(message) {
+        if (!socket || socket.readyState !== WebSocket.OPEN) {
+            console.error('WebSocket is not connected');
+            return;
+        }
+
+        const messageData = {
+            type: 'message',
+            recipient: currentChatUser.username,
+            sender: currentUser.username,
+            message: message
+        };
+
+        socket.send(JSON.stringify(messageData));
+    }
+
+    // Function to start a chat with a user
+    function startChat(user) {
+        currentChatUser = user;
+        document.querySelector('.chat-area').classList.add('active');
+        document.querySelector('.chat-header h2').textContent = `Chat with ${user.username}`;
+        
+        // Clear previous messages
+        const messagesContainer = document.querySelector('.messages');
+        messagesContainer.innerHTML = '';
+    
+        // Add to active chats if not already there
+        addToActiveChats(user.username);
+    }
+
+    // Function to display a message
+    function displayMessage(message, sender, isOutgoing) {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', isOutgoing ? 'outgoing' : 'incoming');
+    
+        const timestamp = new Date().toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit'
+        });
+    
+        messageElement.innerHTML = `
+            <div class="message-content">${message}</div>
+            <div class="message-timestamp">${timestamp}</div>
+        `;
+        messages.appendChild(messageElement);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    // Event listener for send button
+    document.getElementById('send-btn').addEventListener('click', () => {
+        const messageInput = document.getElementById('message-text');
+        const message = messageInput.value.trim();
+
+        if (message && currentChatUser) {
+            sendMessage(message);
+            messageInput.value = '';
+        }
+    });
+
+    // Function to add user to active chats
+    function addToActiveChats(username) {
+        if (!activeChats.some(chat => chat.username === username)) {
+            activeChats.push({
+                username: username,
+                lastMessage: '',
+                timestamp: new Date()
+            });
+            updateActiveChats();
+        }
+    }
+
+    // Function to update active chats display
+    function updateActiveChats() {
+        const chatsList = document.querySelector('.chats-list');
+        if (!chatsList) return;
+
+        chatsList.innerHTML = '';
+        activeChats.forEach(chat => {
+            const chatElement = document.createElement('div');
+            chatElement.classList.add('chat-item');
+            chatElement.innerHTML = `
+                <div class="chat-info">
+                    <div class="chat-name">${chat.username}</div>
+                    <div class="chat-preview">${chat.lastMessage}</div>
+                </div>
+            `;
+            chatElement.addEventListener('click', () => {
+                startChat({ username: chat.username });
+            });
+            chatsList.appendChild(chatElement);
+        });
+    }
 
     // DOM element references
     const logoutBtn = document.getElementById('logout-btn');
@@ -59,10 +178,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const reportPopup = document.getElementById('report-popup');
     const reportForm = document.getElementById('report-form');
     const chatArea = document.querySelector('.chat-area');
-
-    let onlineUsers = [];
-    let activeChats = [];
-    let currentChatUser = null;
 
     // Initialize chat area as inactive
     chatArea.classList.remove('active');
