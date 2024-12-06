@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function initializeWebSocket() {
         socket = new WebSocket(WS_URL);
-    
+
         function updateConnectionStatus(connected) {
             console.log('WebSocket status:', connected ? 'Connected' : 'Disconnected');
             if (!connected) {
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
         }
-    
+
         socket.onopen = () => {
             console.log('WebSocket connected');
             updateConnectionStatus(true);
@@ -44,52 +44,69 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }));
             }
         };
-    
+
         socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
                 console.log('Received message:', data);
-    
+
                 if (data.type === 'message') {
-                    // Add to active chats if not exists
-                    const chatExists = activeChats.some(chat =>
-                        chat.username === data.sender || chat.username === data.recipient
-                    );
-    
-                    if (!chatExists) {
-                        addToActiveChats(data.sender);
+                    // Always add the sender to active chats if not exists
+                    if (data.sender !== currentUser.username) {
+                        const senderExists = activeChats.some(chat => chat.username === data.sender);
+                        if (!senderExists) {
+                            // Find sender info from online users
+                            const senderInfo = onlineUsers.find(user => user.username === data.sender) || {
+                                username: data.sender,
+                                lastMessage: data.message,
+                                timestamp: new Date()
+                            };
+                            activeChats.push(senderInfo);
+                        }
                     }
-    
-                    // Display message if it's from current chat
+
+                    // Update last message in active chats
+                    const chatIndex = activeChats.findIndex(chat =>
+                        chat.username === (data.sender === currentUser.username ? data.recipient : data.sender)
+                    );
+                    if (chatIndex !== -1) {
+                        activeChats[chatIndex].lastMessage = data.message;
+                    }
+
+                    // Update chats display
+                    updateActiveChats();
+
+                    // Update chat count badge
+                    if (chatsCount) {
+                        chatsCount.textContent = activeChats.length;
+                    }
+
+                    // If chat window is open with this user, display message
                     if (currentChatUser && (data.sender === currentChatUser.username || data.recipient === currentChatUser.username)) {
                         displayMessage(data.message, data.sender, data.sender === currentUser.username);
-                        
-                        // Update last message in active chats
-                        const chatIndex = activeChats.findIndex(chat => 
-                            chat.username === (data.sender === currentUser.username ? data.recipient : data.sender)
-                        );
-                        if (chatIndex !== -1) {
-                            activeChats[chatIndex].lastMessage = data.message;
-                            updateActiveChats();
-                        }
+                    }
+
+                    // Add notification for new message if chat isn't open
+                    if (!currentChatUser || (data.sender !== currentChatUser.username && data.sender !== currentUser.username)) {
+                        notifyNewMessage(data.sender, data.message);
                     }
                 }
             } catch (error) {
                 console.error('Error processing received message:', error);
             }
         };
-    
+
         socket.onerror = (error) => {
             console.error('WebSocket error:', error);
             updateConnectionStatus(false);
         };
-    
+
         socket.onclose = () => {
             console.log('WebSocket disconnected. Attempting to reconnect...');
             updateConnectionStatus(false);
             setTimeout(initializeWebSocket, 3000);
         };
-    }    
+    }
 
     initializeWebSocket();
 
@@ -115,16 +132,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function notifyNewMessage(sender, message) {
+        // Update chat tab to show new message indicator
+        const chatsTabBtn = document.querySelector('[data-tab="chats"]');
+        if (!chatsTabBtn.classList.contains('has-new-message')) {
+            chatsTabBtn.classList.add('has-new-message');
+        }
+
+        // Show browser notification
+        if (Notification.permission === "granted") {
+            new Notification(`New message from ${sender}`, {
+                body: message,
+                icon: '/path/to/your/icon.png'
+            });
+        }
+    }
+
     // Function to start a chat with a user
     function startChat(user) {
         currentChatUser = user;
         document.querySelector('.chat-area').classList.add('active');
         document.querySelector('.chat-header h2').textContent = `Chat with ${user.username}`;
-        
+
         // Clear previous messages
         const messagesContainer = document.querySelector('.messages');
         messagesContainer.innerHTML = '';
-    
+
         // Add to active chats if not already there
         addToActiveChats(user.username);
     }
@@ -135,12 +168,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', isOutgoing ? 'outgoing' : 'incoming');
-    
-        const timestamp = new Date().toLocaleTimeString([], { 
-            hour: '2-digit', 
+
+        const timestamp = new Date().toLocaleTimeString([], {
+            hour: '2-digit',
             minute: '2-digit'
         });
-    
+
         messageElement.innerHTML = `
             <div class="message-content">${message}</div>
             <div class="message-timestamp">${timestamp}</div>
@@ -181,17 +214,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         activeChats.forEach(chat => {
             const chatElement = document.createElement('div');
             chatElement.classList.add('chat-item');
+
+            // Add 'unread' class if there are unread messages
+            if (chat.unread) {
+                chatElement.classList.add('unread');
+            }
+
             chatElement.innerHTML = `
                 <div class="chat-info">
                     <div class="chat-name">${chat.username}</div>
-                    <div class="chat-preview">${chat.lastMessage}</div>
+                    <div class="chat-details">
+                        ${chat.age ? `${chat.age} |` : ''}
+                        ${chat.countryCode ? `
+                            <img src="https://flagcdn.com/w160/${chat.countryCode.toLowerCase()}.png"
+                                alt="${chat.country}" class="flag-icon">
+                            ${chat.country}
+                        ` : ''}
+                    </div>
+                    <div class="chat-preview">${chat.lastMessage || 'Start chatting...'}</div>
                 </div>
+                ${chat.unread ? '<div class="unread-indicator"></div>' : ''}
             `;
+
             chatElement.addEventListener('click', () => {
-                startChat({ username: chat.username });
+                chat.unread = false; // Mark as read when opened
+                openChat(chat);
+                updateActiveChats(); // Refresh the display
             });
+
             chatsList.appendChild(chatElement);
         });
+
+        // Update the chat count
+        if (chatsCount) {
+            chatsCount.textContent = activeChats.length;
+        }
     }
 
     // DOM element references
@@ -412,10 +469,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentChatUser = user;
         chatArea.classList.add('active');
 
+        // Remove unread status
+        const chatIndex = activeChats.findIndex(chat => chat.username === user.username);
+        if (chatIndex !== -1) {
+            activeChats[chatIndex].unread = false;
+        }
+
+        // Remove new message indicator from chat tab
+        const chatsTabBtn = document.querySelector('[data-tab="chats"]');
+
         // Auto switch to chat tab
         tabBtns.forEach(btn => btn.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
-        const chatsTabBtn = document.querySelector('[data-tab="chats"]');
         chatsTabBtn.classList.add('active');
         document.getElementById('chats-tab').classList.add('active');
 
@@ -533,6 +598,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearFiltersBtn.addEventListener('click', resetFilters);
 
     function displayMessage(message, sender, isOutgoing) {
+        console.log('Displaying message:', { message, sender, isOutgoing });
+
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', isOutgoing ? 'outgoing' : 'incoming');
 
@@ -546,7 +613,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="message-timestamp">${timestamp}</div>
         `;
         messages.appendChild(messageElement);
-        messages.scrolltop = messages.scrollHeight;
+        messages.scrollTop = messages.scrollHeight;
     }
 
     sendBtn.addEventListener('click', () => {

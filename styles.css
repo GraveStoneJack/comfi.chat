@@ -803,3 +803,47 @@ select::-webkit-scrollbar-thumb:hover {
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+.chat-item.unread {
+    background-color: rgba(215, 154, 255, 0.1);
+    font-weight: bold;
+}
+
+.unread-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: #9b4dca;
+    border-radius: 50%;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.tab-btn.has-new-message::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background-color: #9b4dca;
+    border-radius: 50%;
+    position: absolute;
+    right: 5px;
+    top: 5px;
+}
+
+.connection-status {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #ff4444;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    z-index: 1000;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
