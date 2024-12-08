@@ -52,25 +52,37 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (data.type === 'message') {
                     // Always add the sender to active chats if not exists
-                    if (data.sender !== currentUser.username) {
-                        const senderExists = activeChats.some(chat => chat.username === data.sender);
-                        if (!senderExists) {
-                            // Find sender info from online users
-                            const senderInfo = onlineUsers.find(user => user.username === data.sender) || {
-                                username: data.sender,
-                                lastMessage: data.message,
-                                timestamp: new Date()
-                            };
-                            activeChats.push(senderInfo);
+                    if (!chatsExists) {
+                        // Find user info from online users
+                        const userInfo = onlineUsers.find(user => user.username === otherUser) || {
+                            username: otherUser,
+                            messages: [],
+                            unread: true
+                        };
+
+                        // Initialize message array if it doesn't exist
+                        if (!userInfo.message) {
+                            userInfo.messages = [];
                         }
+
+                        activeChats.push(userInfo);
                     }
 
-                    // Update last message in active chats
-                    const chatIndex = activeChats.findIndex(chat =>
-                        chat.username === (data.sender === currentUser.username ? data.recipient : data.sender)
-                    );
+                    // Store the message in the appropriate chat
+                    const chatIndex = activeChats.findIndex(chat => chat.username === otherUser);
                     if (chatIndex !== -1) {
+                        if (!activeChats[chatIndex].messages) {
+                            activeChats[chatIndex].messages = [];
+                        }
+
+                        activeChats[chatIndex].messages.push({
+                            sender: data.sender,
+                            messages: data.message,
+                            timestamp: new Date()
+                        });
+
                         activeChats[chatIndex].lastMessage = data.message;
+                        activeChats[chatIndex].unread = currentChatUser?.username !== otherUser;
                     }
 
                     // Update chats display
@@ -124,7 +136,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         try {
             socket.send(JSON.stringify(messageData));
-            // Display message locally immediately after sending
+
+            // Store the message locally
+            const chatIndex = activeChats.findIndex(chat => chat.username === currentChatUser.username);
+            if (chatIndex !== -1) {
+                if (!activeChats[chatIndex].messages) {
+                    activeChats[chatIndex].messages = [];
+                }
+
+                activeChats[chatIndex].messages.push({
+                    sender: currentUser.username,
+                    message: message,
+                    timestamp: new Date()
+                });
+
+                activeChats[chatIndex].lastMessage = message;
+            }
+
+            // Display message locally
             displayMessage(message, currentUser.username, true);
             console.log('Message sent:', messageData);
         } catch (error) {
@@ -469,14 +498,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentChatUser = user;
         chatArea.classList.add('active');
 
+        // Find chat in activeChats
+        const chat = activeChats.find(c => c.username === user.username);
+
+        // Clear previous messages
+        messages.innerHTML = '';
+
+        // Display stored messages if they exist
+        if (chat && chat.messages) {
+            chat.messages.forEach(msg => {
+                displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
+            });
+        }
+
         // Remove unread status
         const chatIndex = activeChats.findIndex(chat => chat.username === user.username);
         if (chatIndex !== -1) {
             activeChats[chatIndex].unread = false;
         }
 
-        // Remove new message indicator from chat tab
+        // Get  the chats tab button once
         const chatsTabBtn = document.querySelector('[data-tab="chats"]');
+
+        // Remove new message indicator from chat tab
+        chatsTabBtn.classList.remove('has-new-message');
 
         // Auto switch to chat tab
         tabBtns.forEach(btn => btn.classList.remove('active'));
@@ -504,7 +549,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Add to active chats if not already present
         if (!activeChats.find(chat => chat.username === user.username)) {
-            activeChats.push(user);
+            activeChats.push({
+                ...user,
+                messages: [],
+                unread: false
+            });
             updateActiveChats();
         }
 
