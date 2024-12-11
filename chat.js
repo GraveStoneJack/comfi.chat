@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // Update last message in active chats
                     const chatIndex = activeChats.findIndex(chat =>
-                        chat.username === (data.sender ==== currentUser.username ? data.recipient : data.sender)
+                        chat.username === (data.sender === currentUser.username ? data.recipient : data.sender)
                     );
                     if (chatIndex !== -1) {
                         activeChats[chatIndex].lastMessage = data.message;
@@ -483,14 +483,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     function openChat(user) {
         currentChatUser = user;
         chatArea.classList.add('active');
-    
+
         // Auto switch to chat tab
         tabBtns.forEach(btn => btn.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
         const chatsTabBtn = document.querySelector('[data-tab="chats"]');
         chatsTabBtn.classList.add('active');
         document.getElementById('chats-tab').classList.add('active');
-    
+
         chatHeader.innerHTML = `
             <h2>${user.username}</h2>
             <div class="user-info">
@@ -500,15 +500,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ${user.country}
             </div>
         `;
-    
+
         const chatActions = document.querySelector('.chat-actions');
         chatActions.innerHTML = `
             <button id="block-user-btn" class="action-btn">Block</button>
             <button id="report-user-btn" class="action-btn">Report</button>
         `;
-    
+
         messages.innerHTML = ''; // Clear previous messages
-    
+
         // Display stored messages if they exist
         const chat = activeChats.find(c => c.username === user.username);
         if (chat && chat.messages) {
@@ -516,7 +516,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
             });
         }
-    
+
         // Add to active chats if not already present
         if (!activeChats.find(chat => chat.username === user.username)) {
             activeChats.push(user);
