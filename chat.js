@@ -264,18 +264,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Function to add user to active chats
-    function addToActiveChats(username) {
-        if (!activeChats.some(chat => chat.username === username)) {
-            activeChats.push({
-                username: username,
-                lastMessage: '',
-                timestamp: new Date()
-            });
-            updateActiveChats();
-        }
-    }
-
     // Function to update active chats display
     function updateActiveChats() {
         const chatsList = document.querySelector('.chats-list');
