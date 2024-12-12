@@ -468,7 +468,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Fragment for better performance
         const fragment = document.createDocumentFragment();
 
-        users.forEach(user => {
+        // Use filteredUsers if provided, otherwise use onlineUsers
+        const usersToDisplay = filteredUsers || onlineUsers;
+
+        usersToDisplay.forEach(user => {
             const userElement = document.createElement('div');
             userElement.classList.add('user-item');
             userElement.dataset.username = user.username;
