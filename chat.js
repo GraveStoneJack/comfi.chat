@@ -1,7 +1,9 @@
 // Backend
 const API_URL = 'https://luxeonchat-backend.onrender.com';
 const WS_URL = 'wss://luxeonchat-backend.onrender.com';
-const messageSound = new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=notification-sound-7062.mp3');
+const messageSound = new Audio();
+messageSound.preload = 'auto';
+messageSound.src = '/sounds/bubblepop.mp3';
 messageSound.volume = 0.5;
 
 let socket;
@@ -208,22 +210,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function playMessageSound() {
-        messageSound.currentTime = 0; // Reset sound to start
-        messageSound.play().catch(error  => console.log('Error playing sound:', error));
-    }
+        if (!messageSound.paused) {
+            messageSound.currentTime = 0;
+        }
 
-    // Function to start a chat with a user
-    function startChat(user) {
-        currentChatUser = user;
-        document.querySelector('.chat-area').classList.add('active');
-        document.querySelector('.chat-header h2').textContent = `Chat with ${user.username}`;
-
-        // Clear previous messages
-        const messagesContainer = document.querySelector('.messages');
-        messagesContainer.innerHTML = '';
-
-        // Add to active chats if not already there
-        addToActiveChats(user.username);
+        messageSound.play().catch(error => {
+            if (error.name === 'NotAllowedError') {
+                console.log('Sound play was blocked by browser. User interaction required.');
+            } else {
+                console.error('Error playing sound:', error);
+            }
+        });
     }
 
     // Function to display a message
