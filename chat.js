@@ -1,6 +1,9 @@
 // Backend
 const API_URL = 'https://luxeonchat-backend.onrender.com';
 const WS_URL = 'wss://luxeonchat-backend.onrender.com';
+const messageSound = new Audio('https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=notification-sound-7062.mp3');
+messageSound.volume = 0.5;
+
 let socket;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -50,7 +53,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const data = JSON.parse(event.data);
                 console.log('Received message:', data);
 
-                if (data.type === 'message') {
+                if (data.type === 'message-status') {
+                    updateMessageStatus(data.messageId, data.status);
+                } else if (data.type === 'typing') {
+                    updateTypingIndicator(data.sender, data.isTyping);
+                } else if (data.type === 'message' && data.sender !== currentUser.username) {
+                    playMessageSound();
+                    // Send back delivery confirmation
+                    socket.send(JSON.stringify({
+                        type: 'message-status',
+                        messageId: data.messageId,
+                        status: 'delivered',
+                        recipient: data.sender
+                    }));
+
                     // Determine the other user (sender or recipient)
                     const otherUser = data.sender === currentUser.username ? data.recipient : data.sender;
 
@@ -120,14 +136,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        const messageId = Date.now().toString(); // Simple unique ID
         const messageData = {
             type: 'message',
+            messageId: messageId,
             recipient: currentChatUser.username,
             sender: currentUser.username,
             message: message
         };
         try {
             socket.send(JSON.stringify(messageData));
+            displayMessage(message, currentUser.username, true, messageId);
 
             // Store the message locally
             const chatIndex = activeChats.findIndex(chat => chat.username === currentChatUser.username);
@@ -145,8 +164,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 activeChats[chatIndex].lastMessage = message;
             }
 
-            // Display message locally
-            displayMessage(message, currentUser.username, true);
             console.log('Message sent:', messageData);
         } catch (error) {
             console.error('Error sending message:', error);
@@ -169,6 +186,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    // Typing indicator function
+    function updateTypingIndicator(username, isTyping) {
+        const typingIndicator = document.querySelector('.typing-indicator');
+        if (isTyping) {
+            if (!typingIndicator) {
+                const indicator = document.createElement('div');
+                indicator.className = 'typing-indicator';
+                indicator.innerHTML = `
+                    <span class="typing-text">${username} is typing</span>
+                    <div class="typing-dots">
+                        <span>.</span><span>.</span><span>.</span>
+                    </div>
+                `;
+                messages.appendChild(indicator);
+                messages.scrollTop = messages.scrollHeight;
+            }
+        } else {
+            typingIndicator?.remove();
+        }
+    }
+
+    function playMessageSound() {
+        messageSound.currentTime = 0; // Reset sound to start
+        messageSound.play().catch(error  => console.log('Error playing sound:', error));
+    }
+
     // Function to start a chat with a user
     function startChat(user) {
         currentChatUser = user;
@@ -184,23 +227,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Function to display a message
-    function displayMessage(message, sender, isOutgoing) {
-        console.log('Displaying message:', { message, sender, isOutgoing });
+    function displayMessage(message, sender, isOutgoing, messageId = null) {
+        console.log('Displaying message:', { message, sender, isOutgoing, messageId });
 
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', isOutgoing ? 'outgoing' : 'incoming');
-
-        const timestamp = new Date().toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+        if (messageId) messageElement.dataset.messageId = messageId;
 
         messageElement.innerHTML = `
             <div class="message-content">${message}</div>
-            <div class="message-timestamp">${timestamp}</div>
+            <div class="message-info">
+                <span class="message-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                ${isOutgoing ? '<span class="message-status">✓</span>' : ''}
+            </div>
         `;
         messages.appendChild(messageElement);
-        messages.scrolltop = messages.scrollHeight;
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function updateMessageStatus(messageId, status) {
+        const messageElement = document.querySelector(` [data-message-id="${messageId}"] .message-status`);
+        if (messageElement) {
+            switch (status) {
+                case 'sent': messageElement.textContent = '✓'; break;
+                case 'delivered': messageElement.textContent = '✓✓'; break;
+                case 'read': messageElement.textContent = '✓✓'; messageElement.style.color = '#4CAF50'; break;
+            }
+        }
     }
 
     // Event listener for send button
@@ -293,8 +346,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const logoutBtn = document.getElementById('logout-btn');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
-    const onlineTab = document.getElementById('online-tab');
-    const chatsTab = document.getElementById('chats-tab');
     const chatHeader = document.querySelector('.chat-header');
     const messages = document.querySelector('.messages');
     const messageInput = document.getElementById('message-text');
@@ -313,6 +364,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize chat area as inactive
     chatArea.classList.remove('active');
+
+    if (Notification.permission === "default") {
+        Notification.requestPermission();
+    }
 
     // Update user's online status when page loads
     try {
@@ -413,7 +468,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Fragment for better performance
         const fragment = document.createDocumentFragment();
 
-        onlineUsers.forEach(user => {
+        users.forEach(user => {
             const userElement = document.createElement('div');
             userElement.classList.add('user-item');
             userElement.dataset.username = user.username;
@@ -443,29 +498,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Debug log
         console.log(`Updated online users list. Count: ${onlineUsers.length}`);
-    }
-
-    function updateActiveChats() {
-        chatsTab.innerHTML = '';
-        activeChats.forEach(chat => {
-            const chatElement = document.createElement('div');
-            chatElement.classList.add('chat-item');
-            chatElement.innerHTML = `
-                <div class="chat-info">
-                    <div class="chat-name">${chat.username}</div>
-                    <div class="chat-details">
-                        ${chat.age} |
-                        <img src="https://flagcdn.com/w160/${chat.countryCode.toLowerCase()}.png"
-                            alt="${chat.country}" class="flag-icon">
-                            ${chat.country}
-                    </div>
-                    <div class="chat-preview">${chat.lastMessage || 'Start chatting...'}</div>
-                </div>
-            `;
-            chatElement.addEventListener('click', () => openChat(chat));
-            chatsTab.appendChild(chatElement);
-        });
-        chatsCount.textContent = activeChats.length;
     }
 
     async function populateCountryFilter() {
@@ -642,47 +674,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyFiltersBtn.addEventListener('click', applyFilters);
     clearFiltersBtn.addEventListener('click', resetFilters);
 
-    function displayMessage(message, sender, isOutgoing) {
-        console.log('Displaying message:', { message, sender, isOutgoing });
-
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', isOutgoing ? 'outgoing' : 'incoming');
-
-        const timestamp = new Date().toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-
-        messageElement.innerHTML = `
-            <div class="message-content">${message}</div>
-            <div class="message-timestamp">${timestamp}</div>
-        `;
-        messages.appendChild(messageElement);
-        messages.scrollTop = messages.scrollHeight;
-    }
-
-    sendBtn.addEventListener('click', () => {
-        const message = messageInput.value.trim();
-        if (message && currentChatUser) {
-            if (socket.readyState === WebSocket.OPEN) {
-                sendMessage(message);
-
-                // Update last message in active chats
-                const chatIndex = activeChats.findIndex(chat => chat.username === currentChatUser.username);
-                if (chatIndex !== -1) {
-                    activeChats[chatIndex].lastMessage = message;
-                    updateActiveChats();
-                }
-
-            // Clear input after successful send
-            messageInput.value = '';
-            } else {
-                console.error('WebSocket is not connected');
-                alert('Connection lost. Please refresh the page.');
-            }
-        }
-    });
-
     // Send message on Enter key press
     messageInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
@@ -691,8 +682,34 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    let typingTimeout;
+
+    messageInput.addEventListener('input', () => {
+        if (!currentChatUser) return;
+
+        clearTimeout(typingTimeout);
+
+        // Send typing status
+        socket.send(JSON.stringify({
+            type: 'typing',
+            recipient: currentChatUser.username,
+            sender: currentUser.username,
+            isTyping: true
+        }));
+
+        // Clear typing status after 2 seconds if no input
+        typingTimeout = setTimeout(() => {
+            socket.send(JSON.stringify({
+                type: 'typing',
+                recipient: currentChatUser.username,
+                sender: currentUser.username,
+                isTyping: false
+            }));
+        }, 2000);
+    });
+
     // Update user's online status when leaving
-    window.addEventListener('beforeunload', (event) => {
+    window.addEventListener('beforeunload', () => {
         // Clear intervals
         clearInterval(onlineUsersInterval);
 

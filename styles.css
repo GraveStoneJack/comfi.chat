@@ -867,3 +867,50 @@ select::-webkit-scrollbar-thumb:hover {
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+.message-status {
+    font-size: 12px;
+    margin-left: 5px;
+    color: #999;
+}
+
+.typing-indicator {
+    padding: 10px;
+    margin: 10px;
+    background: rgba(155, 77,202, 0.1);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+}
+
+.typing-text {
+    color: #666;
+    margin-right: 10px;
+}
+
+.typing-dots {
+    display: flex;
+}
+
+.typing-fots span {
+    animation: typingDot 1.4s infinite;
+    font-size: 20px;
+    line-height: 0;
+}
+
+.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingDot {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-4); }
+}
+
+.message-info {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+}
