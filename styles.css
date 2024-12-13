@@ -893,7 +893,7 @@ select::-webkit-scrollbar-thumb:hover {
     display: flex;
 }
 
-.typing-fots span {
+.typing-dots span {
     animation: typingDot 1.4s infinite;
     font-size: 20px;
     line-height: 0;
