@@ -53,11 +53,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         socket.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
-                console.log('Received message:', data);
+                console.log('Received WebSocket message:', data);
 
                 if (data.type === 'message-status') {
                     updateMessageStatus(data.messageId, data.status);
                 } else if (data.type === 'typing') {
+                    console.log('Recieved typing indicator:', {
+                        sender: data.sender,
+                        isTyping: data.isTyping
+                    });
                     updateTypingIndicator(data.sender, data.isTyping);
                 } else if (data.type === 'message' && data.sender !== currentUser.username) {
                     playMessageSound();
@@ -114,7 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
             } catch (error) {
-                console.error('Error processing received message:', error);
+                console.error('Error processing WebSocket message:', error);
             }
         };
 
@@ -198,7 +202,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 indicator.innerHTML = `
                     <span class="typing-text">${username} is typing</span>
                     <div class="typing-dots">
-                        <span>.</span><span>.</span><span>.</span>
+                        <span></span>
+                        <span></span>
+                        <span></span>
                     </div>
                 `;
                 messages.appendChild(indicator);
@@ -675,21 +681,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         clearTimeout(typingTimeout);
 
         // Send typing status
-        socket.send(JSON.stringify({
+        const typingData = {
             type: 'typing',
             recipient: currentChatUser.username,
             sender: currentUser.username,
             isTyping: true
-        }));
+        };
+        console.log('Sending typing status:', typingData);
+        socket.send(JSON.stringify(typingData));
 
         // Clear typing status after 2 seconds if no input
         typingTimeout = setTimeout(() => {
-            socket.send(JSON.stringify({
+            const stopTypingData = {
                 type: 'typing',
                 recipient: currentChatUser.username,
                 sender: currentUser.username,
                 isTyping: false
-            }));
+            };
+            console.log('Sending stop typing status:', stopTypingData);
+            socket.send(JSON.stringify(stopTypingData));
         }, 2000);
     });
 
