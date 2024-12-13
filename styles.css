@@ -755,11 +755,21 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .message-timestamp {
+    position: absolute;
+    bottom: -18px;
+    font-size: 0.7em;
     color: rgba(59, 3, 55, 0.5) !important;
+    right: 0;
 }
 
-.message.incoming .message-info {
-    justify-content: flex-end;
+.message.incoming .message-timestamp {
+    left: 0;
+    right: auto;
+}
+
+.message.incoming .message-status {
+    left: 45px;
+    right: auto;
 }
 
 .message.outgoing .message-info {
@@ -864,7 +874,11 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .message-status {
+    position: absolute;
+    bottom: -18px;
+    font-size: 0.7em;
     color: rgba(59, 3, 55, 0.5);
+    right: 45px;
 }
 
 .typing-indicator {
@@ -915,8 +929,6 @@ select::-webkit-scrollbar-thumb:hover {
     display: flex;
     align-items: center;
     font-size: 12px;
-    color: rgba(59, 3, 55, 0.5);
     margin-top: 4px;
     gap: 4px;
-    padding: 0 5px;
 }
