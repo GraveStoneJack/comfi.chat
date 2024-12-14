@@ -55,23 +55,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const data = JSON.parse(event.data);
                 console.log('Received WebSocket message:', data);
 
-                if (data.type === 'message-status') {
-                    updateMessageStatus(data.messageId, data.status);
-                } else if (data.type === 'typing') {
-                    console.log('Recieved typing indicator:', {
-                        sender: data.sender,
-                        isTyping: data.isTyping
-                    });
+                if (data.type === 'typing') {
                     updateTypingIndicator(data.sender, data.isTyping);
                 } else if (data.type === 'message' && data.sender !== currentUser.username) {
                     playMessageSound();
-                    // Send back delivery confirmation
-                    socket.send(JSON.stringify({
-                        type: 'message-status',
-                        messageId: data.messageId,
-                        status: 'delivered',
-                        recipient: data.sender
-                    }));
 
                     // Determine the other user (sender or recipient)
                     const otherUser = data.sender === currentUser.username ? data.recipient : data.sender;
@@ -142,17 +129,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const messageId = Date.now().toString(); // Simple unique ID
         const messageData = {
             type: 'message',
-            messageId: messageId,
             recipient: currentChatUser.username,
             sender: currentUser.username,
             message: message
         };
+
         try {
             socket.send(JSON.stringify(messageData));
-            displayMessage(message, currentUser.username, true, messageId);
+            displayMessage(message, currentUser.username, true);
 
             // Store the message locally
             const chatIndex = activeChats.findIndex(chat => chat.username === currentChatUser.username);
@@ -194,24 +180,35 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Typing indicator function
     function updateTypingIndicator(username, isTyping) {
-        const typingIndicator = document.querySelector('.typing-indicator');
-        if (isTyping) {
-            if (!typingIndicator) {
-                const indicator = document.createElement('div');
-                indicator.className = 'typing-indicator';
-                indicator.innerHTML = `
+        console.log('Updating typing indicator:', { username, isTyping });
+        const messages = document.querySelector('.messages');
+        let typingIndicator = document.querySelector('.typing-indicator');
+
+        // Don't show typing indicator for current user's own typing
+        if (username === currentUser.username) {
+            console.log('Ignoring own typing indicator');
+            return;
+        }
+
+        if (isTyping && !typingIndicator) {
+            console.log('Creating typing indicator for:', username);
+            typingIndicator = document.createElement('div');
+            typingIndicator.className = 'typing-indicator';
+            typingIndicator.innerHTML = `
+                <div class="typing-content">
                     <span class="typing-text">${username} is typing</span>
                     <div class="typing-dots">
                         <span></span>
                         <span></span>
                         <span></span>
                     </div>
-                `;
-                messages.appendChild(indicator);
-                messages.scrollTop = messages.scrollHeight;
-            }
-        } else {
-            typingIndicator?.remove();
+                </div>
+            `;
+            messages.appendChild(typingIndicator);
+             messages.scrollTop = messages.scrollHeight;
+        } else if (!isTyping && typingIndicator) {
+             console.log('Removing typing indicator');
+            typingIndicator.remove();
         }
     }
 
@@ -241,22 +238,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             <div class="message-content">${message}</div>
             <div class="message-info">
                 <span class="message-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                ${isOutgoing ? '<span class="message-status">✓</span>' : ''}
             </div>
         `;
         messages.appendChild(messageElement);
         messages.scrollTop = messages.scrollHeight;
-    }
-
-    function updateMessageStatus(messageId, status) {
-        const messageElement = document.querySelector(` [data-message-id="${messageId}"] .message-status`);
-        if (messageElement) {
-            switch (status) {
-                case 'sent': messageElement.textContent = '✓'; break;
-                case 'delivered': messageElement.textContent = '✓✓'; break;
-                case 'read': messageElement.textContent = '✓✓'; messageElement.style.color = '#4CAF50'; break;
-            }
-        }
     }
 
     // Event listener for send button

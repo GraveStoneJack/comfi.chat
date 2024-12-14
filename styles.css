@@ -759,21 +759,14 @@ select::-webkit-scrollbar-thumb:hover {
     bottom: -18px;
     font-size: 0.7em;
     color: rgba(59, 3, 55, 0.5) !important;
-    right: 0;
 }
 
 .message.incoming .message-timestamp {
     left: 0;
-    right: auto;
 }
 
-.message.incoming .message-status {
-    left: 45px;
-    right: auto;
-}
-
-.message.outgoing .message-info {
-    justify-content: flex-start;
+.message.outgoing .message-timestamp {
+    right: 0;
 }
 
 /* Smooth message animations */
@@ -873,14 +866,6 @@ select::-webkit-scrollbar-thumb:hover {
     to { opacity: 1; }
 }
 
-.message-status {
-    position: absolute;
-    bottom: -18px;
-    font-size: 0.7em;
-    color: rgba(59, 3, 55, 0.5);
-    right: 45px;
-}
-
 .typing-indicator {
     padding: 10px;
     margin: 10px;
@@ -890,6 +875,12 @@ select::-webkit-scrollbar-thumb:hover {
     align-items: center;
     font-size: 14px;
     animation: fadeIn 0.3s ease-in;
+}
+
+.typing-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .typing-text {
@@ -930,5 +921,4 @@ select::-webkit-scrollbar-thumb:hover {
     align-items: center;
     font-size: 12px;
     margin-top: 4px;
-    gap: 4px;
 }
