@@ -73,10 +73,18 @@
                 <button id="block-user-btn" class="action-btn">Block</button>
                 <button id="report-user-btn" class="action-btn">Report</button>
             </div>
+            <div class="chat-toolbar">
+                <div class="search-container">
+                    <input type="text" id="message-search" placeholder="Search messages...">
+                </div>
+            </div>
             <div class="messages">
                 <!-- Messages will be populated here -->
             </div>
             <div class="message-input">
+                <button id="attach-file-btn" class="attach-btn">
+                    <i class="fas fa-paperclip"></i>
+                </button>
                 <input type="text" id="message-text" placeholder="Type your message...">
                 <button id="send-btn">Send</button>
             </div>
@@ -108,6 +116,39 @@
                 <button type="submit">Submit Report</button>
             </div>
         </form>
+    </div>
+    <div id="preferences-popup" class="popup">
+        <div class="popup-content">
+            <h3>Chat Preferences</h3>
+            <div class="preference-item">
+                <label>
+                    <input type="checkbox" id="notifications-toggle">
+                    Enable Notifications
+                </label>
+            </div>
+            <div class="preference-item">
+                <label>
+                    <input type="checkbox" id="sound-toggle">
+                    Enable Sound
+                </label>
+            </div>
+            <div class="preference-item">
+                <label>Theme</label>
+                <select id="theme-select">
+                    <option value="light">Light</option>
+                    <option value="dark">Dark</option>
+                </select>
+            </div>
+            <div class="preference-item">
+                <label>Font Size</label>
+                <select id="font-size-select">
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="large">Large</option>
+                </select>
+            </div>
+            <button id="save-preferences" class="submit-btn">Save Preferences</button>
+        </div>
     </div>
 </body>
 </html>

@@ -21,7 +21,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     let onlineUsers = [];
 
     function initializeWebSocket() {
-        socket = new WebSocket(WS_URL);
+        // Add authentication token to WebSocket URL
+        const token = sessionStorage.getItem('authToken'); // You'll need to implement token storage
+        socket = new WebSocket(`${WS_URL}?token=${token}`);
+        
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
 
         function updateConnectionStatus(connected) {
             console.log('WebSocket status:', connected ? 'Connected' : 'Disconnected');
@@ -117,13 +122,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         socket.onclose = () => {
             console.log('WebSocket disconnected. Attempting to reconnect...');
             updateConnectionStatus(false);
-            setTimeout(initializeWebSocket, 3000);
+            
+            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                reconnectAttempts++;
+                setTimeout(initializeWebSocket, 3000 * reconnectAttempts); // Exponential backoff
+            } else {
+                console.error('Max reconnection attempts reached');
+                // Show user-friendly error message
+                alert('Connection lost. Please refresh the page to reconnect.');
+            }
         };
     }
 
     initializeWebSocket();
 
+    class MessageRateLimiter {
+        constructor(maxMessages = 5, timeWindow = 5000) {
+            this.messages = [];
+            this.maxMessages = maxMessages;
+            this.timeWindow = timeWindow;
+        }
+
+        canSendMessage() {
+            const now = Date.now();
+            this.messages = this.messages.filter(time => now - time < this.timeWindow);
+            
+            if (this.messages.length >= this.maxMessages) {
+                return false;
+            }
+            
+            this.messages.push(now);
+            return true;
+        }
+    }
+
+    const rateLimiter = new MessageRateLimiter();
+
     function sendMessage(message) {
+        if (!rateLimiter.canSendMessage()) {
+            alert('Please wait a few seconds before sending another message.');
+            return;
+        }
         if (!socket || socket.readyState !== WebSocket.OPEN) {
             console.error('WebSocket is not connected');
             return;
@@ -226,6 +265,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Add this function at the top level
+    function sanitizeHTML(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
     // Function to display a message
     function displayMessage(message, sender, isOutgoing, messageId = null) {
         console.log('Displaying message:', { message, sender, isOutgoing, messageId });
@@ -235,11 +281,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (messageId) messageElement.dataset.messageId = messageId;
 
         messageElement.innerHTML = `
-            <div class="message-content">${message}</div>
+            <div class="message-content">${sanitizeHTML(message)}</div>
             <div class="message-info">
+                <span class="message-sender">${sanitizeHTML(sender)}</span>
                 <span class="message-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
         `;
+
+        const statusIndicator = document.createElement('span');
+        statusIndicator.className = 'message-status';
+        if (isOutgoing) {
+            statusIndicator.innerHTML = '✓'; // Sent
+            // Add delivery confirmation
+            socket.on('message-delivered', (msgId) => {
+                if (msgId === messageId) {
+                    statusIndicator.innerHTML = '✓✓'; // Delivered
+                }
+            });
+            // Add read confirmation
+            socket.on('message-read', (msgId) => {
+                if (msgId === messageId) {
+                    statusIndicator.innerHTML = '✓✓✓'; // Read
+                }
+            });
+        }
+        messageElement.querySelector('.message-info').appendChild(statusIndicator);
+
         messages.appendChild(messageElement);
         messages.scrollTop = messages.scrollHeight;
     }
@@ -362,18 +429,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function fetchOnlineUsers() {
         try {
             const response = await fetch(`${API_URL}/api/temp-users/online`);
-            if (response.ok) {
-                const users = await response.json();
-                // Filter out current user from the list
-                onlineUsers = users.filter(user => user.username !== currentUser.username);
-                updateOnlineUsers();
-                populateCountryFilter();
-
-                // Debug log to check updates
-                console.log('Fetched online users:', onlineUsers);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+            const users = await response.json();
+            onlineUsers = users.filter(user => user.username !== currentUser.username);
+            updateOnlineUsers();
+            populateCountryFilter();
         } catch (error) {
             console.error('Error fetching online users:', error);
+            // Show user-friendly error message
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'error-message';
+            errorMessage.textContent = 'Unable to fetch online users. Please try again later.';
+            document.querySelector('.online-users-container').appendChild(errorMessage);
         }
     }
 
@@ -450,7 +519,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             userElement.dataset.username = user.username;
             userElement.innerHTML = `
                 <div class="user-info">
-                    <div class="user-name">${user.username}</div>
+                    <div class="user-name">
+                        ${user.username}
+                        <span class="presence-indicator ${user.isActive ? 'active' : 'inactive'}"></span>
+                    </div>
                     <div class="user-details">
                         ${user.age} |
                         <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
@@ -511,7 +583,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         fetchOnlineUsers(); // Fetch fresh list of online users
     }
 
-    function openChat(user) {
+    async function openChat(user) {
         currentChatUser = user;
         chatArea.classList.add('active');
 
@@ -551,11 +623,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         messages.innerHTML = ''; // Clear previous messages
 
-        // Display stored messages
-        if (chat.messages && chat.messages.length > 0) {
-            chat.messages.forEach(msg => {
-                displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
-            });
+        // Load chat history from server
+        try {
+            const response = await fetch(`${API_URL}/api/messages/history/${currentUser.username}/${user.username}`);
+            if (response.ok) {
+                const history = await response.json();
+                chat.messages = history;
+                // Display messages
+                history.forEach(msg => {
+                    displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
+                });
+            }
+        } catch (error) {
+            console.error('Error loading chat history:', error);
         }
 
         // Update active chats display
@@ -713,5 +793,149 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error('Error deleting user:', error);
         }
+    });
+
+    function updateUserPresence() {
+        const lastActive = new Date().toISOString();
+        fetch(`${API_URL}/api/temp-users/presence/${currentUser.username}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lastActive })
+        });
+    }
+
+    // Call every minute
+    setInterval(updateUserPresence, 60000);
+
+    // Add file input to chat
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*,.pdf,.doc,.docx'; // Restrict file types
+    fileInput.style.display = 'none';
+
+    async function handleFileUpload(file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        try {
+            const response = await fetch(`${API_URL}/api/upload`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (response.ok) {
+                const { fileUrl } = await response.json();
+                sendMessage(`[File shared] ${fileUrl}`);
+            }
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            alert('Failed to upload file. Please try again.');
+        }
+    }
+
+    document.getElementById('attach-file-btn').addEventListener('click', () => {
+        fileInput.click();
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            handleFileUpload(file);
+        }
+    });
+
+    class ConnectionManager {
+        constructor(wsUrl) {
+            this.wsUrl = wsUrl;
+            this.messageQueue = [];
+            this.isConnected = false;
+        }
+
+        connect() {
+            this.socket = new WebSocket(this.wsUrl);
+            
+            this.socket.onopen = () => {
+                this.isConnected = true;
+                this.flushMessageQueue();
+            };
+            
+            this.socket.onclose = () => {
+                this.isConnected = false;
+                this.scheduleReconnect();
+            };
+        }
+
+        send(message) {
+            if (this.isConnected) {
+                this.socket.send(message);
+            } else {
+                this.messageQueue.push(message);
+            }
+        }
+
+        flushMessageQueue() {
+            while (this.messageQueue.length > 0) {
+                const message = this.messageQueue.shift();
+                this.send(message);
+            }
+        }
+    }
+
+    const connectionManager = new ConnectionManager(WS_URL);
+
+    class UserPreferences {
+        constructor() {
+            this.preferences = JSON.parse(localStorage.getItem('chatPreferences')) || {
+                notifications: true,
+                soundEnabled: true,
+                theme: 'light',
+                fontSize: 'medium'
+            };
+        }
+
+        save() {
+            localStorage.setItem('chatPreferences', JSON.stringify(this.preferences));
+        }
+
+        update(key, value) {
+            this.preferences[key] = value;
+            this.save();
+            this.applyPreferences();
+        }
+
+        applyPreferences() {
+            document.body.className = this.preferences.theme;
+            messageSound.volume = this.preferences.soundEnabled ? 0.5 : 0;
+            // Apply other preferences...
+        }
+    }
+
+    const userPrefs = new UserPreferences();
+    userPrefs.applyPreferences();
+
+    function searchMessages(query) {
+        const searchResults = [];
+        
+        activeChats.forEach(chat => {
+            const matches = chat.messages.filter(msg => 
+                msg.message.toLowerCase().includes(query.toLowerCase())
+            );
+            
+            if (matches.length > 0) {
+                searchResults.push({
+                    username: chat.username,
+                    matches
+                });
+            }
+        });
+        
+        return searchResults;
+    }
+
+    // Add search input to chat interface
+    const searchInput = document.getElementById('message-search');
+    searchInput.addEventListener('input', (e) => {
+        const results = searchMessages(e.target.value);
+        displaySearchResults(results);
     });
 });
