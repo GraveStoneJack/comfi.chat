@@ -616,19 +616,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         messages.innerHTML = ''; // Clear previous messages
 
-        // Load chat history from server
+        // Load chat history from server, with graceful fallback to local buffer
+        let renderedFromHistory = false;
         try {
             const response = await fetch(`${API_URL}/api/messages/history/${currentUser.username}/${user.username}`);
             if (response.ok) {
                 const history = await response.json();
-                chat.messages = history;
-                // Display messages
-                history.forEach(msg => {
-                    displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
-                });
+                if (Array.isArray(history) && history.length > 0) {
+                    chat.messages = history;
+                    history.forEach(msg => {
+                        displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
+                    });
+                    renderedFromHistory = true;
+                }
             }
         } catch (error) {
             console.error('Error loading chat history:', error);
+        }
+
+        // If no history was rendered (e.g., endpoint missing), render any locally buffered messages
+        if (!renderedFromHistory && Array.isArray(chat.messages) && chat.messages.length > 0) {
+            chat.messages.forEach(msg => {
+                displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
+            });
         }
 
         // Update active chats display
