@@ -291,24 +291,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const statusIndicator = document.createElement('span');
         statusIndicator.className = 'message-status';
         if (isOutgoing) {
-            statusIndicator.innerHTML = '✓'; // Sent
-            // Add delivery confirmation
-            socket.on('message-delivered', (msgId) => {
-                if (msgId === messageId) {
-                    statusIndicator.innerHTML = '✓✓'; // Delivered
-                }
-            });
-            // Add read confirmation
-            socket.on('message-read', (msgId) => {
-                if (msgId === messageId) {
-                    statusIndicator.innerHTML = '✓✓✓'; // Read
-                }
-            });
+            statusIndicator.innerHTML = '✓';
         }
         messageElement.querySelector('.message-info').appendChild(statusIndicator);
 
-        messages.appendChild(messageElement);
-        messages.scrollTop = messages.scrollHeight;
+        const messagesContainer = document.querySelector('.messages');
+        if (messagesContainer) {
+            messagesContainer.appendChild(messageElement);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        } else {
+            console.error('Messages container not found in DOM');
+        }
     }
 
     // Event listener for send button
