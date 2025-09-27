@@ -73,19 +73,6 @@
                 <button id="block-user-btn" class="action-btn">Block</button>
                 <button id="report-user-btn" class="action-btn">Report</button>
             </div>
-            <div class="chat-toolbar">
-                <button class="search-toggle-btn" id="search-toggle" aria-label="Search">
-                    <i class="fas fa-magnifying-glass"></i>
-                </button>
-                <div class="search-popover" id="search-popover" aria-hidden="true">
-                    <div class="search-popover-inner">
-                        <i class="fas fa-magnifying-glass" style="color:#9b4dca;"></i>
-                        <input type="text" id="message-search-input" placeholder="Search in conversation...">
-                        <button class="search-toggle-btn" id="search-close" aria-label="Close" style="width:28px;height:28px;background:rgba(155,77,202,0.15);color:#9b4dca;"><i class="fas fa-xmark"></i></button>
-                    </div>
-                    <div class="search-results" id="search-results"></div>
-                </div>
-            </div>
             <div class="messages">
                 <!-- Messages will be populated here -->
             </div>
@@ -93,8 +80,17 @@
                 <button id="attach-file-btn" class="attach-btn">
                     <i class="fas fa-paperclip"></i>
                 </button>
+                <button id="inline-search-btn" class="search-icon-btn" aria-label="Search">
+                    <i class="fas fa-magnifying-glass"></i>
+                </button>
                 <input type="text" id="message-text" placeholder="Type your message...">
                 <button id="send-btn">Send</button>
+                <div class="search-slide" id="search-slide">
+                    <i class="fas fa-magnifying-glass" style="color:#9b4dca;"></i>
+                    <input type="text" id="message-search-input" placeholder="Search in conversation...">
+                    <button class="search-icon-btn" id="inline-search-close" aria-label="Close" style="width:28px;height:28px;background:rgba(155,77,202,0.15);color:#9b4dca;"><i class="fas fa-xmark"></i></button>
+                    <div class="search-results" id="search-results"></div>
+                </div>
             </div>
         </div>
     </div>

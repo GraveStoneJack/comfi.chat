@@ -743,6 +743,10 @@ select::-webkit-scrollbar-thumb:hover {
     align-self: flex-start;
     color: #2f0642;
     border: 1px solid rgba(155, 77, 202, 0.15);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border-bottom-right-radius: 20px;
+    border-bottom-left-radius: 8px; /* inward corner like iMessage */
 }
 
 .message.outgoing {
@@ -750,6 +754,10 @@ select::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(135deg, #d79aff 0%, #9b4dca 100%);
     align-self: flex-end;
     color: #ffffff;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 8px; /* inward corner like iMessage */
 }
 
 /* subtle glossy highlight overlay */
@@ -764,35 +772,6 @@ select::-webkit-scrollbar-thumb:hover {
     border-radius: inherit;
     background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
     pointer-events: none;
-}
-
-/* small chat bubble tails */
-.message.incoming::after {
-    content: '';
-    position: absolute;
-    left: -6px;
-    bottom: 8px;
-    width: 12px;
-    height: 12px;
-    background: inherit;
-    border-left: 1px solid rgba(155, 77, 202, 0.15);
-    border-bottom: 1px solid rgba(155, 77, 202, 0.15);
-    border-bottom-left-radius: 12px;
-    transform: rotate(45deg);
-}
-
-.message.outgoing::after {
-    content: '';
-    position: absolute;
-    right: -6px;
-    bottom: 8px;
-    width: 12px;
-    height: 12px;
-    background: inherit;
-    border-right: 1px solid rgba(255, 255, 255, 0.25);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.25);
-    border-bottom-right-radius: 12px;
-    transform: rotate(-45deg);
 }
 
 .message-timestamp {
@@ -1010,13 +989,7 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 /* Search Container */
-.chat-toolbar {
-    padding: 10px 15px;
-    border-bottom: 1px solid rgba(59, 3, 55, 0.2);
-    display: flex;
-    justify-content: flex-end;
-    position: relative;
-}
+.chat-toolbar { display: none; }
 
 .search-toggle-btn {
     width: 36px;
@@ -1125,6 +1098,55 @@ body.dark .chat-container {
     overflow-y: auto;
     display: none;
 }
+
+/* New inline search (slides over the input) */
+.message-input { position: relative; align-items: center; gap: 8px; }
+.search-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 18px;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(135deg, #d79aff 0%, #9b4dca 100%);
+    box-shadow: 0 6px 16px rgba(155, 77, 202, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.search-icon-btn:hover { transform: translateY(-1px); }
+.search-icon-btn:active { transform: translateY(0); box-shadow: 0 4px 12px rgba(155,77,202,0.3); }
+
+.search-slide {
+    position: absolute;
+    left: 60px; /* after attach + search icon */
+    right: 95px; /* before send */
+    height: 40px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(245,235,255,0.96) 100%);
+    border: 1px solid rgba(59, 3, 55, 0.15);
+    border-radius: 20px;
+    box-shadow: 0 8px 20px rgba(47,6,66,0.12);
+    transform: scaleX(0.6) translateY(8px);
+    transform-origin: left center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.message-input.search-mode .search-slide { opacity: 1; transform: scaleX(1) translateY(0); pointer-events: all; }
+.message-input.search-mode #message-text { visibility: hidden; }
+.search-slide input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: #3b0337; }
+
+/* Center and tighten actions header */
+.chat-actions { justify-content: center; padding: 6px 10px; margin-top: 0; }
+
+/* Truncate chat preview text */
+.chat-preview { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 
 .search-result-item {
     padding: 10px;

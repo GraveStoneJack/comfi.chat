@@ -287,12 +287,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
         `;
 
-        const statusIndicator = document.createElement('span');
-        statusIndicator.className = 'message-status';
-        if (isOutgoing) {
-            statusIndicator.innerHTML = '✓';
-        }
-        messageElement.querySelector('.message-info').appendChild(statusIndicator);
+        // Status indicators removed per design choice
 
         const messagesContainer = document.querySelector('.messages');
         if (messagesContainer) {
@@ -347,7 +342,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 ${chat.country}
                             ` : ''}
                         </div>
-                        <div class="chat-preview">${chat.lastMessage || 'Start chatting...'}</div>
+                        <div class="chat-preview">${(chat.lastMessage || 'Start chatting...').slice(0, 60)}${(chat.lastMessage && chat.lastMessage.length > 60) ? '…' : ''}</div>
                     </div>
                 `;
 
@@ -987,22 +982,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // New animated search popover
-    const searchToggle = document.getElementById('search-toggle');
-    const searchPopover = document.getElementById('search-popover');
+    // Inline search slide controls
+    const searchToggle = document.getElementById('inline-search-btn');
+    const searchPopover = document.getElementById('search-slide');
     const searchInput = document.getElementById('message-search-input');
-    const searchClose = document.getElementById('search-close');
+    const searchClose = document.getElementById('inline-search-close');
+    const messageInputWrapper = document.querySelector('.message-input');
 
     function openSearch() {
         if (!searchPopover) return;
-        searchPopover.classList.add('open');
-        searchPopover.setAttribute('aria-hidden', 'false');
+        if (messageInputWrapper) messageInputWrapper.classList.add('search-mode');
         setTimeout(() => searchInput && searchInput.focus(), 50);
     }
 
     function closeSearch() {
         if (!searchPopover) return;
-        searchPopover.classList.remove('open');
-        searchPopover.setAttribute('aria-hidden', 'true');
+        if (messageInputWrapper) messageInputWrapper.classList.remove('search-mode');
         const resultsEl = document.getElementById('search-results');
         if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
         if (searchInput) searchInput.value = '';
@@ -1014,7 +1009,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (e.key === 'Escape') closeSearch();
     });
     document.addEventListener('click', (e) => {
-        if (searchPopover && searchPopover.classList.contains('open')) {
+        if (messageInputWrapper && messageInputWrapper.classList.contains('search-mode')) {
             const isInside = searchPopover.contains(e.target) || (searchToggle && searchToggle.contains(e.target));
             if (!isInside) closeSearch();
         }
