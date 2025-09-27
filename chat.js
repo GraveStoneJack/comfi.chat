@@ -283,7 +283,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         messageElement.innerHTML = `
             <div class="message-content">${sanitizeHTML(message)}</div>
             <div class="message-info">
-                <span class="message-sender">${sanitizeHTML(sender)}</span>
                 <span class="message-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
         `;
@@ -935,10 +934,97 @@ document.addEventListener('DOMContentLoaded', async () => {
         return searchResults;
     }
 
-    // Add search input to chat interface
-    const searchInput = document.getElementById('message-search');
-    searchInput.addEventListener('input', (e) => {
-        const results = searchMessages(e.target.value);
-        displaySearchResults(results);
+    function displaySearchResults(results, query) {
+        const resultsEl = document.getElementById('search-results');
+        if (!resultsEl) return;
+        resultsEl.innerHTML = '';
+
+        if (!query || query.trim() === '') {
+            resultsEl.style.display = 'none';
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        results.forEach(group => {
+            group.matches.slice(0, 5).forEach(match => {
+                const item = document.createElement('div');
+                item.className = 'search-result-item';
+                const idx = match.message.toLowerCase().indexOf(query.toLowerCase());
+                const start = Math.max(0, idx - 20);
+                const end = Math.min(match.message.length, idx + query.length + 20);
+                const before = sanitizeHTML(match.message.slice(start, idx));
+                const hit = sanitizeHTML(match.message.slice(idx, idx + query.length));
+                const after = sanitizeHTML(match.message.slice(idx + query.length, end));
+                item.innerHTML = `<strong>${sanitizeHTML(group.username)}</strong>: ${before}<span class="highlight">${hit}</span>${after}`;
+
+                item.addEventListener('click', () => {
+                    // Open the chat if needed
+                    if (!currentChatUser || currentChatUser.username !== group.username) {
+                        const user = activeChats.find(c => c.username === group.username) || onlineUsers.find(u => u.username === group.username);
+                        if (user) {
+                            openChat(user);
+                        }
+                    }
+
+                    // Try to scroll to a matching message in the DOM
+                    setTimeout(() => {
+                        const messageNodes = Array.from(document.querySelectorAll('.messages .message'));
+                        const node = messageNodes.find(n => n.textContent.toLowerCase().includes(query.toLowerCase()));
+                        if (node) {
+                            node.classList.add('search-hit');
+                            node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            setTimeout(() => node.classList.remove('search-hit'), 1200);
+                        }
+                    }, 100);
+                });
+
+                fragment.appendChild(item);
+            });
+        });
+
+        resultsEl.appendChild(fragment);
+        resultsEl.style.display = fragment.childNodes.length ? 'block' : 'none';
+    }
+
+    // New animated search popover
+    const searchToggle = document.getElementById('search-toggle');
+    const searchPopover = document.getElementById('search-popover');
+    const searchInput = document.getElementById('message-search-input');
+    const searchClose = document.getElementById('search-close');
+
+    function openSearch() {
+        if (!searchPopover) return;
+        searchPopover.classList.add('open');
+        searchPopover.setAttribute('aria-hidden', 'false');
+        setTimeout(() => searchInput && searchInput.focus(), 50);
+    }
+
+    function closeSearch() {
+        if (!searchPopover) return;
+        searchPopover.classList.remove('open');
+        searchPopover.setAttribute('aria-hidden', 'true');
+        const resultsEl = document.getElementById('search-results');
+        if (resultsEl) { resultsEl.style.display = 'none'; resultsEl.innerHTML = ''; }
+        if (searchInput) searchInput.value = '';
+    }
+
+    if (searchToggle) searchToggle.addEventListener('click', openSearch);
+    if (searchClose) searchClose.addEventListener('click', closeSearch);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeSearch();
     });
+    document.addEventListener('click', (e) => {
+        if (searchPopover && searchPopover.classList.contains('open')) {
+            const isInside = searchPopover.contains(e.target) || (searchToggle && searchToggle.contains(e.target));
+            if (!isInside) closeSearch();
+        }
+    });
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value;
+            const results = searchMessages(query);
+            displaySearchResults(results, query);
+        });
+    }
 });

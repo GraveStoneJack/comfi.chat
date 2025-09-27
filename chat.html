@@ -74,8 +74,16 @@
                 <button id="report-user-btn" class="action-btn">Report</button>
             </div>
             <div class="chat-toolbar">
-                <div class="search-container">
-                    <input type="text" id="message-search" placeholder="Search messages...">
+                <button class="search-toggle-btn" id="search-toggle" aria-label="Search">
+                    <i class="fas fa-magnifying-glass"></i>
+                </button>
+                <div class="search-popover" id="search-popover" aria-hidden="true">
+                    <div class="search-popover-inner">
+                        <i class="fas fa-magnifying-glass" style="color:#9b4dca;"></i>
+                        <input type="text" id="message-search-input" placeholder="Search in conversation...">
+                        <button class="search-toggle-btn" id="search-close" aria-label="Close" style="width:28px;height:28px;background:rgba(155,77,202,0.15);color:#9b4dca;"><i class="fas fa-xmark"></i></button>
+                    </div>
+                    <div class="search-results" id="search-results"></div>
                 </div>
             </div>
             <div class="messages">
