@@ -121,7 +121,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                     // If chat window is open with this user, display message
                     if (currentChatUser && (data.sender === currentChatUser.username || data.recipient === currentChatUser.username)) {
-                        displayMessage(data.message, data.sender, data.sender === currentUser.username);
+                        // Handle special delete token
+                        if (data.message && data.message.startsWith('[delete-image]')) {
+                            const tokenUrl = getImageUrlFromMessage(data.message.replace('[delete-image]', ''));
+                            const container = document.querySelector('.messages');
+                            const nodes = Array.from(container.querySelectorAll('.message'));
+                            const toRemove = nodes.find(n => {
+                                const img = n.querySelector('.message-image');
+                                return img && img.src === tokenUrl;
+                            });
+                            if (toRemove) toRemove.remove();
+                        } else {
+                            displayMessage(data.message, data.sender, data.sender === currentUser.username);
+                        }
                     }
                 }
             } catch (error) {
@@ -402,10 +414,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 messageElement.remove();
                 try {
                     socket.send(JSON.stringify({
-                        type: 'delete-message',
+                        type: 'message',
                         recipient: currentChatUser.username,
                         sender: currentUser.username,
-                        message: `[image]${imgEl.src}`
+                        message: `[delete-image]${imgEl.src}`
                     }));
                 } catch (e) { console.error('Delete broadcast failed', e); }
             });
@@ -999,10 +1011,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Broadcast delete to recipient for the same image token
                     try {
                         socket.send(JSON.stringify({
-                            type: 'delete-message',
+                            type: 'message',
                             recipient: currentChatUser.username,
                             sender: currentUser.username,
-                            message: msgToken
+                            message: `[delete-image]${imgEl?.src || ''}`
                         }));
                     } catch (e) { console.error('Expiry delete broadcast failed', e); }
                 }
