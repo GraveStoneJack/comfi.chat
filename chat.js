@@ -192,7 +192,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     timestamp: new Date()
                 });
 
-                activeChats[chatIndex].lastMessage = message;
+                activeChats[chatIndex].lastMessage = isImageMessage(message) ? 'Photo' : message;
             }
 
             console.log('Message sent:', messageData);
@@ -270,6 +270,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         return div.innerHTML;
     }
 
+    // Image helpers
+    function isImageUrl(url) {
+        try {
+            const u = new URL(url);
+            return /\.(png|jpe?g|gif|webp|avif)$/i.test(u.pathname);
+        } catch (_e) {
+            return false;
+        }
+    }
+
+    function isImageMessage(text) {
+        if (!text) return false;
+        if (text.startsWith('[image]')) return true;
+        return isImageUrl(text.trim());
+    }
+
+    function getImageUrlFromMessage(text) {
+        if (!text) return null;
+        return text.startsWith('[image]') ? text.substring(7).trim() : text.trim();
+    }
+
     // Function to display a message
     function displayMessage(message, sender, isOutgoing, messageId = null) {
         console.log('Displaying message:', { message, sender, isOutgoing, messageId });
@@ -278,8 +299,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         messageElement.classList.add('message', isOutgoing ? 'outgoing' : 'incoming');
         if (messageId) messageElement.dataset.messageId = messageId;
 
+        let innerContent;
+        if (isImageMessage(message)) {
+            const imgUrl = sanitizeHTML(getImageUrlFromMessage(message));
+            messageElement.classList.add('has-image');
+            innerContent = `
+                <div class="message-content">
+                    <a href="${imgUrl}" target="_blank" rel="noopener noreferrer">
+                        <img class="message-image" src="${imgUrl}" alt="Image" />
+                    </a>
+                </div>
+            `;
+        } else {
+            innerContent = `<div class="message-content">${sanitizeHTML(message)}</div>`;
+        }
+
         messageElement.innerHTML = `
-            <div class="message-content">${sanitizeHTML(message)}</div>
+            ${innerContent}
             <div class="message-info">
                 <span class="message-timestamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
@@ -802,13 +838,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Call every minute
     setInterval(updateUserPresence, 60000);
 
-    // Add file input to chat
+    // Add file input to chat (images only)
     const fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.accept = 'image/*,.pdf,.doc,.docx'; // Restrict file types
+    fileInput.accept = 'image/*';
     fileInput.style.display = 'none';
 
     async function handleFileUpload(file) {
+        if (!file || !file.type.startsWith('image/')) {
+            alert('Only image files are allowed.');
+            return;
+        }
         const formData = new FormData();
         formData.append('file', file);
         
@@ -820,7 +860,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (response.ok) {
                 const { fileUrl } = await response.json();
-                sendMessage(`[File shared] ${fileUrl}`);
+                // Send as image message token
+                sendMessage(`[image]${fileUrl}`);
             }
         } catch (error) {
             console.error('Error uploading file:', error);
