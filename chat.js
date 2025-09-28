@@ -911,21 +911,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     userPrefs.applyPreferences();
 
     function searchMessages(query) {
+        const normalized = (query || '').toLowerCase();
+        if (!normalized) return [];
         const searchResults = [];
-        
-        activeChats.forEach(chat => {
-            const matches = chat.messages.filter(msg => 
-                msg.message.toLowerCase().includes(query.toLowerCase())
+
+        // Prefer current conversation for relevancy
+        const sourceChats = currentChatUser
+            ? activeChats.filter(c => c.username === currentChatUser.username)
+            : activeChats;
+
+        sourceChats.forEach(chat => {
+            const matches = (chat.messages || []).filter(msg =>
+                (msg.message || '').toLowerCase().includes(normalized)
             );
-            
             if (matches.length > 0) {
-                searchResults.push({
-                    username: chat.username,
-                    matches
-                });
+                searchResults.push({ username: chat.username, matches });
             }
         });
-        
+
         return searchResults;
     }
 
@@ -977,8 +980,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        resultsEl.appendChild(fragment);
-        resultsEl.style.display = fragment.childNodes.length ? 'block' : 'none';
+        if (!fragment.childNodes.length) {
+            const empty = document.createElement('div');
+            empty.className = 'search-result-item';
+            empty.textContent = 'No results';
+            resultsEl.appendChild(empty);
+        } else {
+            resultsEl.appendChild(fragment);
+        }
+        resultsEl.style.display = 'block';
+    }
+
+    function highlightMatchesInDom(query) {
+        const list = document.querySelector('.messages');
+        if (!list) return 0;
+        const nodes = Array.from(list.querySelectorAll('.message'));
+        let first;
+        const normalized = query.toLowerCase();
+        nodes.forEach(n => n.classList.remove('search-hit'));
+        nodes.forEach(n => {
+            if (n.textContent.toLowerCase().includes(normalized)) {
+                if (!first) first = n;
+                n.classList.add('search-hit');
+            }
+        });
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return first ? 1 : 0;
     }
 
     // New animated search popover
@@ -1020,6 +1047,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const query = e.target.value;
             const results = searchMessages(query);
             displaySearchResults(results, query);
+            if (query && query.trim()) highlightMatchesInDom(query);
         });
     }
 });
