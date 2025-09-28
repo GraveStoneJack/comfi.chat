@@ -780,19 +780,9 @@ select::-webkit-scrollbar-thumb:hover {
     border-bottom-right-radius: 8px; /* inward corner like iMessage */
 }
 
-/* subtle glossy highlight overlay */
+/* remove glossy overlay to avoid white edge artifacts on rounded corners */
 .message.incoming::before,
-.message.outgoing::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 45%;
-    border-radius: inherit;
-    background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0));
-    pointer-events: none;
-}
+.message.outgoing::before { content: none; }
 
 .message-timestamp {
     position: absolute;
