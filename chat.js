@@ -291,6 +291,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         return text.startsWith('[image]') ? text.substring(7).trim() : text.trim();
     }
 
+    async function fileToDataURL(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = reject;
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        });
+    }
+
+    async function compressImage(file, maxWidth = 1280, maxHeight = 1280, quality = 0.8) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => {
+                const scale = Math.min(maxWidth / image.width, maxHeight / image.height, 1);
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(image.width * scale);
+                canvas.height = Math.round(image.height * scale);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        reject(new Error('Compression failed'));
+                        return;
+                    }
+                    resolve(blob);
+                }, 'image/jpeg', quality);
+            };
+            image.onerror = reject;
+            image.src = URL.createObjectURL(file);
+        });
+    }
+
     // Function to display a message
     function displayMessage(message, sender, isOutgoing, messageId = null) {
         console.log('Displaying message:', { message, sender, isOutgoing, messageId });
@@ -849,23 +881,30 @@ document.addEventListener('DOMContentLoaded', async () => {
             alert('Only image files are allowed.');
             return;
         }
-        const formData = new FormData();
-        formData.append('file', file);
-        
+
+        // Try backend upload first
         try {
-            const response = await fetch(`${API_URL}/api/upload`, {
-                method: 'POST',
-                body: formData
-            });
-            
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: formData });
             if (response.ok) {
                 const { fileUrl } = await response.json();
-                // Send as image message token
                 sendMessage(`[image]${fileUrl}`);
+                return;
             }
-        } catch (error) {
-            console.error('Error uploading file:', error);
-            alert('Failed to upload file. Please try again.');
+            console.warn('Upload endpoint returned non-200. Falling back to inline image.', response.status);
+        } catch (err) {
+            console.warn('Upload failed, using inline data URL fallback.', err);
+        }
+
+        // Fallback: compress locally and send as data URL so preview still works
+        try {
+            const compressed = await compressImage(file);
+            const dataUrl = await fileToDataURL(compressed);
+            sendMessage(`[image]${dataUrl}`);
+        } catch (e) {
+            console.error('Local processing failed:', e);
+            alert('Could not process image. Please try a smaller image.');
         }
     }
 
