@@ -122,6 +122,39 @@
             </div>
         </form>
     </div>
+    <!-- Image Lightbox Preview -->
+    <div id="image-lightbox" class="lightbox" style="display:none;">
+        <div class="lightbox-overlay"></div>
+        <div class="lightbox-body">
+            <img id="lightbox-img" src="" alt="Preview">
+        </div>
+    </div>
+
+    <!-- Image Send Settings -->
+    <div id="image-settings" class="popup" style="display:none;">
+        <div class="popup-content">
+            <h3>Send Photo</h3>
+            <div class="preference-item">
+                <label>Visibility duration</label>
+                <select id="image-expiry">
+                    <option value="0">Forever</option>
+                    <option value="2">2 seconds</option>
+                    <option value="5">5 seconds</option>
+                    <option value="10">10 seconds</option>
+                    <option value="15">15 seconds</option>
+                    <option value="20">20 seconds</option>
+                    <option value="30">30 seconds</option>
+                    <option value="40">40 seconds</option>
+                    <option value="50">50 seconds</option>
+                    <option value="60">60 seconds</option>
+                </select>
+            </div>
+            <div class="popup-actions">
+                <button type="button" id="image-cancel">Cancel</button>
+                <button type="button" id="image-send" class="submit-btn">Send</button>
+            </div>
+        </div>
+    </div>
     <div id="preferences-popup" class="popup">
         <div class="popup-content">
             <h3>Chat Preferences</h3>

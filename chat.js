@@ -62,6 +62,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 if (data.type === 'typing') {
                     updateTypingIndicator(data.sender, data.isTyping);
+                } else if (data.type === 'delete-message' && data.sender !== currentUser.username) {
+                    // Remove matching image/message locally
+                    const messagesContainer = document.querySelector('.messages');
+                    const nodes = Array.from(messagesContainer.querySelectorAll('.message'));
+                    const toRemove = nodes.find(n => n.textContent.includes(getImageUrlFromMessage(data.message)) || n.textContent.trim() === data.message.trim());
+                    if (toRemove) toRemove.remove();
+                    // Mark unread in chat list
+                    const chat = activeChats.find(c => c.username === data.sender);
+                    if (chat) chat.unread = true;
+                    updateActiveChats();
                 } else if (data.type === 'message' && data.sender !== currentUser.username) {
                     playMessageSound();
 
@@ -337,9 +347,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             messageElement.classList.add('has-image');
             innerContent = `
                 <div class="message-content">
-                    <a href="${imgUrl}" target="_blank" rel="noopener noreferrer">
-                        <img class="message-image" src="${imgUrl}" alt="Image" />
-                    </a>
+                    <img class="message-image" src="${imgUrl}" alt="Image" />
+                    ${isOutgoing ? '<div class="image-actions"><button class="image-action-btn delete-image-btn">Delete</button></div>' : ''}
                 </div>
             `;
         } else {
@@ -361,6 +370,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         } else {
             console.error('Messages container not found in DOM');
+        }
+
+        // Wire lightbox and delete events for images
+        const imgEl = messageElement.querySelector('.message-image');
+        if (imgEl) {
+            imgEl.addEventListener('click', () => {
+                const lb = document.getElementById('image-lightbox');
+                const lbImg = document.getElementById('lightbox-img');
+                if (lb && lbImg) {
+                    lbImg.src = imgEl.src;
+                    lb.style.display = 'block';
+                }
+            });
+        }
+        const delBtn = messageElement.querySelector('.delete-image-btn');
+        if (delBtn) {
+            delBtn.addEventListener('click', () => {
+                messageElement.remove();
+                try {
+                    socket.send(JSON.stringify({
+                        type: 'delete-message',
+                        recipient: currentChatUser.username,
+                        sender: currentUser.username,
+                        message
+                    }));
+                } catch (e) { console.error('Delete broadcast failed', e); }
+            });
         }
     }
 
@@ -908,15 +944,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    const imageSettings = document.getElementById('image-settings');
+    const imageSendBtn = document.getElementById('image-send');
+    const imageCancelBtn = document.getElementById('image-cancel');
+    const imageExpirySelect = document.getElementById('image-expiry');
+    let pendingFileForSend = null;
+
     document.getElementById('attach-file-btn').addEventListener('click', () => {
+        pendingFileForSend = null;
         fileInput.click();
     });
 
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
-            handleFileUpload(file);
+            pendingFileForSend = file;
+            if (imageSettings) imageSettings.style.display = 'block';
         }
+    });
+
+    if (imageCancelBtn) imageCancelBtn.addEventListener('click', () => {
+        pendingFileForSend = null;
+        imageSettings.style.display = 'none';
+    });
+
+    if (imageSendBtn) imageSendBtn.addEventListener('click', async () => {
+        if (!pendingFileForSend) { imageSettings.style.display = 'none'; return; }
+        const seconds = parseInt(imageExpirySelect?.value || '0', 10) || 0;
+        await handleFileUpload(pendingFileForSend);
+        imageSettings.style.display = 'none';
+        // Schedule auto-delete locally if expiry set
+        if (seconds > 0) {
+            setTimeout(() => {
+                const container = document.querySelector('.messages');
+                const imgs = Array.from(container.querySelectorAll('.message.has-image'));
+                const last = imgs[imgs.length - 1];
+                if (last) last.remove();
+            }, seconds * 1000);
+        }
+        pendingFileForSend = null;
     });
 
     class ConnectionManager {
@@ -1113,6 +1179,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') closeSearch();
     });
+    // Close lightbox on overlay click or ESC
+    const lb = document.getElementById('image-lightbox');
+    if (lb) {
+        lb.addEventListener('click', (ev) => {
+            if (ev.target === lb || ev.target.classList.contains('lightbox-overlay')) {
+                lb.style.display = 'none';
+                const lbImg = document.getElementById('lightbox-img');
+                if (lbImg) lbImg.src = '';
+            }
+        });
+        document.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Escape') {
+                lb.style.display = 'none';
+                const lbImg = document.getElementById('lightbox-img');
+                if (lbImg) lbImg.src = '';
+            }
+        });
+    }
     document.addEventListener('click', (e) => {
         if (messageInputWrapper && messageInputWrapper.classList.contains('search-mode')) {
             const isInside = searchPopover.contains(e.target) || (searchToggle && searchToggle.contains(e.target));

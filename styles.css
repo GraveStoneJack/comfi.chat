@@ -472,6 +472,17 @@ select::-webkit-scrollbar-thumb:hover {
     box-shadow: 0 6px 18px rgba(47, 6, 66, 0.12);
 }
 
+/* Lightbox */
+.lightbox { position: fixed; inset: 0; z-index: 2000; }
+.lightbox-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(2px); }
+.lightbox-body { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); max-width: 90vw; max-height: 90vh; }
+.lightbox-body img { max-width: 100%; max-height: 90vh; border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
+
+/* Image delete button */
+.image-actions { position: absolute; right: 8px; top: 8px; display: flex; gap: 6px; }
+.image-action-btn { background: rgba(0,0,0,0.35); color: #fff; border: none; border-radius: 12px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+.image-action-btn:hover { background: rgba(0,0,0,0.5); }
+
 .message.outgoing {
     margin-left: auto;
 }
