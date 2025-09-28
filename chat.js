@@ -389,16 +389,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
         }
-        const delBtn = messageElement.querySelector('.delete-image-btn');
-        if (delBtn) {
-            delBtn.addEventListener('click', () => {
+        // Replace inline delete button with floating trash icon
+        const inlineDel = messageElement.querySelector('.delete-image-btn');
+        if (inlineDel) inlineDel.remove();
+        if (isOutgoing && imgEl) {
+            const trashBtn = document.createElement('button');
+            trashBtn.className = 'image-trash-btn';
+            trashBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            messageElement.appendChild(trashBtn);
+            trashBtn.addEventListener('click', (ev) => {
+                ev.stopPropagation();
                 messageElement.remove();
                 try {
                     socket.send(JSON.stringify({
                         type: 'delete-message',
                         recipient: currentChatUser.username,
                         sender: currentUser.username,
-                        message
+                        message: `[image]${imgEl.src}`
                     }));
                 } catch (e) { console.error('Delete broadcast failed', e); }
             });
@@ -979,7 +986,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Send upload (which will send [image]URL or dataURL)
         await handleFileUpload(pendingFileForSend);
         imageSettings.style.display = 'none';
-        // Schedule auto-delete locally if expiry set
+        // Schedule auto-delete on both sides if expiry set
         if (seconds > 0) {
             setTimeout(() => {
                 const container = document.querySelector('.messages');

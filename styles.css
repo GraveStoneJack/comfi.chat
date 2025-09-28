@@ -462,6 +462,7 @@ select::-webkit-scrollbar-thumb:hover {
 
 .message.has-image {
     padding: 8px;
+    position: relative; /* anchor for trash button */
 }
 
 .message-image {
@@ -479,9 +480,25 @@ select::-webkit-scrollbar-thumb:hover {
 .lightbox-body img { max-width: 100%; max-height: 90vh; border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,0.35); }
 
 /* Image delete button */
-.image-actions { position: absolute; right: 8px; top: 8px; display: flex; gap: 6px; }
-.image-action-btn { background: rgba(0,0,0,0.35); color: #fff; border: none; border-radius: 12px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
-.image-action-btn:hover { background: rgba(0,0,0,0.5); }
+/* Trash button outside bottom-right of image bubble */
+.image-trash-btn {
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: linear-gradient(135deg, #d79aff 0%, #9b4dca 100%);
+    box-shadow: 0 8px 18px rgba(155, 77, 202, 0.4);
+}
+.image-trash-btn:hover { transform: translateY(-1px); }
+.image-trash-btn i { pointer-events: none; }
 
 .message.outgoing {
     margin-left: auto;
