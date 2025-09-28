@@ -460,6 +460,18 @@ select::-webkit-scrollbar-thumb:hover {
     word-wrap: break-word;
 }
 
+.message.has-image {
+    padding: 8px;
+}
+
+.message-image {
+    display: block;
+    max-width: 240px;
+    max-height: 280px;
+    border-radius: 16px;
+    box-shadow: 0 6px 18px rgba(47, 6, 66, 0.12);
+}
+
 .message.outgoing {
     margin-left: auto;
 }
