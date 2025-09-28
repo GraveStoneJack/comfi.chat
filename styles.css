@@ -430,17 +430,16 @@ select::-webkit-scrollbar-thumb:hover {
     position: relative;
 }
 
-/* fade-out at the top below actions to suggest continuation */
-.messages::before {
-    content: '';
+/* fade-out at top using an overlay element so it always shows */
+.messages .messages-fade {
     position: sticky;
     top: 0;
     left: 0;
     right: 0;
-    height: 22px;
+    height: 26px;
     pointer-events: none;
-    z-index: 1;
-    background: linear-gradient(180deg, rgba(240, 230, 255, 0.95), rgba(240, 230, 255, 0));
+    z-index: 2;
+    background: linear-gradient(180deg, rgba(240, 230, 255, 1), rgba(240, 230, 255, 0));
 }
 
 .message {
@@ -882,16 +881,7 @@ select::-webkit-scrollbar-thumb:hover {
     transform: translateY(-50%);
 }
 
-.tab-btn.has-new-message::after {
-    content: '';
-    width: 8px;
-    height: 8px;
-    background-color: #9b4dca;
-    border-radius: 50%;
-    position: absolute;
-    right: 5px;
-    top: 5px;
-}
+/* removed top-right new message dot; we use list highlighting instead */
 
 .typing-indicator {
     padding: 10px;

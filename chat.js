@@ -202,11 +202,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function notifyNewMessage(sender, message) {
-        // Update chat tab to show new message indicator
+        // Highlight chats list and specific chat item instead of top-right indicator
         const chatsTabBtn = document.querySelector('[data-tab="chats"]');
-        if (!chatsTabBtn.classList.contains('has-new-message')) {
-            chatsTabBtn.classList.add('has-new-message');
-        }
+        if (chatsTabBtn) chatsTabBtn.classList.add('has-unread');
 
         // Show browser notification
         if (Notification.permission === "granted") {
