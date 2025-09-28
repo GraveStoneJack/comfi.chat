@@ -66,7 +66,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Remove matching image/message locally
                     const messagesContainer = document.querySelector('.messages');
                     const nodes = Array.from(messagesContainer.querySelectorAll('.message'));
-                    const toRemove = nodes.find(n => n.textContent.includes(getImageUrlFromMessage(data.message)) || n.textContent.trim() === data.message.trim());
+                    const tokenUrl = getImageUrlFromMessage(data.message);
+                    const toRemove = nodes.find(n => {
+                        const img = n.querySelector('.message-image');
+                        const imgSrc = img ? img.src : '';
+                        return (img && imgSrc === tokenUrl) || n.textContent.trim() === data.message.trim();
+                    });
                     if (toRemove) toRemove.remove();
                     // Mark unread in chat list
                     const chat = activeChats.find(c => c.username === data.sender);
@@ -86,7 +91,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         chat = onlineUsers.find(user => user.username === otherUser) || {
                             username: otherUser,
                             messages: [],
-                            lastMessage: data.message,
+                            lastMessage: isImageMessage(data.message) ? 'Photo' : data.message,
                             unread: true
                         };
                         activeChats.push(chat);
@@ -103,7 +108,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         sender: data.sender,
                         timestamp: new Date()
                     });
-                    chat.lastMessage = data.message;
+                    chat.lastMessage = isImageMessage(data.message) ? 'Photo' : data.message;
 
                     // Set unread status if chat is not currently open
                     if (!currentChatUser || currentChatUser.username !== otherUser) {
@@ -971,6 +976,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (imageSendBtn) imageSendBtn.addEventListener('click', async () => {
         if (!pendingFileForSend) { imageSettings.style.display = 'none'; return; }
         const seconds = parseInt(imageExpirySelect?.value || '0', 10) || 0;
+        // Send upload (which will send [image]URL or dataURL)
         await handleFileUpload(pendingFileForSend);
         imageSettings.style.display = 'none';
         // Schedule auto-delete locally if expiry set
@@ -979,7 +985,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const container = document.querySelector('.messages');
                 const imgs = Array.from(container.querySelectorAll('.message.has-image'));
                 const last = imgs[imgs.length - 1];
-                if (last) last.remove();
+                if (last) {
+                    const imgEl = last.querySelector('.message-image');
+                    const msgToken = `[image]${imgEl?.src || ''}`;
+                    last.remove();
+                    // Broadcast delete to recipient for the same image token
+                    try {
+                        socket.send(JSON.stringify({
+                            type: 'delete-message',
+                            recipient: currentChatUser.username,
+                            sender: currentUser.username,
+                            message: msgToken
+                        }));
+                    } catch (e) { console.error('Expiry delete broadcast failed', e); }
+                }
             }, seconds * 1000);
         }
         pendingFileForSend = null;
