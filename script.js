@@ -42,17 +42,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     aboutLink.addEventListener('click', (e) => {
         e.preventDefault();
-        showPage('About LuxeonChat', 'LuxeonChat is a sophisticated platform for meeting new people...');
+        showPage('About ComfiChat', 'ComfiChat is a sophisticated platform for meeting new people...');
     });
 
     termsLink.addEventListener('click', (e) => {
         e.preventDefault();
-        showPage('Terms of Use', 'By using LuxeonChat, you agree to the following terms...');
+        showPage('Terms of Use', 'By using ComfiChat, you agree to the following terms...');
     });
 
     privacyLink.addEventListener('click', (e) => {
         e.preventDefault();
-        showPage('Privacy Policy', 'At LuxeonChat, we take your privacy seriously...');
+        showPage('Privacy Policy', 'At ComfiChat, we take your privacy seriously...');
     });
 
     function generateAgeOptions() {

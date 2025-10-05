@@ -22,7 +22,7 @@ app.use(express.static('public'));
 
 // CORS configuration
 const corsOptions = {
-    origin: ['https://luxeonchat.netlify.app', 'http://localhost:3000'],
+    origin: ['https://comfi.chat', 'http://localhost:3000'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type'],
     credentials: true,
@@ -101,7 +101,7 @@ app.use('/api/temp-users', tempUsersRoutes);
 // Basic route for testing
 app.get('/', (req, res) => {
     res.json({
-        message: 'LuxeonChat Backend API is running',
+        message: 'ComfiChat Backend API is running',
         timestamp: new Date().toISOString()
     });
 });
