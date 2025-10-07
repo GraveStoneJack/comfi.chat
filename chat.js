@@ -102,13 +102,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                         chat.messages = [];
                     }
 
-                    // Add message to chat
-                    chat.messages.push({
-                        message: data.message,
-                        sender: data.sender,
-                        timestamp: new Date()
-                    });
-                    chat.lastMessage = isImageMessage(data.message) ? 'Photo' : data.message;
+                    // If this is a delete token, do not add a visible message entry
+                    const isDeleteToken = data.message && data.message.startsWith('[delete-image]');
+
+                    if (!isDeleteToken) {
+                        // Add message to chat
+                        chat.messages.push({
+                            message: data.message,
+                            sender: data.sender,
+                            timestamp: new Date()
+                        });
+                        chat.lastMessage = isImageMessage(data.message) ? 'Photo' : data.message;
+                    }
 
                     // Set unread status if chat is not currently open
                     if (!currentChatUser || currentChatUser.username !== otherUser) {
@@ -116,7 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         notifyNewMessage(data.sender, data.message);
                     }
 
-                    // Update chats display
+                    // Update chats display (ensuring delete tokens don't affect preview)
                     updateActiveChats();
 
                     // If chat window is open with this user, display message
@@ -745,8 +750,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (Array.isArray(history) && history.length > 0) {
                     chat.messages = history;
                     history.forEach(msg => {
-                        displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
+                        if (msg.message && msg.message.startsWith('[delete-image]')) {
+                            const tokenUrl = getImageUrlFromMessage(msg.message.replace('[delete-image]', ''));
+                            const container = document.querySelector('.messages');
+                            const nodes = Array.from(container.querySelectorAll('.message'));
+                            const toRemove = nodes.find(n => {
+                                const img = n.querySelector('.message-image');
+                                return img && img.src === tokenUrl;
+                            });
+                            if (toRemove) toRemove.remove();
+                        } else {
+                            displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
+                        }
                     });
+                    // Update lastMessage based on the last non-delete entry
+                    const lastNonDelete = [...history].reverse().find(m => !(m.message || '').startsWith('[delete-image]'));
+                    chat.lastMessage = lastNonDelete ? (isImageMessage(lastNonDelete.message) ? 'Photo' : lastNonDelete.message) : '';
                     renderedFromHistory = true;
                 }
             }
@@ -757,8 +776,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         // If no history was rendered (e.g., endpoint missing), render any locally buffered messages
         if (!renderedFromHistory && Array.isArray(chat.messages) && chat.messages.length > 0) {
             chat.messages.forEach(msg => {
-                displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
+                if (msg.message && msg.message.startsWith('[delete-image]')) {
+                    const tokenUrl = getImageUrlFromMessage(msg.message.replace('[delete-image]', ''));
+                    const container = document.querySelector('.messages');
+                    const nodes = Array.from(container.querySelectorAll('.message'));
+                    const toRemove = nodes.find(n => {
+                        const img = n.querySelector('.message-image');
+                        return img && img.src === tokenUrl;
+                    });
+                    if (toRemove) toRemove.remove();
+                } else {
+                    displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
+                }
             });
+            const lastNonDelete = [...chat.messages].reverse().find(m => !(m.message || '').startsWith('[delete-image]'));
+            chat.lastMessage = lastNonDelete ? (isImageMessage(lastNonDelete.message) ? 'Photo' : lastNonDelete.message) : chat.lastMessage || '';
         }
 
         // Update active chats display
