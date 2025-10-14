@@ -1006,8 +1006,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const imageExpirySelect = document.getElementById('image-expiry');
     let pendingFileForSend = null;
 
+    // Utility: fully close the image settings modal and reset state
+    function closeImageSettings(resetExpiry = false) {
+        pendingFileForSend = null;
+        if (imageSettings) imageSettings.style.display = 'none';
+        // Clear the file input so choosing the same file triggers 'change' next time
+        if (fileInput) fileInput.value = '';
+        if (resetExpiry && imageExpirySelect) imageExpirySelect.value = '0';
+    }
+
     document.getElementById('attach-file-btn').addEventListener('click', () => {
         pendingFileForSend = null;
+        // Ensure selecting the same file fires a 'change' event
+        fileInput.value = '';
         fileInput.click();
     });
 
@@ -1020,8 +1031,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     if (imageCancelBtn) imageCancelBtn.addEventListener('click', () => {
-        pendingFileForSend = null;
-        imageSettings.style.display = 'none';
+        closeImageSettings(true);
+    });
+
+    // Close when clicking the backdrop (outside the dialog)
+    if (imageSettings) imageSettings.addEventListener('click', (e) => {
+        if (e.target === imageSettings) closeImageSettings();
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && imageSettings && imageSettings.style.display === 'block') {
+            closeImageSettings();
+        }
     });
 
     if (imageSendBtn) imageSendBtn.addEventListener('click', async () => {
@@ -1029,7 +1051,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const seconds = parseInt(imageExpirySelect?.value || '0', 10) || 0;
         // Send upload (which will send [image]URL or dataURL)
         await handleFileUpload(pendingFileForSend);
-        imageSettings.style.display = 'none';
+        closeImageSettings();
         // Schedule auto-delete on both sides if expiry set
         if (seconds > 0) {
             setTimeout(() => {
