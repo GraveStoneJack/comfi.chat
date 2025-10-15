@@ -102,18 +102,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                         chat.messages = [];
                     }
 
-                    // If this is a delete token, do not add a visible message entry
-                    const isDeleteToken = data.message && data.message.startsWith('[delete-image]');
+                    // If this is a delete token, update preview and buffer token for history
+                    const isDeleteToken = isDeleteImageToken(data.message);
 
-                    if (!isDeleteToken) {
-                        // Add message to chat
-                        chat.messages.push({
-                            message: data.message,
-                            sender: data.sender,
-                            timestamp: new Date()
-                        });
-                        chat.lastMessage = isImageMessage(data.message) ? 'Photo' : data.message;
-                    }
+                    // Always buffer message for accurate previews/history
+                    chat.messages.push({
+                        message: data.message,
+                        sender: data.sender,
+                        timestamp: new Date()
+                    });
+                    chat.lastMessage = computePreviewLabel(data.message, data.sender);
 
                     // Set unread status if chat is not currently open
                     if (!currentChatUser || currentChatUser.username !== otherUser) {
@@ -121,14 +119,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         notifyNewMessage(data.sender, data.message);
                     }
 
-                    // Update chats display (ensuring delete tokens don't affect preview)
+                    // Update chats display with latest preview
                     updateActiveChats();
 
                     // If chat window is open with this user, display message
                     if (currentChatUser && (data.sender === currentChatUser.username || data.recipient === currentChatUser.username)) {
                         // Handle special delete token
-                        if (data.message && data.message.startsWith('[delete-image]')) {
-                            const tokenUrl = getImageUrlFromMessage(data.message.replace('[delete-image]', ''));
+                        if (isDeleteImageToken(data.message)) {
+                            const tokenUrl = getImageUrlFromMessage(stripDeleteToken(data.message));
                             const container = document.querySelector('.messages');
                             const nodes = Array.from(container.querySelectorAll('.message'));
                             const toRemove = nodes.find(n => {
@@ -224,7 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     timestamp: new Date()
                 });
 
-                activeChats[chatIndex].lastMessage = isImageMessage(message) ? 'Photo' : message;
+                activeChats[chatIndex].lastMessage = computePreviewLabel(message, currentUser.username);
             }
 
             console.log('Message sent:', messageData);
@@ -321,6 +319,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     function getImageUrlFromMessage(text) {
         if (!text) return null;
         return text.startsWith('[image]') ? text.substring(7).trim() : text.trim();
+    }
+
+    // Deletion token helpers (support legacy [delete-image] and new [delete-image|reason])
+    function isDeleteImageToken(text) {
+        return typeof text === 'string' && text.startsWith('[delete-image');
+    }
+
+    function getDeleteReason(text) {
+        const match = (/^\[delete-image(?:\|(expired|manual))?\]/).exec(text || '');
+        return (match && match[1]) ? match[1] : 'manual';
+    }
+
+    function stripDeleteToken(text) {
+        return (text || '').replace(/^\[delete-image(?:\|[^\]]+)?\]/, '');
+    }
+
+    function computePreviewLabel(message, senderUsername) {
+        if (!message) return '';
+        if (isDeleteImageToken(message)) {
+            const reason = getDeleteReason(message);
+            return reason === 'expired' ? 'Image expired' : 'Message removed';
+        }
+        if (isImageMessage(message)) {
+            return senderUsername === currentUser.username ? 'Image sent' : 'Image received';
+        }
+        return message;
+    }
+
+    function computeLastPreviewFromArray(arr) {
+        if (!Array.isArray(arr)) return '';
+        for (let i = arr.length - 1; i >= 0; i--) {
+            const entry = arr[i];
+            if (!entry || !entry.message) continue;
+            return computePreviewLabel(entry.message, entry.sender);
+        }
+        return '';
     }
 
     async function fileToDataURL(blob) {
@@ -422,9 +456,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                         type: 'message',
                         recipient: currentChatUser.username,
                         sender: currentUser.username,
-                        message: `[delete-image]${imgEl.src}`
+                        message: `[delete-image|manual]${imgEl.src}`
                     }));
                 } catch (e) { console.error('Delete broadcast failed', e); }
+
+                // Update preview to reflect deletion
+                const chatIdx = activeChats.findIndex(c => c.username === currentChatUser.username);
+                if (chatIdx !== -1) {
+                    activeChats[chatIdx].messages.push({
+                        sender: currentUser.username,
+                        message: `[delete-image|manual]${imgEl.src}`,
+                        timestamp: new Date()
+                    });
+                    activeChats[chatIdx].lastMessage = 'Message removed';
+                    updateActiveChats();
+                }
             });
         }
     }
@@ -750,8 +796,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (Array.isArray(history) && history.length > 0) {
                     chat.messages = history;
                     history.forEach(msg => {
-                        if (msg.message && msg.message.startsWith('[delete-image]')) {
-                            const tokenUrl = getImageUrlFromMessage(msg.message.replace('[delete-image]', ''));
+                        if (isDeleteImageToken(msg.message)) {
+                            const tokenUrl = getImageUrlFromMessage(stripDeleteToken(msg.message));
                             const container = document.querySelector('.messages');
                             const nodes = Array.from(container.querySelectorAll('.message'));
                             const toRemove = nodes.find(n => {
@@ -763,9 +809,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                             displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
                         }
                     });
-                    // Update lastMessage based on the last non-delete entry
-                    const lastNonDelete = [...history].reverse().find(m => !(m.message || '').startsWith('[delete-image]'));
-                    chat.lastMessage = lastNonDelete ? (isImageMessage(lastNonDelete.message) ? 'Photo' : lastNonDelete.message) : '';
+                    // Update lastMessage based on the most relevant entry
+                    chat.lastMessage = computeLastPreviewFromArray(history);
                     renderedFromHistory = true;
                 }
             }
@@ -776,8 +821,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // If no history was rendered (e.g., endpoint missing), render any locally buffered messages
         if (!renderedFromHistory && Array.isArray(chat.messages) && chat.messages.length > 0) {
             chat.messages.forEach(msg => {
-                if (msg.message && msg.message.startsWith('[delete-image]')) {
-                    const tokenUrl = getImageUrlFromMessage(msg.message.replace('[delete-image]', ''));
+                if (isDeleteImageToken(msg.message)) {
+                    const tokenUrl = getImageUrlFromMessage(stripDeleteToken(msg.message));
                     const container = document.querySelector('.messages');
                     const nodes = Array.from(container.querySelectorAll('.message'));
                     const toRemove = nodes.find(n => {
@@ -789,8 +834,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
                 }
             });
-            const lastNonDelete = [...chat.messages].reverse().find(m => !(m.message || '').startsWith('[delete-image]'));
-            chat.lastMessage = lastNonDelete ? (isImageMessage(lastNonDelete.message) ? 'Photo' : lastNonDelete.message) : chat.lastMessage || '';
+            chat.lastMessage = computeLastPreviewFromArray(chat.messages) || chat.lastMessage || '';
         }
 
         // Update active chats display
@@ -1068,9 +1112,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                             type: 'message',
                             recipient: currentChatUser.username,
                             sender: currentUser.username,
-                            message: `[delete-image]${imgEl?.src || ''}`
+                            message: `[delete-image|expired]${imgEl?.src || ''}`
                         }));
                     } catch (e) { console.error('Expiry delete broadcast failed', e); }
+
+                    // Update preview to reflect expiry
+                    const chatIdx = activeChats.findIndex(c => c.username === currentChatUser.username);
+                    if (chatIdx !== -1) {
+                        activeChats[chatIdx].messages.push({
+                            sender: currentUser.username,
+                            message: `[delete-image|expired]${imgEl?.src || ''}`,
+                            timestamp: new Date()
+                        });
+                        activeChats[chatIdx].lastMessage = 'Image expired';
+                        updateActiveChats();
+                    }
                 }
             }, seconds * 1000);
         }
