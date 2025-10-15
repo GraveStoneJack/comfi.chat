@@ -304,6 +304,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // Theme Manager (Auto/Light/Dark) for chat page
+    (function initThemeToggle(){
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        const THEME_KEY = 'comfi.theme';
+        const getSystemPref = () => (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        const applyTheme = (mode) => {
+            const resolved = mode === 'auto' ? getSystemPref() : mode;
+            document.body.classList.toggle('dark', resolved === 'dark');
+            if (themeBtn) themeBtn.innerHTML = `<i class="fas ${resolved === 'dark' ? 'fa-moon' : 'fa-sun'}"></i> ${mode === 'auto' ? 'Auto' : (resolved === 'dark' ? 'Dark' : 'Light')}`;
+        };
+        const loadTheme = () => localStorage.getItem(THEME_KEY) || 'auto';
+        const saveTheme = (m) => localStorage.setItem(THEME_KEY, m);
+        const cycleTheme = (m) => m === 'auto' ? 'light' : (m === 'light' ? 'dark' : 'auto');
+        let themeMode = loadTheme();
+        applyTheme(themeMode);
+        if (themeBtn) themeBtn.addEventListener('click', () => { themeMode = cycleTheme(themeMode); saveTheme(themeMode); applyTheme(themeMode); });
+        if (window.matchMedia) {
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+                if ((localStorage.getItem(THEME_KEY) || 'auto') === 'auto') applyTheme('auto');
+            });
+        }
+    })();
+
     // Add this function at the top level
     function sanitizeHTML(str) {
         const div = document.createElement('div');

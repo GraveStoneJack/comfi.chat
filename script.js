@@ -2,6 +2,36 @@
 const API_URL = 'https://luxeonchat-backend.onrender.com';
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Theme Manager (Auto/Light/Dark)
+    const themeBtn = document.getElementById('theme-toggle-btn');
+    const THEME_KEY = 'comfi.theme'; // values: 'auto' | 'light' | 'dark'
+
+    function getSystemPref() { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+    function applyTheme(mode) {
+        const resolved = mode === 'auto' ? getSystemPref() : mode;
+        document.body.classList.toggle('dark', resolved === 'dark');
+        if (themeBtn) themeBtn.innerHTML = `<i class="fas ${resolved === 'dark' ? 'fa-moon' : 'fa-sun'}"></i> ${mode === 'auto' ? 'Auto' : (resolved === 'dark' ? 'Dark' : 'Light')}`;
+    }
+    function loadTheme() { return localStorage.getItem(THEME_KEY) || 'auto'; }
+    function saveTheme(mode) { localStorage.setItem(THEME_KEY, mode); }
+    function cycleTheme(current) {
+        if (current === 'auto') return 'light';
+        if (current === 'light') return 'dark';
+        return 'auto';
+    }
+    let themeMode = loadTheme();
+    applyTheme(themeMode);
+    if (themeBtn) themeBtn.addEventListener('click', () => {
+        themeMode = cycleTheme(themeMode);
+        saveTheme(themeMode);
+        applyTheme(themeMode);
+    });
+    // React to system changes when in auto
+    if (window.matchMedia) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if ((localStorage.getItem(THEME_KEY) || 'auto') === 'auto') applyTheme('auto');
+        });
+    }
     const googleBtn = document.querySelector('.google-btn');
     const appleBtn = document.querySelector('.apple-btn');
     const emailBtn = document.querySelector('.email-btn');
