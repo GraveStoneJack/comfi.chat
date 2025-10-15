@@ -133,7 +133,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 const img = n.querySelector('.message-image');
                                 return img && img.src === tokenUrl;
                             });
-                            if (toRemove) toRemove.remove();
+                            if (toRemove) {
+                                // Replace removed image with a system notice
+                                const reason = getDeleteReason(data.message);
+                                const notice = document.createElement('div');
+                                notice.className = 'message incoming system';
+                                notice.innerHTML = `<div class="message-content">${reason === 'expired' ? 'Image expired' : 'Message removed'}</div>`;
+                                // Insert notice at the same place
+                                toRemove.parentNode.insertBefore(notice, toRemove.nextSibling);
+                                toRemove.remove();
+                            }
                         } else {
                             displayMessage(data.message, data.sender, data.sender === currentUser.username);
                         }
@@ -226,6 +235,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             console.log('Message sent:', messageData);
+            // Ensure chat list reflects latest preview immediately on sender side
+            updateActiveChats();
         } catch (error) {
             console.error('Error sending message:', error);
         }
@@ -450,6 +461,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             messageElement.appendChild(trashBtn);
             trashBtn.addEventListener('click', (ev) => {
                 ev.stopPropagation();
+                // Replace image bubble with a local system notice
+                const removedNotice = document.createElement('div');
+                removedNotice.className = 'message outgoing system';
+                removedNotice.innerHTML = '<div class="message-content">Message removed</div>';
+                messageElement.parentNode.insertBefore(removedNotice, messageElement.nextSibling);
                 messageElement.remove();
                 try {
                     socket.send(JSON.stringify({
@@ -1105,6 +1121,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (last) {
                     const imgEl = last.querySelector('.message-image');
                     const msgToken = `[image]${imgEl?.src || ''}`;
+                    // Replace image bubble with local system notice
+                    const expiredNotice = document.createElement('div');
+                    expiredNotice.className = 'message outgoing system';
+                    expiredNotice.innerHTML = '<div class="message-content">Image expired</div>';
+                    last.parentNode.insertBefore(expiredNotice, last.nextSibling);
                     last.remove();
                     // Broadcast delete to recipient for the same image token
                     try {
