@@ -412,6 +412,7 @@ body.dark .tab-btn.active { background-color: rgba(155, 77, 202, 0.18); border-b
     font-weight: 600;
     color: #2f0642;
 }
+body.dark .user-name, body.dark .chat-name { color: #f1e9ff; }
 
 .user-details, .chat-details {
     display: flex;
@@ -443,6 +444,7 @@ body.dark .chat-preview { color: #e8e1ee; opacity: 0.7; }
     margin-bottom: 5px;
     color: #2f0642;
 }
+body.dark .chat-header h2 { color: #f1e9ff; }
 
 .messages {
     display: flex;

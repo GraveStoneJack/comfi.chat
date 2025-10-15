@@ -313,12 +313,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             const resolved = mode === 'auto' ? getSystemPref() : mode;
             document.body.classList.toggle('dark', resolved === 'dark');
             if (themeBtn) themeBtn.innerHTML = `<i class="fas ${resolved === 'dark' ? 'fa-moon' : 'fa-sun'}"></i> ${mode === 'auto' ? 'Auto' : (resolved === 'dark' ? 'Dark' : 'Light')}`;
+            try { sessionStorage.setItem('comfi.theme.resolved', resolved); } catch(_e) {}
         };
         const loadTheme = () => localStorage.getItem(THEME_KEY) || 'auto';
         const saveTheme = (m) => localStorage.setItem(THEME_KEY, m);
         const cycleTheme = (m) => m === 'auto' ? 'light' : (m === 'light' ? 'dark' : 'auto');
         let themeMode = loadTheme();
-        applyTheme(themeMode);
+        const hint = sessionStorage.getItem('comfi.theme.resolved');
+        if (hint && (themeMode === 'auto' || hint !== (themeMode === 'auto' ? getSystemPref() : themeMode))) {
+            document.body.classList.toggle('dark', hint === 'dark');
+            if (themeBtn) themeBtn.innerHTML = `<i class="fas ${hint === 'dark' ? 'fa-moon' : 'fa-sun'}"></i> ${themeMode === 'auto' ? 'Auto' : (hint === 'dark' ? 'Dark' : 'Light')}`;
+        } else {
+            applyTheme(themeMode);
+        }
         if (themeBtn) themeBtn.addEventListener('click', () => { themeMode = cycleTheme(themeMode); saveTheme(themeMode); applyTheme(themeMode); });
         if (window.matchMedia) {
             window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
@@ -1237,9 +1244,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         applyPreferences() {
-            document.body.className = this.preferences.theme;
+            // Respect global theme selection (Auto/Light/Dark)
+            const THEME_KEY = 'comfi.theme';
+            const savedMode = localStorage.getItem(THEME_KEY) || 'auto';
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const resolved = savedMode === 'auto' ? (prefersDark ? 'dark' : 'light') : savedMode;
+            document.body.classList.toggle('dark', resolved === 'dark');
+
+            // Sound preference
             messageSound.volume = this.preferences.soundEnabled ? 0.5 : 0;
-            // Apply other preferences...
         }
     }
 

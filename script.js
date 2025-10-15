@@ -21,10 +21,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     let themeMode = loadTheme();
     applyTheme(themeMode);
+    // expose for other pages (e.g., chat redirect) via a tiny session flag
+    sessionStorage.setItem('comfi.theme.resolved', themeMode === 'auto' ? getSystemPref() : themeMode);
     if (themeBtn) themeBtn.addEventListener('click', () => {
         themeMode = cycleTheme(themeMode);
         saveTheme(themeMode);
         applyTheme(themeMode);
+        sessionStorage.setItem('comfi.theme.resolved', themeMode === 'auto' ? getSystemPref() : themeMode);
     });
     // React to system changes when in auto
     if (window.matchMedia) {
