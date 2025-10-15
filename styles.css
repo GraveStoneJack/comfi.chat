@@ -824,6 +824,28 @@ select::-webkit-scrollbar-thumb:hover {
 .message.incoming::before,
 .message.outgoing::before { content: none; }
 
+/* System message (notifications like image expired/removed) */
+.message.system {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 4px 8px;
+    margin: 8px 12px;
+    max-width: 100%;
+    align-self: center;
+}
+.message.system .message-content {
+    background: transparent !important;
+    color: rgba(59, 3, 55, 0.6);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+}
+.message.system .message-timestamp { display: none; }
+
+/* Dark theme contrast for system messages */
+body.dark .message.system .message-content { color: rgba(255, 255, 255, 0.65); }
+
 .message-timestamp {
     position: absolute;
     bottom: -18px;
