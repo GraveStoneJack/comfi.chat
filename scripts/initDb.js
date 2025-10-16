@@ -16,6 +16,7 @@ async function initializeDatabase() {
         await db.createCollection('tempusers');
         await db.createCollection('users');
         await db.createCollection('reports');
+        await db.createCollection('messages');
 
         // Create indexes
         await db.collection('tempusers').createIndex({ "username": 1 }, { unique: true });
@@ -23,6 +24,8 @@ async function initializeDatabase() {
         
         await db.collection('users').createIndex({ "username": 1 }, { unique: true });
         await db.collection('users').createIndex({ "email": 1 }, { unique: true });
+        await db.collection('messages').createIndex({ sender: 1, recipient: 1, timestamp: 1 });
+        await db.collection('messages').createIndex({ recipient: 1, sender: 1, timestamp: 1 });
 
         console.log('Database initialized successfully');
     } catch (error) {

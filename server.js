@@ -7,6 +7,8 @@ const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
 const tempUsersRoutes = require('./routes/tempUsers');
+const messagesRoutes = require('./routes/messages');
+const Message = require('./models/Message');
 
 dotenv.config();
 
@@ -60,13 +62,36 @@ wss.on('connection', (ws) => {
 
                 // Send back to sender for confirmation
                 const senderWs = clients.get(data.sender);
-                if (snederWs && senderWs.readyState === WebSocket.OPEN) {
+                if (senderWs && senderWs.readyState === WebSocket.OPEN) {
                     senderWs.send(JSON.stringify({
                         type: 'message',
                         message: data.message,
                         sender: data.sender,
                         recipient: data.recipient,
                         timestamp: new Date()
+                    }));
+                }
+
+                // Persist the message for history
+                try {
+                    await new Message({
+                        sender: data.sender,
+                        recipient: data.recipient,
+                        message: data.message,
+                        timestamp: new Date()
+                    }).save();
+                } catch (e) {
+                    console.error('Failed to persist message:', e);
+                }
+            } else if (data.type === 'typing') {
+                // Forward typing events to recipient only
+                const recipientWs = clients.get(data.recipient);
+                if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
+                    recipientWs.send(JSON.stringify({
+                        type: 'typing',
+                        sender: data.sender,
+                        recipient: data.recipient,
+                        isTyping: !!data.isTyping
                     }));
                 }
             }
@@ -97,6 +122,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/temp-users', tempUsersRoutes);
+app.use('/api/messages', messagesRoutes);
 
 // Basic route for testing
 app.get('/', (req, res) => {
