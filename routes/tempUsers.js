@@ -8,7 +8,7 @@ router.post('/create', async (req, res) => {
     try {
         console.log('[TempUser Create] Request body:', req.body);
 
-        const { username, age, gender, country, countryCode } = req.body;
+        const { username, age, gender, country, countryCode, deviceId } = req.body;
 
         // Validation logging
         console.log('[TempUser Create] Validating fields:', {
@@ -52,11 +52,16 @@ router.post('/create', async (req, res) => {
             });
         }
 
-        // Check if username already exists
+        // Check if username already exists - allow reclaim by same device within hold window
         const existingUser = await TempUser.findOne({ username });
         if (existingUser) {
-            console.log('[TempUser Create] Username exists:', username);
-            return res.status(400).json({ error: 'Username already taken' });
+            // If same deviceId and within 1 hour of lastSeen, allow reuse and update record
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const sameDevice = deviceId && existingUser.deviceId && existingUser.deviceId === deviceId;
+            if (!(sameDevice && existingUser.lastSeen && existingUser.lastSeen > oneHourAgo)) {
+                console.log('[TempUser Create] Username exists and reserved by another device:', username);
+                return res.status(400).json({ error: 'Username already taken' });
+            }
         }
 
         console.log('[TempUser Create] Creating new user with data:', {
@@ -67,14 +72,27 @@ router.post('/create', async (req, res) => {
             countryCode
         });
 
-        const tempUser = new TempUser({
+        const holdUntil = new Date(Date.now() + 60 * 60 * 1000);
+        const payload = {
             username,
+            deviceId,
             age,
             gender,
             country,
             countryCode,
-            isOnline: true
-        });
+            isOnline: true,
+            lastSeen: new Date(),
+            expiresAt: holdUntil
+        };
+
+        let savedUser;
+        if (existingUser) {
+            Object.assign(existingUser, payload);
+            savedUser = await existingUser.save();
+        } else {
+            const tempUser = new TempUser(payload);
+            savedUser = await tempUser.save();
+        }
 
         const savedUser = await tempUser.save();
         console.log('[TempUser Create] User created:', savedUser);
@@ -97,12 +115,16 @@ async function handleStatus(req, res) {
     try {
         console.log('[TempUser Status] Updating status for:', req.params.username, 'to:', req.body.isOnline);
 
+        const holdUntil = new Date(Date.now() + 60 * 60 * 1000);
+        const update = {
+            isOnline: req.body.isOnline,
+            lastSeen: new Date(),
+            expiresAt: holdUntil
+        };
+        if (req.body.deviceId) update.deviceId = req.body.deviceId;
         const updatedUser = await TempUser.findOneAndUpdate(
             { username: req.params.username },
-            {
-                isOnline: req.body.isOnline,
-                lastSeen: new Date()
-            },
+            update,
             { new: true }
         );
 
@@ -137,7 +159,7 @@ router.get('/online', async (req, res) => {
     }
 });
 
-// Delete user from database at logoff
+// Delete user immediately at logoff (explicit)
 router.delete('/delete/:username', handleDelete);
 router.post('/delete/:username', handleDelete);
 

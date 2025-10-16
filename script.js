@@ -1,6 +1,17 @@
 // script.js
 const API_URL = 'https://luxeonchat-backend.onrender.com';
 
+// Stable device identifier (per browser install)
+function getDeviceId() {
+    const KEY = 'comfi.deviceId';
+    let id = localStorage.getItem(KEY);
+    if (!id) {
+        id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
+        localStorage.setItem(KEY, id);
+    }
+    return id;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     // Theme Manager (Auto/Light/Dark)
     const themeBtn = document.getElementById('theme-toggle-btn');
@@ -204,7 +215,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         age,
                         gender,
                         country: countryName,
-                        countryCode
+                        countryCode,
+                        deviceId: getDeviceId()
                     }),
                 });
 

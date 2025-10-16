@@ -8,6 +8,10 @@ const tempUserSchema = new mongoose.Schema({
         unique: true,
         trim: true
     },
+    deviceId: {
+        type: String,
+        index: true
+    },
     age: {
         type: Number,
         required: true,
@@ -29,8 +33,7 @@ const tempUserSchema = new mongoose.Schema({
     },
     createdAt: {
         type: Date,
-        default: Date.now,
-        expires: 3600 // Document will be automatically deleted after 1 hour
+        default: Date.now
     },
     isOnline: {
         type: Boolean,
@@ -39,6 +42,12 @@ const tempUserSchema = new mongoose.Schema({
     lastSeen: {
         type: Date,
         default: Date.now
+    },
+    // Absolute expiry; when set, TTL index removes after this timestamp
+    expiresAt: {
+        type: Date,
+        index: { expireAfterSeconds: 0 },
+        default: undefined
     }
 });
 

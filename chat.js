@@ -9,6 +9,16 @@ messageSound.volume = 0.5;
 let socket;
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // Stable device identifier shared with landing page
+    function getDeviceId() {
+        const KEY = 'comfi.deviceId';
+        let id = localStorage.getItem(KEY);
+        if (!id) {
+            id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`;
+            localStorage.setItem(KEY, id);
+        }
+        return id;
+    }
     // Check if user is logged in
     const currentUser = JSON.parse(sessionStorage.getItem('tempUser'));
     if (!currentUser) {
@@ -638,7 +648,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ isOnline: true }),
+            body: JSON.stringify({ isOnline: true, deviceId: getDeviceId() }),
         });
     } catch (error) {
         console.error('Error updating initial online status:', error);
@@ -1051,10 +1061,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function updateUserPresence() {
         const lastActive = new Date().toISOString();
-        fetch(`${API_URL}/api/temp-users/presence/${currentUser.username}`, {
+        fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ lastActive })
+            body: JSON.stringify({ isOnline: true, lastActive, deviceId: getDeviceId() })
         });
     }
 
