@@ -223,17 +223,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('WebSocket is not connected');
             return;
         }
+        // Convert ASCII emoticons to emoji for all outbound text
+        const normalizedMessage = convertEmoticonsToEmoji(message);
 
         const messageData = {
             type: 'message',
             recipient: currentChatUser.username,
             sender: currentUser.username,
-            message: message
+            message: normalizedMessage
         };
 
         try {
             socket.send(JSON.stringify(messageData));
-            displayMessage(message, currentUser.username, true);
+            displayMessage(normalizedMessage, currentUser.username, true);
 
             // Store the message locally
             const chatIndex = activeChats.findIndex(chat => chat.username === currentChatUser.username);
@@ -244,11 +246,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 activeChats[chatIndex].messages.push({
                     sender: currentUser.username,
-                    message: message,
+                    message: normalizedMessage,
                     timestamp: new Date()
                 });
 
-                activeChats[chatIndex].lastMessage = computePreviewLabel(message, currentUser.username);
+                activeChats[chatIndex].lastMessage = computePreviewLabel(normalizedMessage, currentUser.username);
             }
 
             console.log('Message sent:', messageData);
@@ -622,6 +624,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const messages = document.querySelector('.messages');
     const messageInput = document.getElementById('message-text');
     const sendBtn = document.getElementById('send-btn');
+    const emojiToggleBtn = document.getElementById('emoji-toggle-btn');
+    const emojiPopover = document.getElementById('emoji-popover');
+    const emojiGrid = document.getElementById('emoji-grid');
+    const emojiTabs = document.querySelectorAll('.emoji-tab');
     const onlineCount = document.getElementById('online-count');
     const chatsCount = document.getElementById('chats-count');
     const genderFilter = document.getElementById('gender-filter');
@@ -1442,5 +1448,148 @@ document.addEventListener('DOMContentLoaded', async () => {
             displaySearchResults(results, query);
             if (query && query.trim()) highlightMatchesInDom(query);
         });
+    }
+
+    // Emoji Picker Logic
+    const EMOJI_CATALOG = {
+        recent: [],
+        smileys: ['😀','😁','😂','🤣','😃','😄','😅','😊','😇','🙂','🙃','😉','😍','😘','😗','😙','😚','😋','😛','😜','🤪','🤗','🤭','🤫','🤔','🤐','😐','😑','😶','😏','😒','🙄','😬','🤥','😭','😤','😮‍💨','😮','😯','😲','🥱','😴','🤤','😪','😵','🤯','🤧','🤒','🤕','🥳','😎','🤓','🧐','😕','😟','🙁','☹️','😣','😖','😞','😩','😫','😢','😮‍💨','😠','😡','🤬','🤡','💩','👻','💀','🤖','🎃'],
+        gestures: ['👍','👎','👌','🤌','👏','🙌','🫶','🙏','👊','🤟','✌️','🤞','🖖','👉','👈','👇','👆','☝️','🫵','✍️','🫳','🫴','🤙','💪','🖐️','✋','🤚','🖖','🤏'],
+        nature: ['🌸','🌼','🌻','🌹','🌷','🌺','🌵','🌿','☘️','🍀','🌾','🌲','🌳','🌴','🌍','🌎','🌏','🌞','🌝','🌛','🌜','⭐','🌟','✨','⚡','🔥','🌈','☔','❄️','☃️','💧','💦','🌊']
+    };
+
+    function renderEmojis(category) {
+        if (!emojiGrid) return;
+        const list = EMOJI_CATALOG[category] || [];
+        emojiGrid.innerHTML = '';
+        const frag = document.createDocumentFragment();
+        list.forEach(ch => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'emoji-item';
+            btn.textContent = ch;
+            btn.addEventListener('click', () => {
+                insertAtCursor(messageInput, ch);
+                trackRecent(ch);
+            });
+            frag.appendChild(btn);
+        });
+        emojiGrid.appendChild(frag);
+    }
+
+    function insertAtCursor(input, text) {
+        const start = input.selectionStart;
+        const end = input.selectionEnd;
+        const before = input.value.substring(0, start);
+        const after = input.value.substring(end);
+        input.value = `${before}${text}${after}`;
+        const cursor = start + text.length;
+        input.setSelectionRange(cursor, cursor);
+        input.focus();
+    }
+
+    function trackRecent(emoji) {
+        const recents = EMOJI_CATALOG.recent;
+        const idx = recents.indexOf(emoji);
+        if (idx !== -1) recents.splice(idx, 1);
+        recents.unshift(emoji);
+        if (recents.length > 32) recents.length = 32;
+        try { localStorage.setItem('comfi.recentEmojis', JSON.stringify(recents)); } catch(_e) {}
+        // If recent tab is active, re-render
+        const activeTab = document.querySelector('.emoji-tab.active');
+        if (activeTab && activeTab.dataset.cat === 'recent') renderEmojis('recent');
+    }
+
+    function loadRecents() {
+        try {
+            const saved = JSON.parse(localStorage.getItem('comfi.recentEmojis') || '[]');
+            if (Array.isArray(saved)) EMOJI_CATALOG.recent = saved;
+        } catch(_e) {}
+    }
+
+    function toggleEmojiPopover(forceOpen) {
+        if (!emojiPopover) return;
+        const isOpen = emojiPopover.classList.contains('open');
+        const next = forceOpen === true ? true : forceOpen === false ? false : !isOpen;
+        if (next) {
+            emojiPopover.classList.add('open');
+            emojiPopover.setAttribute('aria-hidden', 'false');
+            // default to recent if available, else smileys
+            const active = document.querySelector('.emoji-tab.active');
+            const cat = active ? active.dataset.cat : 'recent';
+            renderEmojis((EMOJI_CATALOG[cat] && EMOJI_CATALOG[cat].length) ? cat : 'smileys');
+        } else {
+            emojiPopover.classList.remove('open');
+            emojiPopover.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    if (emojiToggleBtn) {
+        loadRecents();
+        emojiToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleEmojiPopover();
+        });
+    }
+
+    if (emojiTabs && emojiTabs.length) {
+        emojiTabs.forEach(tab => tab.addEventListener('click', (e) => {
+            e.preventDefault();
+            emojiTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            renderEmojis(tab.dataset.cat);
+        }));
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!emojiPopover || !emojiToggleBtn) return;
+        if (emojiPopover.classList.contains('open')) {
+            const clickedInside = emojiPopover.contains(e.target) || emojiToggleBtn.contains(e.target);
+            if (!clickedInside) toggleEmojiPopover(false);
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && emojiPopover && emojiPopover.classList.contains('open')) {
+            toggleEmojiPopover(false);
+        }
+    });
+
+    // Emoticon to Emoji conversion on send/display
+    function convertEmoticonsToEmoji(text) {
+        if (!text || typeof text !== 'string') return text;
+        const rules = [
+            [/\B:\)/g, '😊'],
+            [/\B:-\)/g, '😊'],
+            [/\B:\(/g, '☹️'],
+            [/\B:-\(/g, '☹️'],
+            [/\B;\)/g, '😉'],
+            [/\B;-\)/g, '😉'],
+            [/\B:D/g, '😄'],
+            [/\B:-D/g, '😄'],
+            [/\B:\|/g, '😐'],
+            [/\B:-\|/g, '😐'],
+            [/\B:\*/g, '😘'],
+            [/\B<3/g, '❤️']
+        ];
+        let out = text;
+        rules.forEach(([rx, repl]) => { out = out.replace(rx, repl); });
+        return out;
+    }
+
+    // Hook send button to convert emoticons before sending
+    if (sendBtn && messageInput) {
+        const originalSendHandler = () => {
+            const message = messageInput.value.trim();
+            if (message && currentChatUser) {
+                const converted = convertEmoticonsToEmoji(message);
+                sendMessage(converted);
+                messageInput.value = '';
+            }
+        };
+        // Remove existing click listeners is non-trivial; instead, override via capturing flag
+        sendBtn.replaceWith(sendBtn.cloneNode(true));
+        const newSendBtn = document.getElementById('send-btn');
+        newSendBtn.addEventListener('click', originalSendHandler);
     }
 });

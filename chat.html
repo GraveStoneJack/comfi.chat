@@ -88,6 +88,22 @@
                     <i class="fas fa-magnifying-glass"></i>
                 </button>
                 <input type="text" id="message-text" placeholder="Type your message...">
+                <div class="emoji-wrapper">
+                    <button id="emoji-toggle-btn" class="emoji-toggle-btn" aria-label="Emoji picker">
+                        <i class="fa-regular fa-face-smile"></i>
+                    </button>
+                    <div id="emoji-popover" class="emoji-popover" aria-hidden="true">
+                        <div class="emoji-popover-inner">
+                            <div class="emoji-tabs">
+                                <button class="emoji-tab active" data-cat="recent" title="Recent">★</button>
+                                <button class="emoji-tab" data-cat="smileys" title="Smileys">😊</button>
+                                <button class="emoji-tab" data-cat="gestures" title="Gestures">👌</button>
+                                <button class="emoji-tab" data-cat="nature" title="Nature">🌸</button>
+                            </div>
+                            <div class="emoji-grid" id="emoji-grid"></div>
+                        </div>
+                    </div>
+                </div>
                 <button id="send-btn">Send</button>
                 <div class="search-slide" id="search-slide">
                     <i class="fas fa-magnifying-glass" style="color:#9b4dca;"></i>
