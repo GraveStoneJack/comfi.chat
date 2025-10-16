@@ -91,6 +91,7 @@ header p {
     color: #3b0337;
     margin-bottom: 30px;
 }
+body.dark header p { color: #cfc6da; }
 
 .auth-section h2 {
     font-size: 1.5rem;
@@ -98,6 +99,7 @@ header p {
     margin-bottom: 20px;
     text-shadow: 1px 1px 2px rgba(215, 154, 255, 0.3);
 }
+body.dark .auth-section h2 { color: #eae0ff; text-shadow: none; }
 
 .auth-options {
     display: flex;
@@ -498,6 +500,8 @@ body.dark .messages { color: #e8e1ee; }
     border-radius: 16px;
     box-shadow: 0 6px 18px rgba(47, 6, 66, 0.12);
 }
+/* discourage saving via drag/select */
+.message-image, #lightbox-img { -webkit-user-drag: none; user-select: none; -webkit-user-select: none; }
 
 /* Lightbox */
 .lightbox { position: fixed; inset: 0; z-index: 2000; }
@@ -576,8 +580,8 @@ body.dark #message-text {
 
 .filter-section {
     padding: 10px;
-    background-color: rgba(215, 154, 255, 0.1);
-    border-bottom: 1px solid rgba(59, 3, 55, 0.2);
+    background-color: transparent;
+    border-bottom: 1px solid transparent;
     margin-bottom: 10px;
 }
 
@@ -775,6 +779,8 @@ body.dark .default-message { color: #e8e1ee; }
     margin-bottom: 10px;
     color: #2f0642;
 }
+body.dark .default-message h2 { color: #eae0ff; text-shadow: none; }
+body.dark .default-message p { color: #cfc6da; }
 
 .default-message p {
     color: #666;

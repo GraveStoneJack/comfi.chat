@@ -142,6 +142,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 // Insert notice at the same place
                                 toRemove.parentNode.insertBefore(notice, toRemove.nextSibling);
                                 toRemove.remove();
+                                // If lightbox is open with this image, close it
+                                const lb = document.getElementById('image-lightbox');
+                                const lbImg = document.getElementById('lightbox-img');
+                                if (lb && lbImg && lb.style.display === 'block' && lbImg.src === tokenUrl) {
+                                    lb.style.display = 'none';
+                                    lbImg.src = '';
+                                }
                             }
                         } else {
                             displayMessage(data.message, data.sender, data.sender === currentUser.username);
@@ -472,6 +479,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Wire lightbox and delete events for images
         const imgEl = messageElement.querySelector('.message-image');
         if (imgEl) {
+            // Disable right-click save on inline images
+            imgEl.addEventListener('contextmenu', (e) => e.preventDefault());
             imgEl.addEventListener('click', () => {
                 const lb = document.getElementById('image-lightbox');
                 const lbImg = document.getElementById('lightbox-img');
@@ -1157,6 +1166,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     expiredNotice.innerHTML = '<div class="message-content">Image expired</div>';
                     last.parentNode.insertBefore(expiredNotice, last.nextSibling);
                     last.remove();
+                    // Close lightbox if this image is open
+                    const lb = document.getElementById('image-lightbox');
+                    const lbImg = document.getElementById('lightbox-img');
+                    if (lb && lbImg && lb.style.display === 'block' && lbImg.src === (imgEl?.src || '')) {
+                        lb.style.display = 'none';
+                        lbImg.src = '';
+                    }
                     // Broadcast delete to recipient for the same image token
                     try {
                         socket.send(JSON.stringify({
