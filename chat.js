@@ -291,20 +291,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.log('Creating typing indicator for:', username);
             typingIndicator = document.createElement('div');
             typingIndicator.className = 'typing-indicator';
+            typingIndicator.setAttribute('aria-live', 'polite');
             typingIndicator.innerHTML = `
-                <div class="typing-content">
-                    <span class="typing-text">${username} is typing</span>
+                <div class="typing-bubble" role="status" aria-label="${username} is typing">
                     <div class="typing-dots">
                         <span></span>
                         <span></span>
                         <span></span>
                     </div>
-                </div>
-            `;
+                </div>`;
             messages.appendChild(typingIndicator);
-             messages.scrollTop = messages.scrollHeight;
+            messages.scrollTop = messages.scrollHeight;
         } else if (!isTyping && typingIndicator) {
-             console.log('Removing typing indicator');
+            console.log('Removing typing indicator');
             typingIndicator.remove();
         }
     }

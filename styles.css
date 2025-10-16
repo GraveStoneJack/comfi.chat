@@ -985,39 +985,46 @@ body.dark .message.system .message-content { color: rgba(255, 255, 255, 0.65); }
 /* removed top-right new message dot; we use list highlighting instead */
 
 .typing-indicator {
-    padding: 10px;
-    margin: 10px;
-    background: rgba(155, 77,202, 0.1);
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    display: flex;
+    justify-content: flex-start;
+    padding: 6px 12px 12px;
+    background: transparent;
+}
+
+.typing-bubble {
+    background: #ffffff;
+    color: #333;
     border-radius: 20px;
-    display: flex;
+    padding: 8px 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    border: 1px solid rgba(0,0,0,0.04);
+    display: inline-flex;
     align-items: center;
-    font-size: 14px;
-    animation: fadeIn 0.3s ease-in;
+    gap: 6px;
 }
 
-.typing-content {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.typing-text {
-    color: #666;
-    margin-right: 10px;
+.dark .typing-bubble {
+    background: #2a2230;
+    color: #ddd;
+    border-color: rgba(255,255,255,0.06);
 }
 
 .typing-dots {
-    display: flex;
-    gap: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
 }
 
 .typing-dots span {
-    width: 4px;
-    height: 4px;
+    width: 6px;
+    height: 6px;
     background: #9b4dca;
     border-radius: 50%;
     display: inline-block;
-    animation: bounce 1.4s infinite ease-in-out;
+    animation: bounce 1.2s infinite ease-in-out;
 }
 
 .typing-dots span:nth-child(1) { animation-delay: 0s; }
@@ -1029,10 +1036,7 @@ body.dark .message.system .message-content { color: rgba(255, 255, 255, 0.65); }
     40% { transform: translateY(-4); }
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opactiy: 1; }
-}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .message-info {
     display: flex;
