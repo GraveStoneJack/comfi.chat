@@ -93,8 +93,6 @@ router.post('/create', async (req, res) => {
             const tempUser = new TempUser(payload);
             savedUser = await tempUser.save();
         }
-
-        const savedUser = await tempUser.save();
         console.log('[TempUser Create] User created:', savedUser);
         res.status(201).json(savedUser);
     } catch (error) {
