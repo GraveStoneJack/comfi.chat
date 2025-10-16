@@ -46,9 +46,11 @@ const tempUserSchema = new mongoose.Schema({
     // Absolute expiry; when set, TTL index removes after this timestamp
     expiresAt: {
         type: Date,
-        index: { expireAfterSeconds: 0 },
         default: undefined
     }
 });
+
+// TTL index for absolute expiry. MongoDB removes docs when `expiresAt` <= now.
+tempUserSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 module.exports = mongoose.model('TempUser', tempUserSchema);
