@@ -985,13 +985,14 @@ body.dark .message.system .message-content { color: rgba(255, 255, 255, 0.65); }
 /* removed top-right new message dot; we use list highlighting instead */
 
 .typing-indicator {
-    position: sticky;
-    bottom: 0;
-    width: 100%;
+    position: absolute;
+    left: 16px;
+    bottom: 10px;
     display: flex;
     justify-content: flex-start;
-    padding: 6px 12px 12px;
+    padding: 0;
     background: transparent;
+    z-index: 3;
 }
 
 .typing-bubble {
@@ -1033,7 +1034,7 @@ body.dark .message.system .message-content { color: rgba(255, 255, 255, 0.65); }
 
 @keyframes bounce {
     0%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-4); }
+    40% { transform: translateY(-4px); }
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
