@@ -9,6 +9,7 @@ const WebSocket = require('ws');
 const tempUsersRoutes = require('./routes/tempUsers');
 const messagesRoutes = require('./routes/messages');
 const Message = require('./models/Message');
+const TempUser = require('./models/TempUser');
 
 dotenv.config();
 
@@ -122,6 +123,19 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/temp-users', tempUsersRoutes);
 app.use('/api/messages', messagesRoutes);
+
+// Explicit logoff endpoint: mark offline and remove messages for this user
+app.post('/api/logoff/:username', async (req, res) => {
+    try {
+        const { username } = req.params;
+        await TempUser.findOneAndUpdate({ username }, { isOnline: false, lastSeen: new Date() });
+        await Message.deleteMany({ $or: [ { sender: username }, { recipient: username } ] });
+        res.json({ ok: true });
+    } catch (e) {
+        console.error('Logoff cleanup failed:', e);
+        res.status(500).json({ error: 'Failed to logoff' });
+    }
+});
 
 // Basic route for testing
 app.get('/', (req, res) => {

@@ -301,10 +301,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>`;
             messages.appendChild(typingIndicator);
+            // Reserve some bottom space so last message doesn't collide with bubble
+            messages.style.paddingBottom = '54px';
             messages.scrollTop = messages.scrollHeight;
         } else if (!isTyping && typingIndicator) {
             console.log('Removing typing indicator');
             typingIndicator.remove();
+            messages.style.paddingBottom = '';
         }
     }
 
@@ -693,27 +696,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Disable the logout button to prevent double-clicks
                 logoutBtn.disabled = true;
 
-                // Set user as offline
-                const statusResponse =  await fetch(`${API_URL}/api/temp-users/status/${currentUser.username}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ isOnline: false }),
-                });
-
-                if (!statusResponse.ok) {
-                    console.error('Failed to update online status');
-                }
-
-                // Delete the user
-                const deleteResponse = await fetch(`${API_URL}/api/temp-users/delete/${currentUser.username}`, {
-                    method: 'DELETE',
-                });
-
-                if (!deleteResponse.ok) {
-                    console.error('Failed to delete user from the database');
-                }
+                // Mark offline and clear messages server side
+                const logoffRes = await fetch(`${API_URL}/api/logoff/${currentUser.username}`, { method: 'POST' });
+                if (!logoffRes.ok) console.error('Failed to logoff/cleanup');
 
                 // Clear intervals before redirecting
                 clearInterval(onlineUsersInterval);
@@ -1037,31 +1022,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 2000);
     });
 
-    // Update user's online status when leaving
+    // Update user's online status when leaving (do not delete the user to preserve history).
     window.addEventListener('beforeunload', () => {
-        // Clear intervals
         clearInterval(onlineUsersInterval);
-
-        // Create a synchronous XMLHttpRequest
         const xhr = new XMLHttpRequest();
-
-        // Set offline status
-        xhr.open('PUT', `${API_URL}/api/temp-users/status/${currentUser.username}`, false); // false makes it synchronous
+        xhr.open('PUT', `${API_URL}/api/temp-users/status/${currentUser.username}`, false);
         xhr.setRequestHeader('Content-Type', 'application/json');
-        try {
-            xhr.send(JSON.stringify({ isOnline: false }));
-        } catch (error) {
-            console.error('Error updating status:', error);
-        }
-
-        // Delete user
-        const deleteXhr = new XMLHttpRequest();
-        deleteXhr.open('DELETE', `${API_URL}/api/temp-users/delete/${currentUser.username}`, false);
-        try {
-            deleteXhr.send();
-        } catch (error) {
-            console.error('Error deleting user:', error);
-        }
+        try { xhr.send(JSON.stringify({ isOnline: false })); } catch (_e) {}
     });
 
     function updateUserPresence() {

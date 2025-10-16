@@ -985,12 +985,14 @@ body.dark .message.system .message-content { color: rgba(255, 255, 255, 0.65); }
 /* removed top-right new message dot; we use list highlighting instead */
 
 .typing-indicator {
-    position: absolute;
-    left: 16px;
-    bottom: 10px;
+    position: sticky;
+    bottom: 8px;
+    left: 0;
+    right: 0;
+    width: 100%;
     display: flex;
     justify-content: flex-start;
-    padding: 0;
+    padding: 0 12px;
     background: transparent;
     z-index: 3;
 }
