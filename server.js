@@ -37,7 +37,7 @@ app.use(cors(corsOptions));
 wss.on('connection', (ws) => {
     console.log('New WebSocket connection');
 
-    ws.on('message', (message) => {
+    ws.on('message', async (message) => {
         try {
             const data = JSON.parse(message);
             console.log('Received:', data);
@@ -72,7 +72,7 @@ wss.on('connection', (ws) => {
                     }));
                 }
 
-                // Persist the message for history
+                // Persist message for history
                 try {
                     await new Message({
                         sender: data.sender,
@@ -84,7 +84,6 @@ wss.on('connection', (ws) => {
                     console.error('Failed to persist message:', e);
                 }
             } else if (data.type === 'typing') {
-                // Forward typing events to recipient only
                 const recipientWs = clients.get(data.recipient);
                 if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
                     recipientWs.send(JSON.stringify({
