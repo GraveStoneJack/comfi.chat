@@ -9,17 +9,39 @@
     <link rel="icon" href="data:,">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-        .profile-container { max-width: 860px; margin: 0 auto; padding: 20px; }
-        .profile-grid { display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
-        .profile-card { background: var(--card-bg); border-radius: 12px; padding: 16px; box-shadow: var(--card-shadow); }
+        .profile-wrapper { width: 100%; display: flex; justify-content: center; }
+        .profile-surface {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 230, 255, 0.9) 100%);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(47, 6, 66, 0.3), 0 0 60px rgba(215, 154, 255, 0.2), inset 0 0 15px rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 24px;
+            width: 92%;
+            max-width: 1100px;
+        }
+        body.dark .profile-surface {
+            background: linear-gradient(135deg, rgba(30,30,30,0.9) 0%, rgba(20,20,20,0.9) 100%);
+            border-color: rgba(255,255,255,0.1);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.55), 0 0 80px rgba(0,0,0,0.28), inset 0 0 20px rgba(255,255,255,0.04);
+        }
+        .profile-header { text-align: center; margin-bottom: 16px; }
+        .profile-grid { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+        .profile-card { background: rgba(255,255,255,0.65); border-radius: 14px; padding: 14px; border: 1px solid rgba(59,3,55,0.15); }
+        body.dark .profile-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
         .avatar { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: #fafafa; }
         .file-input { display: none; }
         .upload-btn { width: 100%; margin-top: 10px; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .form-group { margin-bottom: 10px; }
         .form-group label { display: block; font-weight: 600; margin-bottom: 6px; }
-        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1px solid rgba(59,3,55,0.15); background: rgba(255,255,255,0.75); color: inherit; }
+        body.dark .form-group input, body.dark .form-group select, body.dark .form-group textarea { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); }
         .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+        .btn-secondary { background: rgba(155, 77, 202, 0.12); color: #9b4dca; border: 1px solid rgba(155,77,202,0.35); padding: 12px 16px; border-radius: 25px; font-weight: 600; }
+        body.dark .btn-secondary { color: #d9b8ff; border-color: rgba(215,154,255,0.35); background: rgba(215,154,255,0.10); }
+        @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
     </style>
     <link rel="preconnect" href="https://flagcdn.com">
     <link rel="dns-prefetch" href="https://flagcdn.com">
@@ -39,8 +61,9 @@
     <div class="theme-toggle">
         <button id="theme-toggle-btn" class="theme-toggle-btn"><i class="fas fa-circle-half-stroke"></i> Auto</button>
     </div>
-    <div class="profile-container">
-        <header>
+    <div class="profile-wrapper">
+      <div class="profile-surface">
+        <header class="profile-header">
             <h1>Create or Update Your Profile</h1>
             <p>Complete your details so others can recognize you.</p>
         </header>
@@ -177,6 +200,7 @@
                 </form>
             </div>
         </div>
+      </div>
     </div>
     <script src="profile.js"></script>
 </body>
