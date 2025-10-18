@@ -984,65 +984,7 @@ body.dark .message.system .message-content { color: rgba(255, 255, 255, 0.65); }
 
 /* removed top-right new message dot; we use list highlighting instead */
 
-.typing-indicator {
-    position: absolute;
-    right: 16px;
-    left: auto;
-    bottom: 8px;
-    display: flex;
-    justify-content: flex-end;
-    padding: 0;
-    background: transparent;
-    z-index: 3;
-    pointer-events: none;
-}
-
-.typing-bubble {
-    background: #ffffff;
-    color: #333;
-    border-radius: 20px;
-    padding: 8px 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-    border: 1px solid rgba(0,0,0,0.04);
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-}
-
-.dark .typing-bubble {
-    background: #2a2230;
-    color: #ddd;
-    border-color: rgba(255,255,255,0.06);
-}
-
-.typing-dots {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-}
-
-.typing-dots span {
-    width: 6px;
-    height: 6px;
-    background: #9b4dca;
-    border-radius: 50%;
-    display: inline-block;
-    animation: bounce 1.2s infinite ease-in-out;
-}
-
-.typing-dots span:nth-child(1) { animation-delay: 0s; }
-.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes bounce {
-    0%, 80%, 100% { transform: translateY(0); }
-    40% { transform: translateY(-4px); }
-}
-
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-/* Reserve space for typing indicator so last message doesn't overlap */
-.messages.has-typing { padding-bottom: 54px; }
+/* typing indicator removed */
 
 .message-info {
     display: flex;

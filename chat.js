@@ -70,9 +70,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const data = JSON.parse(event.data);
                 console.log('Received WebSocket message:', data);
 
-                if (data.type === 'typing') {
-                    updateTypingIndicator(data.sender, data.isTyping);
-                } else if (data.type === 'delete-message' && data.sender !== currentUser.username) {
+                if (data.type === 'delete-message' && data.sender !== currentUser.username) {
                     // Remove matching image/message locally
                     const messagesContainer = document.querySelector('.messages');
                     const nodes = Array.from(messagesContainer.querySelectorAll('.message'));
@@ -275,41 +273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Typing indicator function
-    function updateTypingIndicator(username, isTyping) {
-        console.log('Updating typing indicator:', { username, isTyping });
-        const messages = document.querySelector('.messages');
-        let typingIndicator = document.querySelector('.typing-indicator');
-
-        // Don't show typing indicator for current user's own typing
-        if (username === currentUser.username) {
-            console.log('Ignoring own typing indicator');
-            return;
-        }
-
-        if (isTyping && !typingIndicator) {
-            console.log('Creating typing indicator for:', username);
-            typingIndicator = document.createElement('div');
-            typingIndicator.className = 'typing-indicator';
-            typingIndicator.setAttribute('aria-live', 'polite');
-            typingIndicator.innerHTML = `
-                <div class="typing-bubble" role="status" aria-label="${username} is typing">
-                    <div class="typing-dots">
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                    </div>
-                </div>`;
-            messages.appendChild(typingIndicator);
-            // Reserve space using a class so layout stays stable
-            messages.classList.add('has-typing');
-            messages.scrollTop = messages.scrollHeight;
-        } else if (!isTyping && typingIndicator) {
-            console.log('Removing typing indicator');
-            typingIndicator.remove();
-            messages.classList.remove('has-typing');
-        }
-    }
+    // Typing indicator removed by request
 
     function playMessageSound() {
         if (!messageSound.paused) {
@@ -992,35 +956,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    let typingTimeout;
-
-    messageInput.addEventListener('input', () => {
-        if (!currentChatUser) return;
-
-        clearTimeout(typingTimeout);
-
-        // Send typing status
-        const typingData = {
-            type: 'typing',
-            recipient: currentChatUser.username,
-            sender: currentUser.username,
-            isTyping: true
-        };
-        console.log('Sending typing status:', typingData);
-        socket.send(JSON.stringify(typingData));
-
-        // Clear typing status after 2 seconds if no input
-        typingTimeout = setTimeout(() => {
-            const stopTypingData = {
-                type: 'typing',
-                recipient: currentChatUser.username,
-                sender: currentUser.username,
-                isTyping: false
-            };
-            console.log('Sending stop typing status:', stopTypingData);
-            socket.send(JSON.stringify(stopTypingData));
-        }, 2000);
-    });
+    // Typing events removed by request
 
     // Update user's online status when leaving (do not delete the user to preserve history).
     window.addEventListener('beforeunload', () => {

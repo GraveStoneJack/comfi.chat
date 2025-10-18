@@ -84,16 +84,6 @@ wss.on('connection', (ws) => {
                 } catch (e) {
                     console.error('Failed to persist message:', e);
                 }
-            } else if (data.type === 'typing') {
-                const recipientWs = clients.get(data.recipient);
-                if (recipientWs && recipientWs.readyState === WebSocket.OPEN) {
-                    recipientWs.send(JSON.stringify({
-                        type: 'typing',
-                        sender: data.sender,
-                        recipient: data.recipient,
-                        isTyping: !!data.isTyping
-                    }));
-                }
             }
         } catch (error) {
             console.error('Error processing message:', error);
