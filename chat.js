@@ -301,13 +301,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     </div>
                 </div>`;
             messages.appendChild(typingIndicator);
-            // Reserve some bottom space so last message doesn't collide with bubble
-            messages.style.paddingBottom = '54px';
+            // Reserve space using a class so layout stays stable
+            messages.classList.add('has-typing');
             messages.scrollTop = messages.scrollHeight;
         } else if (!isTyping && typingIndicator) {
             console.log('Removing typing indicator');
             typingIndicator.remove();
-            messages.style.paddingBottom = '';
+            messages.classList.remove('has-typing');
         }
     }
 
