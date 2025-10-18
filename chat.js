@@ -19,8 +19,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         return id;
     }
-    // Check if user is logged in
-    const currentUser = JSON.parse(sessionStorage.getItem('tempUser'));
+    // Check if user is logged in (registered user or temp)
+    const registeredUser = JSON.parse(sessionStorage.getItem('user') || 'null');
+    const authToken = sessionStorage.getItem('authToken');
+    const tempSession = JSON.parse(sessionStorage.getItem('tempUser') || 'null');
+    const currentUser = tempSession || (registeredUser ? { username: registeredUser.username } : null);
     if (!currentUser) {
         window.location.href = '/';
         return;
@@ -31,9 +34,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let onlineUsers = [];
 
     function initializeWebSocket() {
-        // Add authentication token to WebSocket URL
-        const token = sessionStorage.getItem('authToken'); // You'll need to implement token storage
-        socket = new WebSocket(`${WS_URL}?token=${token}`);
+        // Add authentication token to WebSocket URL if available
+        const token = authToken || '';
+        socket = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}`);
         
         let reconnectAttempts = 0;
         const MAX_RECONNECT_ATTEMPTS = 5;

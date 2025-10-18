@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfiChat - Create Your Profile</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:,">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .profile-container { max-width: 860px; margin: 0 auto; padding: 20px; }
+        .profile-grid { display: grid; grid-template-columns: 260px 1fr; gap: 20px; }
+        .profile-card { background: var(--card-bg); border-radius: 12px; padding: 16px; box-shadow: var(--card-shadow); }
+        .avatar { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; background: #fafafa; }
+        .file-input { display: none; }
+        .upload-btn { width: 100%; margin-top: 10px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--input-bg); color: var(--text); }
+        .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
+    </style>
+    <link rel="preconnect" href="https://flagcdn.com">
+    <link rel="dns-prefetch" href="https://flagcdn.com">
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const THEME_KEY = 'comfi.theme';
+            const themeBtn = document.getElementById('theme-toggle-btn');
+            function getSystemPref() { return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light'; }
+            function applyTheme(mode) { const resolved = mode === 'auto' ? getSystemPref() : mode; document.body.classList.toggle('dark', resolved === 'dark'); if (themeBtn) themeBtn.innerHTML = `<i class="fas ${resolved === 'dark' ? 'fa-moon' : 'fa-sun'}"></i> ${mode === 'auto' ? 'Auto' : (resolved === 'dark' ? 'Dark' : 'Light')}`; }
+            let themeMode = localStorage.getItem(THEME_KEY) || 'auto';
+            applyTheme(themeMode);
+            if (themeBtn) themeBtn.addEventListener('click', () => { themeMode = themeMode === 'auto' ? 'light' : (themeMode === 'light' ? 'dark' : 'auto'); localStorage.setItem(THEME_KEY, themeMode); applyTheme(themeMode); });
+        });
+    </script>
+</head>
+<body>
+    <div class="theme-toggle">
+        <button id="theme-toggle-btn" class="theme-toggle-btn"><i class="fas fa-circle-half-stroke"></i> Auto</button>
+    </div>
+    <div class="profile-container">
+        <header>
+            <h1>Create or Update Your Profile</h1>
+            <p>Complete your details so others can recognize you.</p>
+        </header>
+        <div class="profile-grid">
+            <div class="profile-card">
+                <img id="avatar" class="avatar" src="default-profile.png" alt="Profile picture">
+                <input id="file-input" class="file-input" type="file" accept="image/*">
+                <button id="upload-btn" class="submit-btn upload-btn"><i class="fas fa-upload"></i> Upload Photo</button>
+                <small id="upload-hint">Max 5MB. PNG, JPG, GIF, WEBP.</small>
+            </div>
+            <div class="profile-card">
+                <form id="profile-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="username">Username</label>
+                            <input id="username" type="text" required minlength="3" maxlength="30" placeholder="username">
+                        </div>
+                        <div class="form-group">
+                            <label for="displayName">Display name</label>
+                            <input id="displayName" type="text" maxlength="50" placeholder="How others see you">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input id="email" type="email" required placeholder="you@example.com">
+                        </div>
+                        <div class="form-group" id="password-group">
+                            <label for="password">Password</label>
+                            <input id="password" type="password" minlength="6" placeholder="At least 6 characters">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="age">Age</label>
+                            <select id="age" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="gender">Gender</label>
+                            <select id="gender" required>
+                                <option value="">Select</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="non-binary">Non-binary</option>
+                                <option value="other">Other</option>
+                                <option value="prefer not to say">Prefer not to say</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="sexuality">Sexuality</label>
+                            <select id="sexuality">
+                                <option value="">Select</option>
+                                <option value="straight">Straight</option>
+                                <option value="gay">Gay</option>
+                                <option value="lesbian">Lesbian</option>
+                                <option value="bisexual">Bisexual</option>
+                                <option value="other">Other</option>
+                                <option value="prefer not to say">Prefer not to say</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="lookingFor">Looking for</label>
+                            <select id="lookingFor" multiple>
+                                <option value="friendship">Friendship</option>
+                                <option value="dating">Dating</option>
+                                <option value="relationship">Relationship</option>
+                                <option value="casual">Casual</option>
+                                <option value="networking">Networking</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="hairType">Hair type</label>
+                            <select id="hairType">
+                                <option value="">Select</option>
+                                <option value="straight">Straight</option>
+                                <option value="wavy">Wavy</option>
+                                <option value="curly">Curly</option>
+                                <option value="coily">Coily</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="hairColor">Hair color</label>
+                            <select id="hairColor">
+                                <option value="">Select</option>
+                                <option value="black">Black</option>
+                                <option value="brown">Brown</option>
+                                <option value="blonde">Blonde</option>
+                                <option value="red">Red</option>
+                                <option value="grey">Grey</option>
+                                <option value="white">White</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="eyeColor">Eye color</label>
+                            <select id="eyeColor">
+                                <option value="">Select</option>
+                                <option value="brown">Brown</option>
+                                <option value="blue">Blue</option>
+                                <option value="green">Green</option>
+                                <option value="hazel">Hazel</option>
+                                <option value="grey">Grey</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="ethnicity">Ethnicity</label>
+                            <select id="ethnicity">
+                                <option value="">Select</option>
+                                <option value="asian">Asian</option>
+                                <option value="black">Black</option>
+                                <option value="hispanic">Hispanic</option>
+                                <option value="white">White</option>
+                                <option value="mixed">Mixed</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="hobbies">Hobbies (comma separated)</label>
+                        <input id="hobbies" type="text" placeholder="music, travel, fitness">
+                    </div>
+                    <div class="actions">
+                        <button type="button" id="go-chat" class="btn-secondary">Skip for now</button>
+                        <button type="submit" id="save-profile" class="submit-btn">Save & Continue</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="profile.js"></script>
+</body>
+</html>
+
+

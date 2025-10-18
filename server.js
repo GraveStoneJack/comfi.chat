@@ -8,6 +8,8 @@ const http = require('http');
 const WebSocket = require('ws');
 const tempUsersRoutes = require('./routes/tempUsers');
 const messagesRoutes = require('./routes/messages');
+const usersRoutes = require('./routes/users');
+const uploadRoutes = require('./routes/upload');
 const Message = require('./models/Message');
 const TempUser = require('./models/TempUser');
 
@@ -22,6 +24,7 @@ const clients = new Map();
 // Middleware
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // CORS configuration
 const corsOptions = {
@@ -113,6 +116,8 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/temp-users', tempUsersRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Explicit logoff endpoint: mark offline and remove messages for this user
 app.post('/api/logoff/:username', async (req, res) => {

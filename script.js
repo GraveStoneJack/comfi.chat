@@ -59,15 +59,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = authSection.innerHTML;
 
     googleBtn.addEventListener('click', () => {
-        console.log('Google Sign-In clicked');
+        // For now, route to profile page with provider hint. In future, replace with OAuth redirect.
+        window.location.href = '/profile.html?provider=google';
     });
 
     appleBtn.addEventListener('click', () => {
-        console.log('Apple Sign-In clicked');
+        window.location.href = '/profile.html?provider=apple';
     });
 
     emailBtn.addEventListener('click', () => {
-        console.log('Email Sign-Up clicked');
+        window.location.href = '/profile.html?provider=email';
     });
 
     talkStrangersBtn.addEventListener('click', (e) => {
