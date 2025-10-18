@@ -115,31 +115,55 @@
         </div>
     </div>
     <script src="chat.js"></script>
-    <div id="report-popup">
-        <h3>Report User</h3>
-        <form id="report-form">
-            <label>
-                <input type="radio" name="report-reason" value="harassment" required>
-                Harassment
-            </label>
-            <label>
-                <input type="radio" name="report-reason" value="spam" required>
-                Spam
-            </label>
-            <label>
-                <input type="radio" name="report-reason" value="inappropriate-content" required>
-                Inappropriate Content
-            </label>
-            <label>
-                <input type="radio" name="report-reason" value="other" required>
-                Other
-            </label>
-            <textarea id="additional-info" placeholder="Additional information (optional)"></textarea>
-            <div class="popup-actions">
-                <button type="button" onclick="document.getElementById('report-popup').style.display='none';">Cancel</button>
-                <button type="submit">Submit Report</button>
-            </div>
-        </form>
+    <div id="report-popup" class="popup" style="display:none;">
+        <div class="popup-content">
+            <h3>Report User</h3>
+            <form id="report-form">
+                <div class="report-options">
+                    <label>
+                        <input type="radio" name="report-reason" value="harassment" required>
+                        Harassment or bullying
+                    </label>
+                    <label>
+                        <input type="radio" name="report-reason" value="spam" required>
+                        Spam or scam
+                    </label>
+                    <label>
+                        <input type="radio" name="report-reason" value="inappropriate-content" required>
+                        Sexual/inappropriate content
+                    </label>
+                    <label>
+                        <input type="radio" name="report-reason" value="hate-speech" required>
+                        Hate speech or discrimination
+                    </label>
+                    <label>
+                        <input type="radio" name="report-reason" value="violence-threats" required>
+                        Violence or threats
+                    </label>
+                    <label>
+                        <input type="radio" name="report-reason" value="impersonation" required>
+                        Impersonation
+                    </label>
+                    <label>
+                        <input type="radio" name="report-reason" value="self-harm" required>
+                        Self-harm or suicide concerns
+                    </label>
+                    <label>
+                        <input type="radio" name="report-reason" value="other" required>
+                        Other
+                    </label>
+                </div>
+                <textarea id="additional-info" placeholder="Additional information (optional)"></textarea>
+                <label style="display:block;margin-top:10px;">
+                    <input type="checkbox" id="report-block-checkbox">
+                    Also block this user/device
+                </label>
+                <div class="popup-actions">
+                    <button type="button" id="report-cancel" class="btn-cancel">Cancel</button>
+                    <button type="submit" class="submit-btn">Submit Report</button>
+                </div>
+            </form>
+        </div>
     </div>
     <!-- Image Lightbox Preview -->
     <div id="image-lightbox" class="lightbox" style="display:none;" oncontextmenu="return false;">

@@ -707,56 +707,35 @@ body.dark #message-text {
     box-shadow: 0 4px 12px rgba(155, 77, 202, 0.6);
 }
 
-#report-popup {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: rgba(255, 255, 255, 0.9);
-    border-radius: 20px;
-    padding: 20px;
-    max-width: 400px;
-    width: 90%;
-    box-shadow: 0 10px 30px rgba(47, 6, 66, 0.3);
-    z-index: 1000;
-}
-body.dark #report-popup {
-    background-color: rgba(34, 26, 42, 0.95);
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-#report-popup h3 {
-    margin-bottom: 15px;
-    color: #2f0642;
-}
-
-#report-popup label {
-    display: block;
-    margin-bottom: 10px;
-}
-
-#report-popup input[type="radio"] {
-    margin-right: 5px;
-}
-
+/* Report popup now uses generic .popup/.popup-content styles */
+#report-popup .popup-content h3 { margin-bottom: 12px; color: #2f0642; }
+body.dark #report-popup .popup-content h3 { color: #efeaff; }
+#report-popup .report-options { max-height: 180px; overflow-y: auto; padding-right: 6px; }
+#report-popup .report-options label { display: block; margin: 8px 0; color: #3b0337; }
+body.dark #report-popup .report-options label { color: #e8e1ee; }
+#report-popup input[type="radio"] { margin-right: 6px; }
 #report-popup textarea {
     width: 100%;
     padding: 10px;
     border: 1px solid rgba(59, 3, 55, 0.2);
     border-radius: 10px;
     margin-top: 10px;
+    background: rgba(255,255,255,0.7);
 }
-
-#report-popup .popup-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 15px;
+body.dark #report-popup textarea { background: rgba(255,255,255,0.08); color: #e8e1ee; border-color: rgba(255,255,255,0.15); }
+#report-popup .popup-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 15px; }
+#report-cancel.btn-cancel {
+    background: rgba(155, 77, 202, 0.12);
+    color: #9b4dca;
+    border: 1px solid rgba(155, 77, 202, 0.35);
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 }
-
-#report-popup .popup-actions button {
-    margin-left: 10px;
-}
+#report-cancel.btn-cancel:hover { background: rgba(155,77,202,0.18); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(155,77,202,0.25); }
 
 .default-state {
     display: none;

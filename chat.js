@@ -86,6 +86,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (chat) chat.unread = true;
                     updateActiveChats();
                 } else if (data.type === 'message' && data.sender !== currentUser.username) {
+                    // Drop messages from blocked devices
+                    try {
+                        const blocked = new Set(loadBlockedDevices());
+                        const senderDeviceId = usernameToDeviceId.get(data.sender);
+                        if (senderDeviceId && blocked.has(senderDeviceId)) {
+                            return; // ignore silently
+                        }
+                    } catch(_e) {}
                     playMessageSound();
 
                     // Determine the other user (sender or recipient)
@@ -217,6 +225,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             alert('Please wait a few seconds before sending another message.');
             return;
         }
+        // Prevent sending to blocked device
+        try {
+            const blocked = new Set(loadBlockedDevices());
+            if (currentChatUser && currentChatUser.deviceId && blocked.has(currentChatUser.deviceId)) {
+                alert('You have blocked this user/device. Log out to clear your blocklist.');
+                return;
+            }
+        } catch(_e) {}
         if (!socket || socket.readyState !== WebSocket.OPEN) {
             console.error('WebSocket is not connected');
             return;
@@ -604,6 +620,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const clearFiltersBtn = document.getElementById('clear-filters');
     const reportPopup = document.getElementById('report-popup');
     const reportForm = document.getElementById('report-form');
+    const reportCancelBtn = document.getElementById('report-cancel');
+    let usernameToDeviceId = new Map();
     const chatArea = document.querySelector('.chat-area');
 
     // Initialize chat area as inactive
@@ -626,6 +644,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         console.error('Error updating initial online status:', error);
     }
 
+    // Blocklist helpers (scoped per your current username)
+    function getBlocklistKey() { return `comfi.blocklist.${currentUser.username}`; }
+    function loadBlockedDevices() { try { return JSON.parse(localStorage.getItem(getBlocklistKey()) || '[]'); } catch (_e) { return []; } }
+    function saveBlockedDevices(list) { try { localStorage.setItem(getBlocklistKey(), JSON.stringify(list)); } catch (_e) {} }
+    function addBlockedDevice(deviceId) {
+        if (!deviceId) return;
+        const list = loadBlockedDevices();
+        if (!list.includes(deviceId)) { list.push(deviceId); saveBlockedDevices(list); }
+    }
+
     // Fetch online users from the server
     async function fetchOnlineUsers() {
         try {
@@ -634,7 +662,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const users = await response.json();
-            onlineUsers = users.filter(user => user.username !== currentUser.username);
+            const blocked = new Set(loadBlockedDevices());
+            usernameToDeviceId = new Map();
+            users.forEach(u => { if (u && u.username) usernameToDeviceId.set(u.username, u.deviceId || null); });
+            onlineUsers = users
+                .filter(user => user.username !== currentUser.username)
+                .filter(user => user.deviceId && !blocked.has(user.deviceId));
             updateOnlineUsers();
             populateCountryFilter();
         } catch (error) {
@@ -667,8 +700,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Clear intervals before redirecting
                 clearInterval(onlineUsersInterval);
 
-                // Clear session storage
+                // Clear session storage and release per-username blocklist
                 sessionStorage.removeItem('tempUser');
+                try { localStorage.removeItem(getBlocklistKey()); } catch(_e) {}
 
                 // Add a small delay before redirecting to ensure requests complete
                 setTimeout(() => {
@@ -861,18 +895,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Reattach event listeners
         document.getElementById('block-user-btn').addEventListener('click', () => {
-            if (confirm(`Are you sure you want to block ${user.username}?`)) {
-                console.log(`Blocked user: ${user.username}`);
+            const confirmMsg = `Block ${user.username}? They won't be able to message you from this device.`;
+            if (confirm(confirmMsg)) {
+                addBlockedDevice(user.deviceId);
+                // Remove from lists and UI
+                onlineUsers = onlineUsers.filter(u => u.deviceId !== user.deviceId);
                 activeChats = activeChats.filter(chat => chat.username !== user.username);
+                updateOnlineUsers();
                 updateActiveChats();
                 chatArea.classList.remove('active');
             }
         });
 
         document.getElementById('report-user-btn').addEventListener('click', () => {
-            reportPopup.style.display = 'block';
+            if (reportPopup) reportPopup.style.display = 'block';
+            const chk = document.getElementById('report-block-checkbox');
+            if (chk) chk.checked = false;
         });
     }
+
+    if (reportCancelBtn) reportCancelBtn.addEventListener('click', () => { if (reportPopup) reportPopup.style.display = 'none'; });
 
     reportForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -897,6 +939,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (response.ok) {
                 alert('Report submitted successfully');
+                const alsoBlock = document.getElementById('report-block-checkbox');
+                if (alsoBlock && alsoBlock.checked) {
+                    addBlockedDevice(currentChatUser.deviceId);
+                    onlineUsers = onlineUsers.filter(u => u.deviceId !== currentChatUser.deviceId);
+                    activeChats = activeChats.filter(chat => chat.username !== currentChatUser.username);
+                    updateOnlineUsers();
+                    updateActiveChats();
+                    chatArea.classList.remove('active');
+                }
             } else {
                 alert('Failed to submit report');
             }
