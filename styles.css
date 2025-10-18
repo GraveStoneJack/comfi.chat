@@ -714,6 +714,8 @@ body.dark #report-popup .popup-content h3 { color: #efeaff; }
 #report-popup .report-options label { display: block; margin: 8px 0; color: #3b0337; }
 body.dark #report-popup .report-options label { color: #e8e1ee; }
 #report-popup input[type="radio"] { margin-right: 6px; }
+#report-popup input[type="radio"] { accent-color: #9b4dca; }
+body.dark #report-popup input[type="radio"] { accent-color: #d79aff; }
 #report-popup textarea {
     width: 100%;
     padding: 10px;
@@ -723,6 +725,7 @@ body.dark #report-popup .report-options label { color: #e8e1ee; }
     background: rgba(255,255,255,0.7);
 }
 body.dark #report-popup textarea { background: rgba(255,255,255,0.08); color: #e8e1ee; border-color: rgba(255,255,255,0.15); }
+body.dark #report-popup textarea::placeholder { color: #bdb4c8; }
 #report-popup .popup-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 15px; }
 #report-cancel.btn-cancel {
     background: rgba(155, 77, 202, 0.12);
@@ -736,6 +739,23 @@ body.dark #report-popup textarea { background: rgba(255,255,255,0.08); color: #e
     transition: all 0.2s ease;
 }
 #report-cancel.btn-cancel:hover { background: rgba(155,77,202,0.18); transform: translateY(-1px); box-shadow: 0 3px 10px rgba(155,77,202,0.25); }
+
+/* Dark mode surface for report modal */
+body.dark #report-popup .popup-content {
+    background: linear-gradient(135deg, rgba(45,35,55,0.96) 0%, rgba(36,28,44,0.96) 100%);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #e8e1ee;
+    box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+}
+body.dark #report-cancel.btn-cancel {
+    background: rgba(215, 154, 255, 0.10);
+    color: #d9b8ff;
+    border-color: rgba(215, 154, 255, 0.35);
+}
+body.dark #report-cancel.btn-cancel:hover {
+    background: rgba(215,154,255,0.16);
+    box-shadow: 0 3px 10px rgba(0,0,0,0.35);
+}
 
 .default-state {
     display: none;
