@@ -59,12 +59,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = authSection.innerHTML;
 
     googleBtn.addEventListener('click', () => {
-        // TODO: Replace with real OAuth redirect. For now, proceed to profile with provider hint.
-        window.location.href = '/profile.html?provider=google';
+        window.location.href = `${API_URL}/api/auth/google/start`;
     });
 
     appleBtn.addEventListener('click', () => {
-        window.location.href = '/profile.html?provider=apple';
+        window.location.href = `${API_URL}/api/auth/apple/start`;
     });
 
     emailBtn.addEventListener('click', () => {

@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const params = getQueryParams();
     const provider = params.provider || 'email-verified';
+    const oauthTempToken = params.tempToken || null;
 
     uploadBtn.addEventListener('click', (e) => { e.preventDefault(); fileInput.click(); });
     fileInput.addEventListener('change', async (e) => {
@@ -74,6 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (provider === 'email-verified') {
                 const tempToken = sessionStorage.getItem('pendingTempToken');
                 res = await fetch(`${API_URL}/api/auth/email/finalize`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tempToken, ...payload }) });
+                data = await res.json();
+            } else if (provider === 'google' || provider === 'apple') {
+                const tempToken = oauthTempToken;
+                res = await fetch(`${API_URL}/api/auth/oauth/finalize`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tempToken, ...payload }) });
                 data = await res.json();
             } else {
                 // social or other provider uses generic register without password
