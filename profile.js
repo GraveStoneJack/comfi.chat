@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const avatar = document.getElementById('avatar');
     const uploadBtn = document.getElementById('upload-btn');
     const goChatBtn = document.getElementById('go-chat');
-    const passwordGroup = document.getElementById('password-group');
 
     for (let i = 13; i <= 100; i++) {
         const opt = document.createElement('option');
@@ -23,11 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const params = getQueryParams();
-    const provider = params.provider || 'email';
-    if (provider !== 'email') {
-        // Hide password for social sign-in flow
-        passwordGroup.style.display = 'none';
-    }
+    const provider = params.provider || 'email-verified';
 
     uploadBtn.addEventListener('click', (e) => { e.preventDefault(); fileInput.click(); });
     fileInput.addEventListener('change', async (e) => {
@@ -55,8 +50,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             username: document.getElementById('username').value.trim(),
             displayName: document.getElementById('displayName').value.trim(),
-            email: document.getElementById('email').value.trim(),
-            password: document.getElementById('password').value,
             age: parseInt(document.getElementById('age').value, 10),
             gender: document.getElementById('gender').value,
             sexuality: document.getElementById('sexuality').value || undefined,
@@ -77,12 +70,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const res = await fetch(`${API_URL}/api/users/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
+            let res, data;
+            if (provider === 'email-verified') {
+                const tempToken = sessionStorage.getItem('pendingTempToken');
+                res = await fetch(`${API_URL}/api/auth/email/finalize`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ tempToken, ...payload }) });
+                data = await res.json();
+            } else {
+                // social or other provider uses generic register without password
+                res = await fetch(`${API_URL}/api/users/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+                data = await res.json();
+            }
             if (!res.ok) {
                 alert(data.error || 'Registration failed');
                 return;

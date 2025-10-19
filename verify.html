@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfiChat - Verify Email</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <div class="theme-toggle">
+        <button id="theme-toggle-btn" class="theme-toggle-btn"><i class="fas fa-circle-half-stroke"></i> Auto</button>
+    </div>
+    <div class="container" style="max-width:520px;">
+        <header>
+            <h1>Verify your email</h1>
+            <p>We’re confirming your address. Then you can complete your profile.</p>
+        </header>
+        <main>
+            <div id="status">Verifying…</div>
+            <div id="actions" style="margin-top:14px;display:none;">
+                <button class="submit-btn" id="continue">Continue to profile</button>
+            </div>
+        </main>
+    </div>
+    <script>
+    const API_URL = 'https://luxeonchat-backend.onrender.com';
+    function qp() { const p = new URLSearchParams(location.search); const out = {}; for (const [k,v] of p.entries()) out[k]=v; return out; }
+    document.addEventListener('DOMContentLoaded', async () => {
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        const THEME_KEY = 'comfi.theme';
+        const getSystemPref = () => (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        const applyTheme = (mode) => { const resolved = mode === 'auto' ? getSystemPref() : mode; document.body.classList.toggle('dark', resolved === 'dark'); if (themeBtn) themeBtn.innerHTML = `<i class="fas ${resolved === 'dark' ? 'fa-moon' : 'fa-sun'}"></i> ${mode === 'auto' ? 'Auto' : (resolved === 'dark' ? 'Dark' : 'Light')}`; };
+        let themeMode = localStorage.getItem(THEME_KEY) || 'auto';
+        applyTheme(themeMode);
+        themeBtn?.addEventListener('click', () => { themeMode = themeMode === 'auto' ? 'light' : (themeMode === 'light' ? 'dark' : 'auto'); localStorage.setItem(THEME_KEY, themeMode); applyTheme(themeMode); });
+
+        const { token } = qp();
+        const status = document.getElementById('status');
+        const actions = document.getElementById('actions');
+        const cont = document.getElementById('continue');
+        if (!token) { status.textContent = 'Missing token'; return; }
+        try {
+            const res = await fetch(`${API_URL}/api/auth/email/verify`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token }) });
+            const data = await res.json();
+            if (!res.ok) { status.textContent = data.error || 'Verification failed'; return; }
+            sessionStorage.setItem('pendingTempToken', data.tempToken);
+            status.textContent = 'Verified! Continue to complete your profile.';
+            actions.style.display = 'block';
+            cont.addEventListener('click', () => { window.location.href = '/profile.html?provider=email-verified'; });
+        } catch (e) {
+            status.textContent = 'Verification failed';
+        }
+    });
+    </script>
+    </body>
+    </html>
+
+

@@ -10,6 +10,7 @@ const tempUsersRoutes = require('./routes/tempUsers');
 const messagesRoutes = require('./routes/messages');
 const usersRoutes = require('./routes/users');
 const uploadRoutes = require('./routes/upload');
+const authRoutes = require('./routes/auth');
 const Message = require('./models/Message');
 const TempUser = require('./models/TempUser');
 
@@ -118,6 +119,7 @@ app.use('/api/temp-users', tempUsersRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/auth', authRoutes);
 
 // Explicit logoff endpoint: mark offline and remove messages for this user
 app.post('/api/logoff/:username', async (req, res) => {

@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainContent = authSection.innerHTML;
 
     googleBtn.addEventListener('click', () => {
-        // For now, route to profile page with provider hint. In future, replace with OAuth redirect.
+        // TODO: Replace with real OAuth redirect. For now, proceed to profile with provider hint.
         window.location.href = '/profile.html?provider=google';
     });
 
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     emailBtn.addEventListener('click', () => {
-        window.location.href = '/profile.html?provider=email';
+        window.location.href = '/signup.html';
     });
 
     talkStrangersBtn.addEventListener('click', (e) => {
