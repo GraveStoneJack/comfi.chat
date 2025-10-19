@@ -234,6 +234,8 @@ select {
 select,
 input[type="text"],
 input[type="number"],
+input[type="email"],
+input[type="password"],
 .country-display {
     width: 100%;
     padding: 12px 15px;
@@ -250,11 +252,25 @@ input[type="number"],
 
 select:focus,
 input[type="text"]:focus,
-input[type="number"]:focus {
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus {
     outline: none;
     background-color: rgba(255, 255, 255, 0.9);
     border-color: rgba(59, 3, 55, 0.4);
     box-shadow: 0 0 15px rgba(215, 154, 255, 0.4);
+}
+
+/* Dark mode: inputs/selects */
+body.dark select,
+body.dark input[type="text"],
+body.dark input[type="number"],
+body.dark input[type="email"],
+body.dark input[type="password"],
+body.dark .country-display {
+    background-color: rgba(255, 255, 255, 0.08);
+    color: #e8e1ee;
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 /* Style for select options */
