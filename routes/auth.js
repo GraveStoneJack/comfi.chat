@@ -14,7 +14,8 @@ function signToken(payload) {
 }
 
 function getBaseUrl(req) {
-    const host = process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
+    // Prefer FRONTEND_URL if set to ensure email links open on the correct host
+    const host = process.env.FRONTEND_URL || process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
     return host;
 }
 
