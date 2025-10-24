@@ -1,0 +1,6 @@
+# Canonicalize to HTTPS on apex domain
+http://www.comfi.chat/*    https://comfi.chat/:splat    301!
+https://www.comfi.chat/*   https://comfi.chat/:splat    301!
+http://comfi.chat/*        https://comfi.chat/:splat    301!
+
+

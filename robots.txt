@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Avoid crawling duplicate parameterized URLs
+Disallow: /*?*
+
+Sitemap: https://comfi.chat/sitemap.xml
