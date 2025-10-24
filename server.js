@@ -40,6 +40,21 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// Force HTTPS and non-www in production to avoid duplicate URLs
+app.use((req, res, next) => {
+    if (process.env.NODE_ENV === 'production') {
+        const host = req.headers.host || '';
+        const isWww = host.startsWith('www.');
+        const proto = req.headers['x-forwarded-proto'] || req.protocol;
+        if (proto !== 'https' || isWww) {
+            const canonicalHost = isWww ? host.slice(4) : host;
+            const target = `https://${canonicalHost}${req.originalUrl}`;
+            return res.redirect(301, target);
+        }
+    }
+    next();
+});
+
 // WebSocket server implementation
 wss.on('connection', (ws) => {
     console.log('New WebSocket connection');
