@@ -161,6 +161,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 // Insert notice at the same place
                                 toRemove.parentNode.insertBefore(notice, toRemove.nextSibling);
                                 toRemove.remove();
+                                // Cancel any pending local expiry timer for this image
+                                clearImageExpiry(tokenUrl);
                                 // If lightbox is open with this image, close it
                                 const lb = document.getElementById('image-lightbox');
                                 const lbImg = document.getElementById('lightbox-img');
@@ -387,6 +389,83 @@ document.addEventListener('DOMContentLoaded', async () => {
         return (text || '').replace(/^\[delete-image(?:\|[^\]]+)?\]/, '');
     }
 
+    // Manage per-image expiry timers keyed by the final img.src URL
+    const imageExpiryTimers = new Map();
+
+    function clearImageExpiry(url) {
+        if (!url) return;
+        const entry = imageExpiryTimers.get(url);
+        if (entry && entry.timeoutId) {
+            clearTimeout(entry.timeoutId);
+        }
+        imageExpiryTimers.delete(url);
+    }
+
+    function expireImageByUrl(url, recipientUsername) {
+        try {
+            const container = document.querySelector('.messages');
+            let removed = false;
+            if (container) {
+                const nodes = Array.from(container.querySelectorAll('.message.has-image'));
+                const target = nodes.find(n => {
+                    const img = n.querySelector('.message-image');
+                    return img && img.src === url;
+                });
+                if (target) {
+                    const imgEl = target.querySelector('.message-image');
+                    const expiredNotice = document.createElement('div');
+                    expiredNotice.className = target.classList.contains('outgoing') ? 'message outgoing system' : 'message incoming system';
+                    expiredNotice.innerHTML = '<div class="message-content">Image expired</div>';
+                    target.parentNode.insertBefore(expiredNotice, target.nextSibling);
+                    target.remove();
+                    // Close lightbox if open for this image
+                    const lb = document.getElementById('image-lightbox');
+                    const lbImg = document.getElementById('lightbox-img');
+                    if (lb && lbImg && lb.style.display === 'block' && lbImg.src === url) {
+                        lb.style.display = 'none';
+                        lbImg.src = '';
+                    }
+                    removed = true;
+                }
+            }
+            // Always broadcast delete so the recipient removes it too
+            try {
+                if (socket && socket.readyState === WebSocket.OPEN && recipientUsername) {
+                    socket.send(JSON.stringify({
+                        type: 'message',
+                        recipient: recipientUsername,
+                        sender: currentUser.username,
+                        message: `[delete-image|expired]${url}`
+                    }));
+                }
+            } catch (e) { console.error('Expiry delete broadcast failed', e); }
+
+            // Update preview for that chat
+            if (recipientUsername) {
+                const chatIdx = activeChats.findIndex(c => c.username === recipientUsername);
+                if (chatIdx !== -1) {
+                    activeChats[chatIdx].messages = activeChats[chatIdx].messages || [];
+                    activeChats[chatIdx].messages.push({
+                        sender: currentUser.username,
+                        message: `[delete-image|expired]${url}`,
+                        timestamp: new Date()
+                    });
+                    activeChats[chatIdx].lastMessage = 'Image expired';
+                    updateActiveChats();
+                }
+            }
+        } finally {
+            clearImageExpiry(url);
+        }
+    }
+
+    function scheduleImageExpiry(url, seconds, recipientUsername) {
+        if (!url || !seconds || seconds <= 0) return;
+        clearImageExpiry(url);
+        const timeoutId = setTimeout(() => expireImageByUrl(url, recipientUsername), seconds * 1000);
+        imageExpiryTimers.set(url, { timeoutId, recipientUsername });
+    }
+
     function computePreviewLabel(message, senderUsername) {
         if (!message) return '';
         if (isDeleteImageToken(message)) {
@@ -510,6 +589,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 removedNotice.innerHTML = '<div class="message-content">Message removed</div>';
                 messageElement.parentNode.insertBefore(removedNotice, messageElement.nextSibling);
                 messageElement.remove();
+                // Cancel any pending expiry timer for this image
+                clearImageExpiry(imgEl.src);
                 try {
                     socket.send(JSON.stringify({
                         type: 'message',
@@ -867,7 +948,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 const img = n.querySelector('.message-image');
                                 return img && img.src === tokenUrl;
                             });
-                            if (toRemove) toRemove.remove();
+                            if (toRemove) {
+                                toRemove.remove();
+                                clearImageExpiry(tokenUrl);
+                            }
                         } else {
                             displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
                         }
@@ -892,7 +976,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const img = n.querySelector('.message-image');
                         return img && img.src === tokenUrl;
                     });
-                    if (toRemove) toRemove.remove();
+                    if (toRemove) {
+                        toRemove.remove();
+                        clearImageExpiry(tokenUrl);
+                    }
                 } else {
                     displayMessage(msg.message, msg.sender, msg.sender === currentUser.username);
                 }
@@ -1060,7 +1147,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (response.ok) {
                 const { fileUrl } = await response.json();
                 sendMessage(`[image]${fileUrl}`);
-                return;
+                // Return the normalized URL that will be used for the img.src
+                return getImageUrlFromMessage(`[image]${fileUrl}`);
             }
             console.warn('Upload endpoint returned non-200. Falling back to inline image.', response.status);
         } catch (err) {
@@ -1072,6 +1160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const compressed = await compressImage(file);
             const dataUrl = await fileToDataURL(compressed);
             sendMessage(`[image]${dataUrl}`);
+            return dataUrl;
         } catch (e) {
             console.error('Local processing failed:', e);
             alert('Could not process image. Please try a smaller image.');
@@ -1128,53 +1217,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!pendingFileForSend) { imageSettings.style.display = 'none'; return; }
         const seconds = parseInt(imageExpirySelect?.value || '0', 10) || 0;
         // Send upload (which will send [image]URL or dataURL)
-        await handleFileUpload(pendingFileForSend);
+        const usedUrl = await handleFileUpload(pendingFileForSend);
         closeImageSettings();
         // Schedule auto-delete on both sides if expiry set
-        if (seconds > 0) {
-            setTimeout(() => {
-                const container = document.querySelector('.messages');
-                const imgs = Array.from(container.querySelectorAll('.message.has-image'));
-                const last = imgs[imgs.length - 1];
-                if (last) {
-                    const imgEl = last.querySelector('.message-image');
-                    const msgToken = `[image]${imgEl?.src || ''}`;
-                    // Replace image bubble with local system notice
-                    const expiredNotice = document.createElement('div');
-                    expiredNotice.className = 'message outgoing system';
-                    expiredNotice.innerHTML = '<div class="message-content">Image expired</div>';
-                    last.parentNode.insertBefore(expiredNotice, last.nextSibling);
-                    last.remove();
-                    // Close lightbox if this image is open
-                    const lb = document.getElementById('image-lightbox');
-                    const lbImg = document.getElementById('lightbox-img');
-                    if (lb && lbImg && lb.style.display === 'block' && lbImg.src === (imgEl?.src || '')) {
-                        lb.style.display = 'none';
-                        lbImg.src = '';
-                    }
-                    // Broadcast delete to recipient for the same image token
-                    try {
-                        socket.send(JSON.stringify({
-                            type: 'message',
-                            recipient: currentChatUser.username,
-                            sender: currentUser.username,
-                            message: `[delete-image|expired]${imgEl?.src || ''}`
-                        }));
-                    } catch (e) { console.error('Expiry delete broadcast failed', e); }
-
-                    // Update preview to reflect expiry
-                    const chatIdx = activeChats.findIndex(c => c.username === currentChatUser.username);
-                    if (chatIdx !== -1) {
-                        activeChats[chatIdx].messages.push({
-                            sender: currentUser.username,
-                            message: `[delete-image|expired]${imgEl?.src || ''}`,
-                            timestamp: new Date()
-                        });
-                        activeChats[chatIdx].lastMessage = 'Image expired';
-                        updateActiveChats();
-                    }
-                }
-            }, seconds * 1000);
+        if (seconds > 0 && usedUrl) {
+            scheduleImageExpiry(usedUrl, seconds, currentChatUser?.username);
         }
         pendingFileForSend = null;
     });
