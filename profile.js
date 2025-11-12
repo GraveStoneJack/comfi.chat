@@ -34,8 +34,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: fd });
             if (!res.ok) throw new Error('Upload failed');
             const data = await res.json();
-            avatar.src = data.fileUrl;
-            avatar.dataset.url = data.fileUrl;
+            const url = data.fileUrl || '';
+            const resolved = (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:'))
+                ? url
+                : `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+            avatar.src = resolved;
+            avatar.dataset.url = resolved;
         } catch (e1) {
             alert('Upload failed. Please try a smaller image.');
         }

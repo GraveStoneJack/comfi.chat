@@ -363,7 +363,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function getImageUrlFromMessage(text) {
         if (!text) return null;
-        return text.startsWith('[image]') ? text.substring(7).trim() : text.trim();
+        const raw = text.startsWith('[image]') ? text.substring(7).trim() : text.trim();
+        // If backend returned a relative uploads path, resolve it against API_URL
+        // This ensures images load from the backend domain when the frontend is hosted elsewhere.
+        if (raw.startsWith('/uploads/') || raw.startsWith('uploads/')) {
+            const suffix = raw.startsWith('/') ? raw : `/${raw}`;
+            return `${API_URL}${suffix}`;
+        }
+        return raw;
     }
 
     // Deletion token helpers (support legacy [delete-image] and new [delete-image|reason])
