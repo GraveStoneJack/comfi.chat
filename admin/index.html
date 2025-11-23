@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Comfi Admin</title>
+	<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+	<div id="app">
+		<section id="login-view">
+			<h1>Admin Sign In</h1>
+			<form id="login-form">
+				<input id="username" placeholder="Username" autocomplete="username" required>
+				<input id="password" placeholder="Password" type="password" autocomplete="current-password" required>
+				<button type="submit">Continue</button>
+			</form>
+			<form id="mfa-form" style="display:none">
+				<input id="mfa-code" placeholder="6-digit code" inputmode="numeric" pattern="[0-9]*" maxlength="6" required>
+				<button type="submit">Verify</button>
+			</form>
+			<div id="login-error" class="error"></div>
+		</section>
+
+		<section id="console-view" style="display:none">
+			<header class="topbar">
+				<h2>Comfi Admin Console</h2>
+				<div>
+					<span id="me-label"></span>
+					<button id="logout-btn">Logout</button>
+				</div>
+			</header>
+
+			<div class="layout">
+				<nav class="sidebar">
+					<button class="nav-btn active" data-tab="reports">Reports</button>
+					<button class="nav-btn" data-tab="chats">Chats</button>
+					<button class="nav-btn" data-tab="admins">Admins</button>
+				</nav>
+				<main class="content">
+					<div id="tab-reports" class="tab active">
+						<h3>Latest Reports</h3>
+						<div id="reports-list" class="list"></div>
+						<div id="report-detail"></div>
+					</div>
+					<div id="tab-chats" class="tab">
+						<h3>Chat Viewer</h3>
+						<div class="row">
+							<input id="user-a" placeholder="User A">
+							<input id="user-b" placeholder="User B">
+							<button id="load-chat">Load</button>
+						</div>
+						<div id="chat-history" class="chat"></div>
+					</div>
+					<div id="tab-admins" class="tab">
+						<h3>Create Admin</h3>
+						<form id="create-admin-form">
+							<input id="new-username" placeholder="Username" required>
+							<input id="new-email" placeholder="Email" type="email" required>
+							<input id="new-password" placeholder="Password" type="password" required>
+							<select id="new-role">
+								<option value="admin">admin</option>
+								<option value="moderator">moderator</option>
+							</select>
+							<button type="submit">Create</button>
+						</form>
+						<div class="hint">After creating, set up MFA by generating a TOTP secret server-side and sharing securely.</div>
+						<div id="create-admin-result"></div>
+					</div>
+				</main>
+			</div>
+		</section>
+	</div>
+	<script src="./main.js"></script>
+	</body>
+</html>
+
+

@@ -32,23 +32,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentChatUser = null;
     let activeChats = [];
     let onlineUsers = [];
+	let reconnectAttempts = 0;
+	let heartbeatTimer = null;
 
     function initializeWebSocket() {
         // Add authentication token to WebSocket URL if available
         const token = authToken || '';
         socket = new WebSocket(`${WS_URL}?token=${encodeURIComponent(token)}`);
         
-        let reconnectAttempts = 0;
-        const MAX_RECONNECT_ATTEMPTS = 5;
-
         function updateConnectionStatus(connected) {
             console.log('WebSocket status:', connected ? 'Connected' : 'Disconnected');
             if (!connected) {
                 // Optionally show a connection status indicator to the user
-                const statusElement = document.createElement('div');
-                statusElement.className = 'connection-status';
-                statusElement.textContent = 'Disconnected. Reconnecting...';
-                document.body.appendChild(statusElement);
+				const existing = document.querySelector('.connection-status');
+				if (!existing) {
+					const statusElement = document.createElement('div');
+					statusElement.className = 'connection-status';
+					statusElement.textContent = 'Disconnected. Reconnecting...';
+					document.body.appendChild(statusElement);
+				}
             } else {
                 const statusElement = document.querySelector('.connection-status');
                 if (statusElement) {
@@ -60,6 +62,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         socket.onopen = () => {
             console.log('WebSocket connected');
             updateConnectionStatus(true);
+			// reset backoff on successful connect
+			reconnectAttempts = 0;
+			// lightweight application heartbeat as a fallback
+			clearInterval(heartbeatTimer);
+			heartbeatTimer = setInterval(() => {
+				if (socket && socket.readyState === WebSocket.OPEN) {
+					try { socket.send(JSON.stringify({ type: 'heartbeat' })); } catch (_e) {}
+				}
+			}, 25000);
             if (currentUser) {
                 socket.send(JSON.stringify({
                     type: 'identify',
@@ -72,6 +83,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             try {
                 const data = JSON.parse(event.data);
                 console.log('Received WebSocket message:', data);
+
+				// optionally ignore server heartbeat echoes if implemented
+				if (data && (data.type === 'heartbeat' || data.type === 'pong')) {
+					return;
+				}
 
                 if (data.type === 'delete-message' && data.sender !== currentUser.username) {
                     // Remove matching image/message locally
@@ -189,15 +205,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         socket.onclose = () => {
             console.log('WebSocket disconnected. Attempting to reconnect...');
             updateConnectionStatus(false);
+			clearInterval(heartbeatTimer);
             
-            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                reconnectAttempts++;
-                setTimeout(initializeWebSocket, 3000 * reconnectAttempts); // Exponential backoff
-            } else {
-                console.error('Max reconnection attempts reached');
-                // Show user-friendly error message
-                alert('Connection lost. Please refresh the page to reconnect.');
-            }
+			// Gentle exponential backoff with cap
+			const delay = Math.min(30000, Math.round(1000 * Math.pow(1.5, Math.max(1, reconnectAttempts))));
+			reconnectAttempts++;
+			setTimeout(initializeWebSocket, delay);
         };
     }
 

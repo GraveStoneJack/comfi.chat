@@ -3,6 +3,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
 const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const http = require('http');
 const WebSocket = require('ws');
@@ -12,6 +14,9 @@ const messagesRoutes = require('./routes/messages');
 const usersRoutes = require('./routes/users');
 const uploadRoutes = require('./routes/upload');
 const authRoutes = require('./routes/auth');
+const reportsRoutes = require('./routes/reports');
+const { router: adminAuthRouter } = require('./routes/adminAuth');
+const adminRouter = require('./routes/admin');
 const Message = require('./models/Message');
 const TempUser = require('./models/TempUser');
 
@@ -25,15 +30,17 @@ const clients = new Map();
 
 // Middleware
 app.use(express.json());
+app.use(cookieParser());
+app.use(helmet({ contentSecurityPolicy: false }));
 app.use(express.static('public'));
 app.use(passport.initialize());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // CORS configuration
 const corsOptions = {
-    origin: ['https://comfi.chat', 'http://localhost:3000'],
+    origin: ['https://comfi.chat', 'http://localhost:3000', 'https://admin.comfi.chat', 'http://localhost:5173'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
     optionsSuccessStatus: 200
 };
@@ -43,6 +50,11 @@ app.use(cors(corsOptions));
 // WebSocket server implementation
 wss.on('connection', (ws) => {
     console.log('New WebSocket connection');
+	// Track liveness and respond to heartbeat pings
+	ws.isAlive = true;
+	ws.on('pong', function heartbeat() {
+		this.isAlive = true;
+	});
 
     ws.on('message', async (message) => {
         try {
@@ -107,6 +119,35 @@ wss.on('connection', (ws) => {
     });
 });
 
+// Server-initiated heartbeat to keep idle connections alive and detect dead peers
+const HEARTBEAT_INTERVAL_MS = parseInt(process.env.WS_HEARTBEAT_INTERVAL_MS || '30000', 10);
+const heartbeatInterval = setInterval(() => {
+	try {
+		wss.clients.forEach((ws) => {
+			if (ws.isAlive === false) {
+				// Cleanup client mapping for this socket before terminating
+				for (const [username, socket] of clients.entries()) {
+					if (socket === ws) {
+						clients.delete(username);
+						console.log(`Cleaned up stale connection for ${username}`);
+						break;
+					}
+				}
+				return ws.terminate();
+			}
+			ws.isAlive = false;
+			// ping will trigger an automatic 'pong' from browser clients
+			try { ws.ping(); } catch (_e) {}
+		});
+	} catch (err) {
+		console.error('Heartbeat interval error:', err);
+	}
+}, HEARTBEAT_INTERVAL_MS);
+
+wss.on('close', () => {
+	clearInterval(heartbeatInterval);
+});
+
 // Debug middleware
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
@@ -122,6 +163,16 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/admin/auth', adminAuthRouter);
+app.use('/api/admin', adminRouter);
+
+// Serve admin portal under an obscure base path
+const ADMIN_BASE = process.env.ADMIN_BASE_PATH || '/ops-9c6b';
+app.use(ADMIN_BASE, express.static(path.join(__dirname, 'admin')));
+app.get(`${ADMIN_BASE}`, (_req, res) => {
+    res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+});
 
 // Explicit logoff endpoint: mark offline and remove messages for this user
 app.post('/api/logoff/:username', async (req, res) => {
