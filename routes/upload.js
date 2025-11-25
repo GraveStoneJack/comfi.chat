@@ -88,6 +88,8 @@ router.get('/resolve', (req, res) => {
             '.webp': 'image/webp',
             '.avif': 'image/avif'
         }[ext] || 'application/octet-stream';
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Content-Type', contentType);
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         fs.createReadStream(filePath).pipe(res);

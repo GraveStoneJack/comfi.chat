@@ -220,6 +220,8 @@ router.get('/media/resolve', async (req, res) => {
 					'.webp': 'image/webp',
 					'.avif': 'image/avif'
 				}[ext] || 'application/octet-stream';
+				res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+				res.setHeader('Access-Control-Allow-Origin', '*');
 				res.setHeader('Content-Type', contentType);
 				res.setHeader('Cache-Control', 'private, max-age=31536000');
 				return fs.createReadStream(filePath).pipe(res);
@@ -234,6 +236,8 @@ router.get('/media/resolve', async (req, res) => {
 			mediaDoc = await Media.findOne({ originalUrl: src }).sort({ createdAt: -1 }).lean();
 		}
 		if (!mediaDoc || !mediaDoc.bytes) return res.status(404).send('Not found');
+		res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+		res.setHeader('Access-Control-Allow-Origin', '*');
 		res.setHeader('Content-Type', mediaDoc.contentType || 'application/octet-stream');
 		res.setHeader('Cache-Control', 'private, max-age=31536000');
 		return res.end(mediaDoc.bytes);

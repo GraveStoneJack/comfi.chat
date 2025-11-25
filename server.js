@@ -32,9 +32,15 @@ const clients = new Map();
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(express.static('public'));
 app.use(passport.initialize());
+// Allow uploads to be embedded cross-origin (for chat frontend on different domain)
+app.use('/uploads', (req, res, next) => {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    next();
+});
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // CORS configuration
