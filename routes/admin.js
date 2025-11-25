@@ -5,6 +5,9 @@ const { requireAdmin } = require('./adminAuth');
 const LoginEvent = require('../models/LoginEvent');
 const TempUser = require('../models/TempUser');
 const User = require('../models/User');
+const Media = require('../models/Media');
+const fs = require('fs');
+const path = require('path');
 
 const router = express.Router();
 
@@ -193,6 +196,50 @@ router.get('/users/:username/images', async (req, res) => {
 	} catch (e) {
 		console.error('[Admin] user images error', e);
 		res.status(500).json({ error: 'Failed to fetch images' });
+	}
+});
+
+// Admin media resolver with DB fallback
+router.get('/media/resolve', async (req, res) => {
+	try {
+		const src = (req.query && req.query.src) ? String(req.query.src) : '';
+		if (!src) return res.status(400).send('Missing src');
+		// Normalize to filename under /uploads
+		const match = /\/uploads\/([^?#]+)/.exec(src);
+		const filename = match ? match[1] : null;
+		const uploadsDir = path.join(__dirname, '..', 'uploads');
+		if (filename) {
+			const filePath = path.join(uploadsDir, filename);
+			if (fs.existsSync(filePath)) {
+				const ext = path.extname(filename).toLowerCase();
+				const contentType = {
+					'.jpg': 'image/jpeg',
+					'.jpeg': 'image/jpeg',
+					'.png': 'image/png',
+					'.gif': 'image/gif',
+					'.webp': 'image/webp',
+					'.avif': 'image/avif'
+				}[ext] || 'application/octet-stream';
+				res.setHeader('Content-Type', contentType);
+				res.setHeader('Cache-Control', 'private, max-age=31536000');
+				return fs.createReadStream(filePath).pipe(res);
+			}
+		}
+		// DB fallback: find by filename or by originalUrl
+		let mediaDoc = null;
+		if (filename) {
+			mediaDoc = await Media.findOne({ filename }).sort({ createdAt: -1 }).lean();
+		}
+		if (!mediaDoc) {
+			mediaDoc = await Media.findOne({ originalUrl: src }).sort({ createdAt: -1 }).lean();
+		}
+		if (!mediaDoc || !mediaDoc.bytes) return res.status(404).send('Not found');
+		res.setHeader('Content-Type', mediaDoc.contentType || 'application/octet-stream');
+		res.setHeader('Cache-Control', 'private, max-age=31536000');
+		return res.end(mediaDoc.bytes);
+	} catch (e) {
+		console.error('[Admin] media resolve error', e);
+		res.status(500).send('Failed to resolve');
 	}
 });
 

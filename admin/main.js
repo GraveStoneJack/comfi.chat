@@ -200,10 +200,9 @@ function isImageMessage(text) {
 function getImageUrlFromMessage(text) {
 	if (!text) return '';
 	const raw = text.startsWith('[image]') ? text.substring(7).trim() : text.trim();
-	if (raw.startsWith('/uploads/') || raw.startsWith('uploads/')) {
-		return `${location.origin}${raw.startsWith('/') ? '' : '/'}${raw}`;
-	}
-	return raw;
+	// Always resolve via admin proxy for durability (DB fallback). Keep data URLs as-is.
+	if (/^data:image\//i.test(raw)) return raw;
+	return `${location.origin}/api/admin/media/resolve?src=${encodeURIComponent(raw)}`;
 }
 
 async function loadChat() {

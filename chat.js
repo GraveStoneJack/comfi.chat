@@ -408,6 +408,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 			if (!candidates.some(u => u.includes('luxeonchat-backend.onrender.com'))) {
 				candidates.push(`https://luxeonchat-backend.onrender.com${suffix}`);
 			}
+			// Proxy resolver as a final fallback
+			candidates.push(`${API_URL}/api/upload/resolve?src=${encodeURIComponent(suffix)}`);
 			return Array.from(new Set(candidates));
 		}
 		return [raw];
@@ -1199,7 +1201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const formData = new FormData();
             formData.append('file', file);
-            const response = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: formData });
+            const response = await fetch(`${API_URL}/api/upload?u=${encodeURIComponent(currentUser.username)}`, { method: 'POST', body: formData });
             if (response.ok) {
                 const { fileUrl } = await response.json();
                 sendMessage(`[image]${fileUrl}`);
