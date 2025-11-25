@@ -603,10 +603,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Wire lightbox and delete events for images
         const imgEl = messageElement.querySelector('.message-image');
 		if (imgEl) {
-			// Fallback loader: try alternate URLs if the first fails
+            // Fallback loader: try alternate URLs if the first fails
 			try {
 				const candidates = getImageCandidatesFromMessage(message);
-				let idx = 0;
+                let idx = 1; // we've already set candidates[0] as src above
 				function tryNext() {
 					if (idx >= candidates.length) return;
 					const next = candidates[idx++];

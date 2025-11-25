@@ -74,12 +74,33 @@ async function loadConversations(username, deviceId) {
 			const item = document.createElement('div');
 			item.className = 'item';
 			item.innerHTML = `
-				<div><strong>${c.with}</strong> <span class="muted">${c.withDeviceId ? '· dev ' + String(c.withDeviceId).slice(-6) : ''}</span></div>
-				<div class="muted">Msgs: ${c.messagesCount} · ${new Date(c.lastAt).toLocaleString()}</div>
+				<div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+					<div>
+						<strong>${c.with}</strong> <span class="muted">${c.withDeviceId ? '· dev ' + String(c.withDeviceId).slice(-6) : ''}</span>
+						<div class="muted">Msgs: ${c.messagesCount} · ${new Date(c.lastAt).toLocaleString()}</div>
+					</div>
+					<div>
+						<button class="open-transcript" data-with="${c.with}" data-withdev="${c.withDeviceId || ''}" title="Open full transcript">Open</button>
+					</div>
+				</div>
 			`;
 			item.addEventListener('click', () => viewConversation(username, c.with, deviceId || null, c.withDeviceId || null));
 			list.appendChild(item);
 		});
+			// Wire transcript openers
+			list.querySelectorAll('.open-transcript').forEach(btn => {
+				btn.addEventListener('click', (ev) => {
+					ev.stopPropagation();
+					const withUser = btn.getAttribute('data-with');
+					const withDev = btn.getAttribute('data-withdev');
+					const u = new URL('./session.html', location.href);
+					u.searchParams.set('userA', username);
+					if (deviceId) u.searchParams.set('devA', deviceId);
+					u.searchParams.set('userB', withUser);
+					if (withDev) u.searchParams.set('devB', withDev);
+					window.open(u.toString(), '_blank', 'noopener,noreferrer');
+				});
+			});
 		// Clear viewer on list reload
 		const hist = document.getElementById('user-chat-history');
 		if (hist) hist.innerHTML = '';

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Transcript Viewer</title>
+	<link rel="stylesheet" href="./styles.css">
+	<style>
+		body { background:#0f0f12; color:#e7e7ee; }
+		.container { max-width: 980px; margin: 24px auto; padding: 0 16px; }
+		.header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+		.thread { display:flex; flex-direction:column; gap:10px; background:#141419; border:1px solid #2a2a32; border-radius:12px; padding:16px; }
+		.row { display:flex; gap:8px; }
+		.row.left { justify-content:flex-start; }
+		.row.right { justify-content:flex-end; }
+		.bubble { max-width: 70%; background:#1a1a20; border:1px solid #2a2a32; border-radius:12px; padding:10px; }
+		.meta { font-size:12px; opacity:.7; margin-top:6px; }
+		.bubble img { max-width: 420px; border-radius:10px; display:block; }
+		.actions { margin-left: 6px; align-self:flex-end; }
+		.actions a { color:#bda7ff; text-decoration:none; font-size:12px; }
+		.hint { opacity:.7; margin-bottom:8px; }
+	</style>
+	<script>
+		function qs(k){const u=new URL(location.href);return u.searchParams.get(k)||''}
+		async function api(path){const res=await fetch(path,{credentials:'include'}); if(!res.ok) throw new Error(await res.text()); return res.json();}
+		function isImageMessage(text){return typeof text==='string' && (text.startsWith('[image]') || /\.(png|jpe?g|gif|webp|avif)$/i.test(text))}
+		function mediaResolve(raw){ if(/^data:image\//i.test(raw)) return raw; return `${location.origin}/api/admin/media/resolve?src=${encodeURIComponent(raw)}` }
+		function getUrlFromMessage(text){const raw=text.startsWith('[image]')?text.substring(7).trim():text.trim(); return mediaResolve(raw)}
+		async function loadTranscript(){
+			const a=qs('userA'), b=qs('userB'), devA=qs('devA'), devB=qs('devB');
+			document.getElementById('title').textContent = `${a} ↔ ${b}`;
+			const params=[]; if(devA) params.push(`devA=${encodeURIComponent(devA)}`); if(devB) params.push(`devB=${encodeURIComponent(devB)}`);
+			const history = await api(`/api/admin/messages/history/${encodeURIComponent(a)}/${encodeURIComponent(b)}${params.length?('?'+params.join('&')):''}`);
+			const thread=document.getElementById('thread');
+			thread.innerHTML='';
+			history.forEach(m=>{
+				const isA = m.sender===a;
+				const row=document.createElement('div'); row.className=`row ${isA?'right':'left'}`;
+				const bubble=document.createElement('div'); bubble.className='bubble';
+				if(isImageMessage(m.message)){
+					const url=getUrlFromMessage(m.message);
+					bubble.innerHTML=`<img src="${url}" alt="img"><div class="meta">${m.sender} • ${new Date(m.timestamp).toLocaleString()}</div>`;
+					const actions=document.createElement('div'); actions.className='actions';
+					actions.innerHTML=`<a href="${url}" target="_blank">Open</a>`;
+					row.appendChild(actions);
+				}else{
+					bubble.innerHTML=`<div>${m.message}</div><div class="meta">${m.sender} • ${new Date(m.timestamp).toLocaleString()}</div>`;
+				}
+				row.appendChild(bubble);
+				thread.appendChild(row);
+			});
+		}
+		window.addEventListener('DOMContentLoaded', loadTranscript);
+	</script>
+</head>
+<body>
+	<div class="container">
+		<div class="header">
+			<h2 id="title">Transcript</h2>
+			<div class="hint">Viewer reflects admin-resolved images and exact timestamps.</div>
+		</div>
+		<div id="thread" class="thread"></div>
+	</div>
+</body>
+</html>
+
+
