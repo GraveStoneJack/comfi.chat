@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const TempUser = require('../models/TempUser');
+const LoginEvent = require('../models/LoginEvent');
 
 // Create temporary user
 router.post('/create', async (req, res) => {
@@ -94,6 +95,19 @@ router.post('/create', async (req, res) => {
             savedUser = await tempUser.save();
         }
         console.log('[TempUser Create] User created:', savedUser);
+        // Record a login event for auditing/admin views
+        try {
+            await LoginEvent.create({
+                username,
+                deviceId,
+                type: 'login',
+                userType: 'temp',
+                metadata: { age, gender, country, countryCode },
+                timestamp: new Date()
+            });
+        } catch (e) {
+            console.error('[TempUser Create] Failed to record login event:', e);
+        }
         res.status(201).json(savedUser);
     } catch (error) {
         console.error('[TempUser Create] Error:', error);
@@ -132,6 +146,20 @@ async function handleStatus(req, res) {
         }
 
         console.log('[TempUser Status] Successfully updated user:', updatedUser);
+        // If this is a transition to offline, record a logout event
+        try {
+            if (req.body && (req.body.isOnline === false || req.body.isOnline === 'false')) {
+                await LoginEvent.create({
+                    username: req.params.username,
+                    deviceId: update.deviceId,
+                    type: 'logout',
+                    userType: 'temp',
+                    timestamp: new Date()
+                });
+            }
+        } catch (e) {
+            console.error('[TempUser Status] Failed to record logout event:', e);
+        }
         res.json(updatedUser);
     } catch (error) {
         console.error('[TempUser Status] Error:', error);
@@ -175,6 +203,18 @@ async function handleDelete(req, res) {
         }
 
         console.log('[TempUser Delete] Successfully deleted user:', deletedUser);
+        // Record a logout event when the temp user is deleted
+        try {
+            await LoginEvent.create({
+                username: req.params.username,
+                deviceId: deletedUser?.deviceId,
+                type: 'logout',
+                userType: 'temp',
+                timestamp: new Date()
+            });
+        } catch (e) {
+            console.error('[TempUser Delete] Failed to record logout event:', e);
+        }
         res.json({ message: 'User deleted successfully' });
     } catch (error) {
         console.error('[TempUser Delete] Error:', error);

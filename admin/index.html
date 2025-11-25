@@ -34,6 +34,7 @@
 			<div class="layout">
 				<nav class="sidebar">
 					<button class="nav-btn active" data-tab="reports">Reports</button>
+					<button class="nav-btn" data-tab="users">Users</button>
 					<button class="nav-btn" data-tab="chats">Chats</button>
 					<button class="nav-btn" data-tab="admins">Admins</button>
 				</nav>
@@ -42,6 +43,35 @@
 						<h3>Latest Reports</h3>
 						<div id="reports-list" class="list"></div>
 						<div id="report-detail"></div>
+					</div>
+					<div id="tab-users" class="tab">
+						<h3>People & Conversations</h3>
+						<div class="users-layout">
+							<div class="people-panel">
+								<div class="row">
+									<input id="people-search" placeholder="Search username">
+									<button id="reload-people">Reload</button>
+								</div>
+								<div id="people-list" class="list"></div>
+							</div>
+							<div class="detail-panel">
+								<div id="selected-user-header" class="detail-header"></div>
+								<div class="split">
+									<div class="conversations">
+										<h4>Conversations</h4>
+										<div id="conversations-list" class="list"></div>
+									</div>
+									<div class="viewer">
+										<h4>Chat Viewer</h4>
+										<div id="user-chat-history" class="chat"></div>
+									</div>
+								</div>
+								<div class="gallery-wrap">
+									<h4>Media Gallery (Sent images)</h4>
+									<div id="user-media" class="gallery"></div>
+								</div>
+							</div>
+						</div>
 					</div>
 					<div id="tab-chats" class="tab">
 						<h3>Chat Viewer</h3>

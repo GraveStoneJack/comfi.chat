@@ -19,6 +19,7 @@ const { router: adminAuthRouter } = require('./routes/adminAuth');
 const adminRouter = require('./routes/admin');
 const Message = require('./models/Message');
 const TempUser = require('./models/TempUser');
+const LoginEvent = require('./models/LoginEvent');
 
 dotenv.config();
 
@@ -179,7 +180,17 @@ app.post('/api/logoff/:username', async (req, res) => {
     try {
         const { username } = req.params;
         await TempUser.findOneAndUpdate({ username }, { isOnline: false, lastSeen: new Date() });
-        await Message.deleteMany({ $or: [ { sender: username }, { recipient: username } ] });
+        // Preserve messages for audit/admin purposes. Only record a logout event.
+        try {
+            await LoginEvent.create({
+                username,
+                type: 'logout',
+                userType: 'unknown',
+                timestamp: new Date()
+            });
+        } catch (e2) {
+            console.error('Failed to record logout event:', e2);
+        }
         res.json({ ok: true });
     } catch (e) {
         console.error('Logoff cleanup failed:', e);

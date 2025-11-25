@@ -20,4 +20,16 @@ button:hover { filter: brightness(1.1); }
 .tab { display:none; }
 .tab.active { display:block; }
 
+.users-layout { display: grid; grid-template-columns: 280px 1fr; gap: 16px; }
+.people-panel { border:1px solid #2a2a32; background:#141419; border-radius:12px; padding:12px; }
+.detail-panel { border:1px solid #2a2a32; background:#141419; border-radius:12px; padding:12px; }
+.detail-header { margin-bottom: 8px; opacity: .8; }
+.split { display:grid; grid-template-columns: 320px 1fr; gap: 12px; }
+.conversations .item { cursor:pointer; }
+.gallery-wrap { margin-top: 16px; }
+.gallery { display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.gallery .thumb { background:#1a1a20; border:1px solid #2a2a32; border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:6px; }
+.gallery img { width:100%; height:auto; border-radius:8px; display:block; }
+.muted { color:#a6a6b3; }
+
 

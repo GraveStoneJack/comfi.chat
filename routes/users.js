@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const LoginEvent = require('../models/LoginEvent');
 
 const router = express.Router();
 
@@ -102,6 +103,17 @@ router.post('/login', async (req, res) => {
         if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
         const token = signToken({ id: user._id.toString(), username: user.username, email: user.email });
         const safeUser = await User.findById(user._id).lean();
+        // Record login event for admin/audit
+        try {
+            await LoginEvent.create({
+                username: user.username,
+                type: 'login',
+                userType: 'registered',
+                timestamp: new Date()
+            });
+        } catch (e) {
+            console.error('[Users] failed to record login event:', e);
+        }
         return res.json({ token, user: safeUser });
     } catch (e) {
         console.error('[Users] login error:', e);

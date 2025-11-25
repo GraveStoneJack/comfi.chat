@@ -14,6 +14,122 @@ function switchTab(tab) {
 	document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === `tab-${tab}`));
 }
 
+// --- Users tab helpers ---
+let PEOPLE_CACHE = [];
+let SELECTED_PERSON = null;
+
+async function loadPeople(force = false) {
+	try {
+		if (!force && PEOPLE_CACHE.length) {
+			renderPeople(PEOPLE_CACHE);
+			return;
+		}
+		const people = await api('/api/admin/users/all');
+		PEOPLE_CACHE = Array.isArray(people) ? people : [];
+		renderPeople(PEOPLE_CACHE);
+	} catch (_e) {
+		const list = document.getElementById('people-list');
+		if (list) list.innerHTML = 'Failed to load people';
+	}
+}
+
+function renderPeople(listInput) {
+	const list = document.getElementById('people-list');
+	if (!list) return;
+	const search = (document.getElementById('people-search')?.value || '').toLowerCase().trim();
+	const filtered = listInput.filter(p => !search || (p.username || '').toLowerCase().includes(search));
+	list.innerHTML = '';
+	filtered.forEach(p => {
+		const item = document.createElement('div');
+		item.className = 'item';
+		const last = new Date(p.lastMessageAt || p.lastSeen || p.firstSeen || Date.now()).toLocaleString();
+		item.innerHTML = `
+			<div><strong>${p.username}</strong> <span class="muted">· ${p.userType || ''}</span></div>
+			<div class="muted">Msgs: ${p.messagesCount || 0} · Images: ${p.imagesCount || 0} · Last: ${last}</div>
+		`;
+		item.addEventListener('click', () => selectPerson(p.username));
+		list.appendChild(item);
+	});
+}
+
+async function selectPerson(username) {
+	SELECTED_PERSON = username;
+	const header = document.getElementById('selected-user-header');
+	if (header) header.innerHTML = `<strong>${username}</strong>`;
+	await Promise.all([loadConversations(username), loadUserImages(username)]);
+}
+
+async function loadConversations(username) {
+	try {
+		const convos = await api(`/api/admin/users/${encodeURIComponent(username)}/conversations`);
+		const list = document.getElementById('conversations-list');
+		if (!list) return;
+		list.innerHTML = '';
+		convos.forEach(c => {
+			const item = document.createElement('div');
+			item.className = 'item';
+			item.innerHTML = `
+				<div><strong>${c.with}</strong></div>
+				<div class="muted">Msgs: ${c.messagesCount} · ${new Date(c.lastAt).toLocaleString()}</div>
+			`;
+			item.addEventListener('click', () => viewConversation(username, c.with));
+			list.appendChild(item);
+		});
+		// Clear viewer on list reload
+		const hist = document.getElementById('user-chat-history');
+		if (hist) hist.innerHTML = '';
+	} catch (_e) {
+		const list = document.getElementById('conversations-list');
+		if (list) list.innerHTML = 'Failed to load conversations';
+	}
+}
+
+async function viewConversation(a, b) {
+	try {
+		const history = await api(`/api/admin/messages/history/${encodeURIComponent(a)}/${encodeURIComponent(b)}`);
+		const container = document.getElementById('user-chat-history');
+		if (!container) return;
+		container.innerHTML = '';
+		history.forEach(m => {
+			const el = document.createElement('div');
+			el.className = 'msg';
+			if (isImageMessage(m.message)) {
+				const url = getImageUrlFromMessage(m.message);
+				el.innerHTML = `<div><strong>${m.sender}</strong> • ${new Date(m.timestamp).toLocaleString()}</div><img src="${url}" alt="img">`;
+			} else {
+				el.innerHTML = `<div><strong>${m.sender}</strong> • ${new Date(m.timestamp).toLocaleString()}</div><div>${m.message}</div>`;
+			}
+			container.appendChild(el);
+		});
+	} catch (_e) {
+		const container = document.getElementById('user-chat-history');
+		if (container) container.innerHTML = 'Failed to load chat history';
+	}
+}
+
+async function loadUserImages(username) {
+	try {
+		const images = await api(`/api/admin/users/${encodeURIComponent(username)}/images`);
+		const grid = document.getElementById('user-media');
+		if (!grid) return;
+		grid.innerHTML = '';
+		images.forEach(img => {
+			if (!isImageMessage(img.message)) return;
+			const url = getImageUrlFromMessage(img.message);
+			const card = document.createElement('div');
+			card.className = 'thumb';
+			card.innerHTML = `
+				<img src="${url}" alt="img">
+				<div class="muted">to ${img.recipient} • ${new Date(img.timestamp).toLocaleString()}</div>
+			`;
+			grid.appendChild(card);
+		});
+	} catch (_e) {
+		const grid = document.getElementById('user-media');
+		if (grid) grid.innerHTML = 'Failed to load images';
+	}
+}
+
 async function loadReports() {
 	try {
 		const list = document.getElementById('reports-list');
@@ -82,7 +198,11 @@ async function loadChat() {
 
 document.addEventListener('DOMContentLoaded', async () => {
 	// Tabs
-	document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+	document.querySelectorAll('.nav-btn').forEach(btn => btn.addEventListener('click', () => {
+		switchTab(btn.dataset.tab);
+		if (btn.dataset.tab === 'reports') loadReports();
+		if (btn.dataset.tab === 'users') loadPeople();
+	}));
 	document.getElementById('load-chat').addEventListener('click', loadChat);
 	document.getElementById('logout-btn').addEventListener('click', async () => {
 		await api('/api/admin/auth/logout', { method: 'POST' });
@@ -159,6 +279,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 	} catch (_) {
 		show('login');
 	}
+	// Users tab controls
+	const peopleSearch = document.getElementById('people-search');
+	if (peopleSearch) peopleSearch.addEventListener('input', () => renderPeople(PEOPLE_CACHE));
+	const reloadBtn = document.getElementById('reload-people');
+	if (reloadBtn) reloadBtn.addEventListener('click', () => loadPeople(true));
 });
 
 
