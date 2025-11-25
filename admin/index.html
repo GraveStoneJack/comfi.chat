@@ -101,6 +101,17 @@
 			</div>
 		</section>
 	</div>
+	<!-- Admin Image Lightbox -->
+	<div id="admin-lightbox" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:9999;">
+		<div style="position:absolute; inset:0;" id="admin-lightbox-overlay"></div>
+		<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); max-width:92vw; max-height:92vh;">
+			<img id="admin-lightbox-img" src="" alt="Preview" style="max-width:92vw; max-height:86vh; border-radius:10px; display:block;">
+			<div style="margin-top:8px; text-align:right;">
+				<a id="admin-download-link" href="#" target="_blank" style="color:#bda7ff; text-decoration:none; margin-right:12px;">Open in new tab</a>
+				<button id="admin-lightbox-close" style="padding:8px 12px; border-radius:8px; background:#6f3ace; color:white; border:none;">Close</button>
+			</div>
+		</div>
+	</div>
 	<script src="./main.js"></script>
 	</body>
 </html>

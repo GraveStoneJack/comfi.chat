@@ -133,12 +133,31 @@ async function loadUserImages(username, deviceId) {
 				<img src="${url}" alt="img">
 				<div class="muted">to ${img.recipient} • ${new Date(img.timestamp).toLocaleString()}</div>
 			`;
+			card.addEventListener('click', () => openAdminLightbox(url));
 			grid.appendChild(card);
 		});
 	} catch (_e) {
 		const grid = document.getElementById('user-media');
 		if (grid) grid.innerHTML = 'Failed to load images';
 	}
+}
+
+function openAdminLightbox(url) {
+	const lb = document.getElementById('admin-lightbox');
+	const img = document.getElementById('admin-lightbox-img');
+	const a = document.getElementById('admin-download-link');
+	if (!lb || !img || !a) return;
+	img.src = url;
+	a.href = url;
+	lb.style.display = 'block';
+}
+
+function closeAdminLightbox() {
+	const lb = document.getElementById('admin-lightbox');
+	const img = document.getElementById('admin-lightbox-img');
+	if (!lb) return;
+	lb.style.display = 'none';
+	if (img) img.src = '';
 }
 
 async function loadReports() {
@@ -200,6 +219,7 @@ async function loadChat() {
 		if (isImageMessage(m.message)) {
 			const url = getImageUrlFromMessage(m.message);
 			el.innerHTML = `<div><strong>${m.sender}</strong> • ${new Date(m.timestamp).toLocaleString()}</div><img src="${url}" alt="img">`;
+			el.querySelector('img')?.addEventListener('click', () => openAdminLightbox(url));
 		} else {
 			el.innerHTML = `<div><strong>${m.sender}</strong> • ${new Date(m.timestamp).toLocaleString()}</div><div>${m.message}</div>`;
 		}
@@ -295,6 +315,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 	if (peopleSearch) peopleSearch.addEventListener('input', () => renderPeople(PEOPLE_CACHE));
 	const reloadBtn = document.getElementById('reload-people');
 	if (reloadBtn) reloadBtn.addEventListener('click', () => loadPeople(true));
+	// Lightbox controls
+	const lbClose = document.getElementById('admin-lightbox-close');
+	const lbOverlay = document.getElementById('admin-lightbox-overlay');
+	if (lbClose) lbClose.addEventListener('click', closeAdminLightbox);
+	if (lbOverlay) lbOverlay.addEventListener('click', closeAdminLightbox);
 });
 
 

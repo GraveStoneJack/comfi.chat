@@ -387,6 +387,31 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         return raw;
     }
+	// Build resilient candidates for a given [image] message, trying multiple hosts if needed
+	function getImageCandidatesFromMessage(text) {
+		if (!text) return [];
+		const raw = text.startsWith('[image]') ? text.substring(7).trim() : text.trim();
+		// Absolute URL or data URL → single candidate
+		if (/^https?:\/\//i.test(raw) || /^data:image\//i.test(raw)) return [raw];
+		// Relative uploads path → try API_URL first, then local origin
+		if (raw.startsWith('/uploads/') || raw.startsWith('uploads/')) {
+			const suffix = raw.startsWith('/') ? raw : `/${raw}`;
+			const candidates = [];
+			candidates.push(`${API_URL}${suffix}`);
+			try {
+				const origin = location.origin;
+				if (!origin.includes('luxeonchat-backend.onrender.com')) {
+					candidates.push(`${origin}${suffix}`);
+				}
+			} catch (_e) {}
+			// Last resort: hard-coded fallback to production backend
+			if (!candidates.some(u => u.includes('luxeonchat-backend.onrender.com'))) {
+				candidates.push(`https://luxeonchat-backend.onrender.com${suffix}`);
+			}
+			return Array.from(new Set(candidates));
+		}
+		return [raw];
+	}
 
     // Deletion token helpers (support legacy [delete-image] and new [delete-image|reason])
     function isDeleteImageToken(text) {
@@ -542,12 +567,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (messageId) messageElement.dataset.messageId = messageId;
 
         let innerContent;
-        if (isImageMessage(message)) {
-            const imgUrl = sanitizeHTML(getImageUrlFromMessage(message));
+		if (isImageMessage(message)) {
+			const candidates = getImageCandidatesFromMessage(message);
+			const imgUrl = sanitizeHTML(candidates[0] || '');
             messageElement.classList.add('has-image');
             innerContent = `
                 <div class="message-content">
-                    <img class="message-image" src="${imgUrl}" alt="Image" />
+					<img class="message-image" src="${imgUrl}" alt="Image" />
                     ${isOutgoing ? '<div class="image-actions"><button class="image-action-btn delete-image-btn">Delete</button></div>' : ''}
                 </div>
             `;
@@ -574,7 +600,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // Wire lightbox and delete events for images
         const imgEl = messageElement.querySelector('.message-image');
-        if (imgEl) {
+		if (imgEl) {
+			// Fallback loader: try alternate URLs if the first fails
+			try {
+				const candidates = getImageCandidatesFromMessage(message);
+				let idx = 0;
+				function tryNext() {
+					if (idx >= candidates.length) return;
+					const next = candidates[idx++];
+					if (imgEl.src !== next) imgEl.src = next;
+				}
+				imgEl.addEventListener('error', () => {
+					tryNext();
+				}, { once: false });
+				// Ensure first candidate is used
+				if (imgEl.complete && imgEl.naturalWidth === 0) {
+					tryNext();
+				}
+			} catch (_e) {}
             // Disable right-click save on inline images
             imgEl.addEventListener('contextmenu', (e) => e.preventDefault());
             imgEl.addEventListener('click', () => {

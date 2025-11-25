@@ -31,5 +31,6 @@ button:hover { filter: brightness(1.1); }
 .gallery .thumb { background:#1a1a20; border:1px solid #2a2a32; border-radius:10px; padding:6px; display:flex; flex-direction:column; gap:6px; }
 .gallery img { width:100%; height:auto; border-radius:8px; display:block; }
 .muted { color:#a6a6b3; }
+.gallery .thumb:hover { outline:1px solid #3a3a46; cursor:pointer; }
 
 
