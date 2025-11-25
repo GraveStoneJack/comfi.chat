@@ -94,9 +94,21 @@ wss.on('connection', (ws) => {
 
                 // Persist message for history
                 try {
+                    // Attempt to resolve device identities from TempUser for both parties
+                    let senderDeviceId, recipientDeviceId;
+                    try {
+                        const [senderTmp, recipientTmp] = await Promise.all([
+                            TempUser.findOne({ username: data.sender }).lean(),
+                            TempUser.findOne({ username: data.recipient }).lean()
+                        ]);
+                        senderDeviceId = senderTmp && senderTmp.deviceId || undefined;
+                        recipientDeviceId = recipientTmp && recipientTmp.deviceId || undefined;
+                    } catch (_e) {}
                     await new Message({
                         sender: data.sender,
+                        senderDeviceId,
                         recipient: data.recipient,
+                        recipientDeviceId,
                         message: data.message,
                         timestamp: new Date()
                     }).save();

@@ -16,7 +16,7 @@ function switchTab(tab) {
 
 // --- Users tab helpers ---
 let PEOPLE_CACHE = [];
-let SELECTED_PERSON = null;
+let SELECTED_PERSON = null; // { username, deviceId }
 
 async function loadPeople(force = false) {
 	try {
@@ -42,26 +42,31 @@ function renderPeople(listInput) {
 	filtered.forEach(p => {
 		const item = document.createElement('div');
 		item.className = 'item';
-		const last = new Date(p.lastMessageAt || p.lastSeen || p.firstSeen || Date.now()).toLocaleString();
+		const last = new Date(p.lastAt || Date.now()).toLocaleString();
+		const devShort = (p.deviceId || 'unknown').slice(-6);
 		item.innerHTML = `
-			<div><strong>${p.username}</strong> <span class="muted">· ${p.userType || ''}</span></div>
+			<div><strong>${p.username}</strong> <span class="muted">· dev ${devShort}</span></div>
 			<div class="muted">Msgs: ${p.messagesCount || 0} · Images: ${p.imagesCount || 0} · Last: ${last}</div>
 		`;
-		item.addEventListener('click', () => selectPerson(p.username));
+		item.addEventListener('click', () => selectPerson({ username: p.username, deviceId: p.deviceId || null }));
 		list.appendChild(item);
 	});
 }
 
-async function selectPerson(username) {
-	SELECTED_PERSON = username;
+async function selectPerson(identity) {
+	SELECTED_PERSON = identity; // { username, deviceId }
 	const header = document.getElementById('selected-user-header');
-	if (header) header.innerHTML = `<strong>${username}</strong>`;
-	await Promise.all([loadConversations(username), loadUserImages(username)]);
+	if (header) {
+		const devShort = (identity.deviceId || 'unknown').slice(-6);
+		header.innerHTML = `<strong>${identity.username}</strong> <span class="muted">· dev ${devShort}</span>`;
+	}
+	await Promise.all([loadConversations(identity.username, identity.deviceId), loadUserImages(identity.username, identity.deviceId)]);
 }
 
-async function loadConversations(username) {
+async function loadConversations(username, deviceId) {
 	try {
-		const convos = await api(`/api/admin/users/${encodeURIComponent(username)}/conversations`);
+		const qs = deviceId ? `?deviceId=${encodeURIComponent(deviceId)}` : '';
+		const convos = await api(`/api/admin/users/${encodeURIComponent(username)}/conversations${qs}`);
 		const list = document.getElementById('conversations-list');
 		if (!list) return;
 		list.innerHTML = '';
@@ -69,10 +74,10 @@ async function loadConversations(username) {
 			const item = document.createElement('div');
 			item.className = 'item';
 			item.innerHTML = `
-				<div><strong>${c.with}</strong></div>
+				<div><strong>${c.with}</strong> <span class="muted">${c.withDeviceId ? '· dev ' + String(c.withDeviceId).slice(-6) : ''}</span></div>
 				<div class="muted">Msgs: ${c.messagesCount} · ${new Date(c.lastAt).toLocaleString()}</div>
 			`;
-			item.addEventListener('click', () => viewConversation(username, c.with));
+			item.addEventListener('click', () => viewConversation(username, c.with, deviceId || null, c.withDeviceId || null));
 			list.appendChild(item);
 		});
 		// Clear viewer on list reload
@@ -84,9 +89,14 @@ async function loadConversations(username) {
 	}
 }
 
-async function viewConversation(a, b) {
+async function viewConversation(a, b, devA, devB) {
 	try {
-		const history = await api(`/api/admin/messages/history/${encodeURIComponent(a)}/${encodeURIComponent(b)}`);
+		let url = `/api/admin/messages/history/${encodeURIComponent(a)}/${encodeURIComponent(b)}`;
+		const params = [];
+		if (devA) params.push(`devA=${encodeURIComponent(devA)}`);
+		if (devB) params.push(`devB=${encodeURIComponent(devB)}`);
+		if (params.length) url += `?${params.join('&')}`;
+		const history = await api(url);
 		const container = document.getElementById('user-chat-history');
 		if (!container) return;
 		container.innerHTML = '';
@@ -107,9 +117,10 @@ async function viewConversation(a, b) {
 	}
 }
 
-async function loadUserImages(username) {
+async function loadUserImages(username, deviceId) {
 	try {
-		const images = await api(`/api/admin/users/${encodeURIComponent(username)}/images`);
+		const qs = deviceId ? `?deviceId=${encodeURIComponent(deviceId)}` : '';
+		const images = await api(`/api/admin/users/${encodeURIComponent(username)}/images${qs}`);
 		const grid = document.getElementById('user-media');
 		if (!grid) return;
 		grid.innerHTML = '';

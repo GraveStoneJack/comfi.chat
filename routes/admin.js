@@ -32,16 +32,20 @@ router.get('/reports/:id', async (req, res) => {
 	}
 });
 
-// Messages history between two users
+// Messages history between two identities (optionally scoped by deviceId)
 router.get('/messages/history/:userA/:userB', async (req, res) => {
 	const { userA, userB } = req.params;
+	const { devA, devB } = req.query || {};
 	try {
-		const history = await Message.find({
-			$or: [
-				{ sender: userA, recipient: userB },
-				{ sender: userB, recipient: userA }
-			]
-		}).sort({ timestamp: 1 }).lean();
+		const clauses = [];
+		const clause1 = { sender: userA, recipient: userB };
+		const clause2 = { sender: userB, recipient: userA };
+		if (devA) clause1.senderDeviceId = devA;
+		if (devB) clause1.recipientDeviceId = devB;
+		if (devB) clause2.senderDeviceId = devB;
+		if (devA) clause2.recipientDeviceId = devA;
+		clauses.push(clause1, clause2);
+		const history = await Message.find({ $or: clauses }).sort({ timestamp: 1 }).lean();
 		res.json(history);
 	} catch (e) {
 		console.error('[Admin] history error', e);
@@ -49,21 +53,15 @@ router.get('/messages/history/:userA/:userB', async (req, res) => {
 	}
 });
 
-// List all people who logged on or appeared in messages, with basic stats
+// List unique identities that have messages (empty when no chats yet)
 router.get('/users/all', async (_req, res) => {
 	try {
-		// Aggregate login events
-		const eventsAgg = await LoginEvent.aggregate([
-			{ $group: { _id: '$username', firstSeen: { $min: '$timestamp' }, lastSeen: { $max: '$timestamp' } } }
-		]);
-
-		// Aggregate participation from messages (treat sender and recipient as "username")
-		const messageAgg = await Message.aggregate([
-			{ $project: { username: ['$sender', '$recipient'], timestamp: 1, message: 1 } },
-			{ $unwind: '$username' },
+		// Aggregate senders by username+device
+		const senders = await Message.aggregate([
 			{ $group: {
-				_id: '$username',
-				lastMessageAt: { $max: '$timestamp' },
+				_id: { username: '$sender', deviceId: '$senderDeviceId' },
+				firstAt: { $min: '$timestamp' },
+				lastAt: { $max: '$timestamp' },
 				messagesCount: { $sum: 1 },
 				imagesCount: {
 					$sum: {
@@ -74,56 +72,57 @@ router.get('/users/all', async (_req, res) => {
 									{ $regexMatch: { input: '$message', regex: '\\.(png|jpe?g|gif|webp|avif)(\\?.*)?$', options: 'i' } }
 								]
 							},
-							1,
-							0
+							1, 0
 						]
 					}
 				}
 			} }
 		]);
-
-		// Current temp users and registered users
-		const [tempNow, regUsers] = await Promise.all([
-			TempUser.find().select('username age gender country countryCode lastSeen isOnline').lean(),
-			User.find().select('username').lean()
+		// Aggregate recipients by username+device
+		const recipients = await Message.aggregate([
+			{ $group: {
+				_id: { username: '$recipient', deviceId: '$recipientDeviceId' },
+				firstAt: { $min: '$timestamp' },
+				lastAt: { $max: '$timestamp' },
+				messagesCount: { $sum: 1 },
+				imagesCount: { $sum: 0 }
+			} }
 		]);
-		const registeredUsernames = new Set((regUsers || []).map(u => u.username));
-		const tempNowMap = new Map((tempNow || []).map(u => [u.username, u]));
 
-		const byUsername = new Map();
-		eventsAgg.forEach(e => {
-			byUsername.set(e._id, {
-				username: e._id,
-				firstSeen: e.firstSeen,
-				lastSeen: e.lastSeen,
-				userType: registeredUsernames.has(e._id) ? 'registered' : (tempNowMap.has(e._id) ? 'temp' : 'unknown'),
-				messagesCount: 0,
-				imagesCount: 0
-			});
-		});
-		messageAgg.forEach(m => {
-			const curr = byUsername.get(m._id) || {
-				username: m._id,
-				userType: registeredUsernames.has(m._id) ? 'registered' : (tempNowMap.has(m._id) ? 'temp' : 'unknown')
-			};
-			curr.messagesCount = (curr.messagesCount || 0) + (m.messagesCount || 0);
-			curr.imagesCount = (curr.imagesCount || 0) + (m.imagesCount || 0);
-			curr.lastMessageAt = m.lastMessageAt;
-			byUsername.set(m._id, curr);
-		});
-
-		// Merge in some live temp info for convenience
-		for (const [uname, u] of tempNowMap.entries()) {
-			const curr = byUsername.get(uname) || { username: uname, userType: 'temp' };
-			curr.tempProfile = u;
-			byUsername.set(uname, curr);
+		const byKey = new Map();
+		function merge(list) {
+			for (const r of list) {
+				const key = `${r._id.username}::${r._id.deviceId || 'unknown'}`;
+				const curr = byKey.get(key) || {
+					username: r._id.username,
+					deviceId: r._id.deviceId || null,
+					firstAt: r.firstAt,
+					lastAt: r.lastAt,
+					messagesCount: 0,
+					imagesCount: 0
+				};
+				curr.firstAt = curr.firstAt && curr.firstAt < r.firstAt ? curr.firstAt : r.firstAt;
+				curr.lastAt = curr.lastAt && curr.lastAt > r.lastAt ? curr.lastAt : r.lastAt;
+				curr.messagesCount += r.messagesCount || 0;
+				curr.imagesCount += r.imagesCount || 0;
+				byKey.set(key, curr);
+			}
 		}
+		merge(senders);
+		merge(recipients);
 
-		const out = Array.from(byUsername.values()).sort((a, b) => {
-			const aTs = new Date(a.lastMessageAt || a.lastSeen || a.firstSeen || 0).getTime();
-			const bTs = new Date(b.lastMessageAt || b.lastSeen || b.firstSeen || 0).getTime();
-			return bTs - aTs;
-		});
+		// Enrich with some live temp info if available
+		const usernames = Array.from(new Set(Array.from(byKey.values()).map(v => v.username)));
+		const tempNow = await TempUser.find({ username: { $in: usernames } })
+			.select('username age gender country countryCode deviceId isOnline lastSeen').lean();
+		const tempByUname = new Map(tempNow.map(u => [u.username, u]));
+
+		const out = Array.from(byKey.values()).map(v => {
+			const live = tempByUname.get(v.username);
+			if (live) v.tempProfile = live;
+			return v;
+		}).sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
+
 		res.json(out);
 	} catch (e) {
 		console.error('[Admin] users/all error', e);
@@ -134,24 +133,37 @@ router.get('/users/all', async (_req, res) => {
 // List conversations for a given user with last message and counts
 router.get('/users/:username/conversations', async (req, res) => {
 	const username = req.params.username;
+	const { deviceId } = req.query || {};
 	try {
+		const match = deviceId
+			? { $or: [ { sender: username, senderDeviceId: deviceId }, { recipient: username, recipientDeviceId: deviceId } ] }
+			: { $or: [ { sender: username }, { recipient: username } ] };
 		const convos = await Message.aggregate([
-			{ $match: { $or: [ { sender: username }, { recipient: username } ] } },
+			{ $match: match },
 			{ $project: {
 				other: { $cond: [ { $eq: ['$sender', username] }, '$recipient', '$sender' ] },
+				otherDeviceId: { $cond: [
+					{ $eq: ['$sender', username] }, '$recipientDeviceId', '$senderDeviceId'
+				] },
 				message: 1,
 				timestamp: 1
 			} },
 			{ $sort: { timestamp: 1 } },
 			{ $group: {
-				_id: '$other',
+				_id: { other: '$other', deviceId: '$otherDeviceId' },
 				lastAt: { $last: '$timestamp' },
 				lastMessage: { $last: '$message' },
 				messagesCount: { $sum: 1 }
 			} },
 			{ $sort: { lastAt: -1 } }
 		]);
-		res.json(convos.map(c => ({ with: c._id, lastAt: c.lastAt, lastMessage: c.lastMessage, messagesCount: c.messagesCount })));
+		res.json(convos.map(c => ({
+			with: c._id.other,
+			withDeviceId: c._id.deviceId || null,
+			lastAt: c.lastAt,
+			lastMessage: c.lastMessage,
+			messagesCount: c.messagesCount
+		})));
 	} catch (e) {
 		console.error('[Admin] conversations error', e);
 		res.status(500).json({ error: 'Failed to fetch conversations' });
@@ -161,18 +173,22 @@ router.get('/users/:username/conversations', async (req, res) => {
 // List all images sent by a given user (even if later deleted in chat UI)
 router.get('/users/:username/images', async (req, res) => {
 	const username = req.params.username;
+	const { deviceId } = req.query || {};
 	try {
-		const docs = await Message.find({
+		const match = {
 			sender: username,
 			$or: [
 				{ message: { $regex: '^\\[image\\]', $options: 'i' } },
 				{ message: { $regex: '\\.(png|jpe?g|gif|webp|avif)(\\?.*)?$', $options: 'i' } }
 			]
-		}).sort({ timestamp: -1 }).lean();
+		};
+		if (deviceId) match.senderDeviceId = deviceId;
+		const docs = await Message.find(match).sort({ timestamp: -1 }).lean();
 		res.json(docs.map(d => ({
 			message: d.message,
 			timestamp: d.timestamp,
-			recipient: d.recipient
+			recipient: d.recipient,
+			recipientDeviceId: d.recipientDeviceId || null
 		})));
 	} catch (e) {
 		console.error('[Admin] user images error', e);
