@@ -118,6 +118,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Determine the other user (sender or recipient)
                     const otherUser = data.sender === currentUser.username ? data.recipient : data.sender;
 
+                    // If this chat was hidden by the user, unhide it when a new message arrives
+                    try { unhideChat(otherUser); } catch (_e) {}
+
                     // Add to active chats if not exists
                     let chat = activeChats.find(chat => chat.username === otherUser);
 
@@ -694,7 +697,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!container) return;
 
             container.innerHTML = '';
+            const hidden = new Set(loadHiddenChats());
             activeChats.forEach(chat => {
+                if (hidden.has(chat.username)) return;
                 const chatElement = document.createElement('div');
                 chatElement.classList.add('chat-item');
 
@@ -719,6 +724,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                         <div class="chat-preview">${(chat.lastMessage || 'Start chatting...').slice(0, 60)}${(chat.lastMessage && chat.lastMessage.length > 60) ? '…' : ''}</div>
                     </div>
+                    <button class="hide-chat-btn" title="Hide chat"><i class="fas fa-xmark"></i></button>
                 `;
 
                 chatElement.addEventListener('click', () => {
@@ -726,13 +732,32 @@ document.addEventListener('DOMContentLoaded', async () => {
                     openChat(chat);
                 });
 
+                // Hide button behavior
+                const hideBtn = chatElement.querySelector('.hide-chat-btn');
+                if (hideBtn) {
+                    hideBtn.addEventListener('click', (ev) => {
+                        ev.stopPropagation();
+                        hideChat(chat.username);
+                        if (currentChatUser && currentChatUser.username === chat.username) {
+                            chatArea.classList.remove('active');
+                            currentChatUser = null;
+                        }
+                        updateActiveChats();
+                    });
+                }
+
                 container.appendChild(chatElement);
             });
         });
 
         // Update the chat count
         if (chatsCount) {
-            chatsCount.textContent = activeChats.length;
+            try {
+                const hidden = new Set(loadHiddenChats());
+                chatsCount.textContent = activeChats.filter(c => !hidden.has(c.username)).length;
+            } catch (_e) {
+                chatsCount.textContent = activeChats.length;
+            }
         }
 
         // Update tab indicator if there are any unread messages
@@ -801,6 +826,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!deviceId) return;
         const list = loadBlockedDevices();
         if (!list.includes(deviceId)) { list.push(deviceId); saveBlockedDevices(list); }
+    }
+
+    // Hidden chats helpers (stored per current username)
+    function getHiddenChatsKey() { return `comfi.hiddenChats.${currentUser.username}`; }
+    function loadHiddenChats() {
+        try { return JSON.parse(localStorage.getItem(getHiddenChatsKey()) || '[]'); } catch (_e) { return []; }
+    }
+    function saveHiddenChats(list) {
+        try { localStorage.setItem(getHiddenChatsKey(), JSON.stringify(Array.from(new Set(list)))); } catch (_e) {}
+    }
+    function isChatHidden(username) {
+        try { return loadHiddenChats().includes(username); } catch (_e) { return false; }
+    }
+    function hideChat(username) {
+        if (!username) return;
+        const list = loadHiddenChats();
+        if (!list.includes(username)) { list.push(username); saveHiddenChats(list); }
+    }
+    function unhideChat(username) {
+        if (!username) return;
+        const list = loadHiddenChats().filter(u => u !== username);
+        saveHiddenChats(list);
     }
 
     // Fetch online users from the server
@@ -950,6 +997,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function openChat(user) {
+        try { unhideChat(user.username); } catch (_e) {}
         currentChatUser = user;
         chatArea.classList.add('active');
 
