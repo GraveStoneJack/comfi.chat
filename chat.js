@@ -868,11 +868,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             populateCountryFilter();
         } catch (error) {
             console.error('Error fetching online users:', error);
-            // Show user-friendly error message
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'error-message';
-            errorMessage.textContent = 'Unable to fetch online users. Please try again later.';
-            document.querySelector('.online-users-container').appendChild(errorMessage);
+            // Show user-friendly error message without throwing if container is missing
+            try {
+                const container = document.getElementById('online-users');
+                if (container && !container.querySelector('.error-message')) {
+                    const errorMessage = document.createElement('div');
+                    errorMessage.className = 'error-message';
+                    errorMessage.textContent = 'Unable to fetch online users. Please try again later.';
+                    container.appendChild(errorMessage);
+                }
+            } catch (_e) { /* swallow to avoid breaking init flow */ }
         }
     }
 
