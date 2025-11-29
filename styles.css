@@ -1451,11 +1451,11 @@ body.dark .theme-toggle-btn i { color: #d79aff; }
 .mobile-sidebar-toggle {
     display: none;
     position: fixed;
-    top: 12px;
-    left: 12px;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    left: calc(env(safe-area-inset-left, 0px) + 12px);
     z-index: 2500;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border: none;
     border-radius: 14px;
     cursor: pointer;
@@ -1464,16 +1464,20 @@ body.dark .theme-toggle-btn i { color: #d79aff; }
     color: #fff;
     background: linear-gradient(135deg, #d79aff 0%, #9b4dca 100%);
     box-shadow: 0 6px 20px rgba(155, 77, 202, 0.45);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .mobile-sidebar-toggle:active {
-    transform: scale(0.95);
+    transform: scale(0.92);
+    background: linear-gradient(135deg, #c78aef 0%, #8b3dba 100%);
 }
 
 .mobile-sidebar-toggle i {
-    font-size: 20px;
+    font-size: 22px;
     pointer-events: none;
 }
 
@@ -1481,11 +1485,11 @@ body.dark .theme-toggle-btn i { color: #d79aff; }
 .mobile-back-btn {
     display: none;
     position: fixed;
-    top: 12px;
-    left: 12px;
+    top: calc(env(safe-area-inset-top, 0px) + 12px);
+    left: calc(env(safe-area-inset-left, 0px) + 12px);
     z-index: 2500;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border: none;
     border-radius: 14px;
     cursor: pointer;
@@ -1494,16 +1498,20 @@ body.dark .theme-toggle-btn i { color: #d79aff; }
     color: #fff;
     background: linear-gradient(135deg, #d79aff 0%, #9b4dca 100%);
     box-shadow: 0 6px 20px rgba(155, 77, 202, 0.45);
-    transition: transform 0.2s ease;
+    transition: transform 0.15s ease, background 0.15s ease;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .mobile-back-btn:active {
-    transform: scale(0.95);
+    transform: scale(0.92);
+    background: linear-gradient(135deg, #c78aef 0%, #8b3dba 100%);
 }
 
 .mobile-back-btn i {
-    font-size: 20px;
+    font-size: 22px;
     pointer-events: none;
 }
 
@@ -1515,14 +1523,16 @@ body.dark .theme-toggle-btn i { color: #d79aff; }
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
-    z-index: 1998;
+    z-index: 1999;
     opacity: 0;
     transition: opacity 0.3s ease;
     -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .mobile-overlay.visible {
     opacity: 1;
+    pointer-events: auto;
 }
 
 /* --------------------------------------------------------------------------
@@ -1605,15 +1615,26 @@ body.dark .theme-toggle-btn i { color: #d79aff; }
         gap: 12px;
     }
 
-    /* Theme toggle repositioning on mobile */
+    /* Theme toggle repositioning on mobile - move to top center area */
     .theme-toggle {
-        top: 12px;
-        right: 12px;
+        top: calc(env(safe-area-inset-top, 0px) + 12px);
+        left: 50%;
+        right: auto;
+        bottom: auto;
+        transform: translateX(-50%);
+        z-index: 2300;
     }
 
     .theme-toggle-btn {
-        padding: 8px 12px;
+        padding: 10px 14px;
         font-size: 13px;
+        border-radius: 20px;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .theme-toggle-btn:active {
+        transform: scale(0.95);
     }
 
     /* --------------------------------------------------------------------------
@@ -1942,35 +1963,46 @@ body.dark .theme-toggle-btn i { color: #d79aff; }
         font-size: 14px;
     }
 
-    /* Logout button on mobile */
+    /* Logout button on mobile - positioned in top right with proper spacing */
     .logout-container {
-        top: calc(var(--mobile-safe-top) + 12px);
-        right: 12px;
+        position: fixed;
+        top: calc(env(safe-area-inset-top, 0px) + 12px);
+        right: calc(env(safe-area-inset-right, 0px) + 12px);
+        z-index: 2400;
     }
 
     .logout-btn {
         padding: 10px 16px;
         font-size: 13px;
         border-radius: 18px;
-    }
-
-    /* Mobile: show back button, hide sidebar toggle when chat is active */
-    .chat-area.active ~ .mobile-sidebar-toggle,
-    body:has(.chat-area.active) .mobile-sidebar-toggle {
-        display: none;
-    }
-
-    body:has(.chat-area.active) .mobile-back-btn {
+        min-height: 44px;
         display: flex;
+        align-items: center;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
     }
 
-    /* When no chat is active, show sidebar toggle */
-    body:not(:has(.chat-area.active)) .mobile-sidebar-toggle {
-        display: flex;
+    .logout-btn:active {
+        transform: scale(0.95);
     }
 
-    body:not(:has(.chat-area.active)) .mobile-back-btn {
-        display: none;
+    /* Mobile: Control button visibility via JS-applied classes for better compatibility */
+    /* Default state: show hamburger, hide back */
+    .mobile-sidebar-toggle {
+        display: flex !important;
+    }
+
+    .mobile-back-btn {
+        display: none !important;
+    }
+
+    /* When chat is active (class added by JS), swap buttons */
+    body.mobile-chat-active .mobile-sidebar-toggle {
+        display: none !important;
+    }
+
+    body.mobile-chat-active .mobile-back-btn {
+        display: flex !important;
     }
 
     /* Hide chat area when sidebar is open and no chat selected */

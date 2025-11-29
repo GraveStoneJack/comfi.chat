@@ -1724,6 +1724,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             return window.innerWidth <= 768;
         }
 
+        // Update mobile navigation button visibility based on chat state
+        function updateMobileNavState() {
+            if (!isMobile()) {
+                document.body.classList.remove('mobile-chat-active');
+                return;
+            }
+            
+            if (chatAreaEl && chatAreaEl.classList.contains('active')) {
+                document.body.classList.add('mobile-chat-active');
+            } else {
+                document.body.classList.remove('mobile-chat-active');
+            }
+        }
+
         // Open sidebar
         function openSidebar() {
             if (!userList || !overlay) return;
@@ -1755,31 +1769,52 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (chatAreaEl) {
                 chatAreaEl.classList.remove('active');
             }
+            updateMobileNavState();
             // Optionally open sidebar after closing chat
             setTimeout(() => {
                 openSidebar();
             }, 100);
         }
 
-        // Event listeners
+        // Event listeners - use both click and touchend for better mobile support
         if (sidebarToggle) {
             sidebarToggle.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 toggleSidebar();
             });
+            
+            // Touch event for more responsive mobile interaction
+            sidebarToggle.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleSidebar();
+            }, { passive: false });
         }
 
         if (backBtn) {
             backBtn.addEventListener('click', (e) => {
+                e.preventDefault();
                 e.stopPropagation();
                 handleBack();
             });
+            
+            backBtn.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleBack();
+            }, { passive: false });
         }
 
         if (overlay) {
             overlay.addEventListener('click', () => {
                 closeSidebar();
             });
+            
+            overlay.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                closeSidebar();
+            }, { passive: false });
         }
 
         // Close sidebar when clicking a user/chat item on mobile
@@ -1790,10 +1825,22 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // Small delay to let the chat open first
                     setTimeout(() => {
                         closeSidebar();
+                        updateMobileNavState();
                     }, 150);
                 }
             });
         }
+
+        // Watch for chat area active state changes
+        if (chatAreaEl) {
+            const observer = new MutationObserver(() => {
+                updateMobileNavState();
+            });
+            observer.observe(chatAreaEl, { attributes: true, attributeFilter: ['class'] });
+        }
+
+        // Initial state check
+        updateMobileNavState();
 
         // Close sidebar on Escape key
         document.addEventListener('keydown', (e) => {
@@ -1811,6 +1858,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     // On desktop, ensure sidebar is visible and body scroll is restored
                     closeSidebar();
                     if (userList) userList.classList.remove('open');
+                    document.body.classList.remove('mobile-chat-active');
+                } else {
+                    updateMobileNavState();
                 }
             }, 100);
         });
@@ -1827,6 +1877,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.addEventListener('touchend', (e) => {
             if (!isMobile()) return;
+            
+            // Don't process swipe if it started on a button
+            if (e.target.closest('button, .mobile-sidebar-toggle, .mobile-back-btn')) return;
+            
             touchEndX = e.changedTouches[0].screenX;
             const touchEndY = e.changedTouches[0].screenY;
             const diffX = touchEndX - touchStartX;
@@ -1849,7 +1903,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             openSidebar,
             closeSidebar,
             toggleSidebar,
-            isMobile
+            isMobile,
+            updateMobileNavState
         };
     })();
 });
