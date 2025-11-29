@@ -2,7 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <!-- Mobile App Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ComfiChat">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#9b4dca" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#2f0642" media="(prefers-color-scheme: dark)">
+    <meta name="format-detection" content="telephone=no">
     <title>ComfiChat - Chat Room</title>
     <link rel="canonical" href="https://comfi.chat/chat.html">
     <meta name="robots" content="noindex,follow">
@@ -10,6 +18,15 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    <!-- Mobile Navigation Elements -->
+    <button id="mobile-sidebar-toggle" class="mobile-sidebar-toggle" aria-label="Open menu">
+        <i class="fas fa-bars"></i>
+    </button>
+    <button id="mobile-back-btn" class="mobile-back-btn" aria-label="Back to chats">
+        <i class="fas fa-arrow-left"></i>
+    </button>
+    <div id="mobile-overlay" class="mobile-overlay"></div>
+
     <div class="theme-toggle">
         <button id="theme-toggle-btn" class="theme-toggle-btn"><i class="fas fa-circle-half-stroke"></i> Auto</button>
     </div>
