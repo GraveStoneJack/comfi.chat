@@ -1431,6 +1431,10 @@ body.dark .theme-toggle-btn {
 }
 body.dark .theme-toggle-btn i { color: #d79aff; }
 
+/* Ensure the container doesn't block clicks on nearby buttons */
+.theme-toggle { pointer-events: none; }
+.theme-toggle-btn { pointer-events: auto; }
+
 /* ==========================================================================
    MOBILE RESPONSIVE STYLES
    These styles only apply on mobile/tablet devices and maintain the desktop

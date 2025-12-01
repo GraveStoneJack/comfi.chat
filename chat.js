@@ -302,7 +302,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (chatsTabBtn) chatsTabBtn.classList.add('has-unread');
 
         // Show browser notification
-        if (Notification.permission === "granted") {
+        if (typeof Notification !== 'undefined' && Notification.permission === "granted") {
             new Notification(`New message from ${sender}`, {
                 body: message,
                 icon: '/path/to/your/icon.png'
@@ -801,7 +801,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize chat area as inactive
     chatArea.classList.remove('active');
 
-    if (Notification.permission === "default") {
+    if (typeof Notification !== 'undefined' && Notification.permission === "default") {
         Notification.requestPermission();
     }
 
