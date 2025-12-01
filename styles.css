@@ -1667,7 +1667,7 @@ body.dark .theme-toggle-btn i { color: #d79aff; }
         max-width: 320px;
         height: 100%;
         height: 100dvh;
-        z-index: 2000;
+        z-index: 3200; /* above overlays and nav buttons */
         border-right: none;
         border-radius: 0 24px 24px 0;
         transform: translateX(-100%);
