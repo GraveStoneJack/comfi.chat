@@ -336,23 +336,21 @@ select::-webkit-scrollbar-thumb:hover {
 }
 
 .chat-container {
-    position: relative;
-    display: flex;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(240, 230, 255, 0.9) 100%);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow:
-        0 10px 30px rgba(47, 6, 66, 0.3),
-        0 0 60px rgba(215, 154, 255, 0.2),
-        inset 0 0 15px rgba(255, 255, 255, 0.5);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    width: 90%;
-    max-width: 1200px;
-    height: 80vh;
-    margin: 0 auto;
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
+    height: 100dvh; /* Dynamic viewport height for mobile browsers */
+    border-radius: 0;
+    margin: 0;
+    flex-direction: column;
+    box-shadow: none;
+    border: none;
 }
+
+/* Elevate the entire chat surface above global controls when sidebar is open */
+body.mobile-sidebar-open .chat-container { z-index: 3400; }
 
 .user-list {
     width: 30%;
