@@ -2283,3 +2283,31 @@ body.dark .theme-toggle-btn i { color: #d79aff; }
         touch-action: manipulation;
     }
 }
+
+/* Desktop reset to ensure original top-right placement and behavior */
+@media screen and (min-width: 769px) {
+    .theme-toggle {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        left: auto;
+        transform: none;
+        pointer-events: auto;
+        z-index: 3000;
+    }
+}
+
+/* Reinforce original desktop chat container layout */
+.chat-container {
+    position: relative;
+    width: 90%;
+    max-width: 1200px;
+    height: 80vh;
+    margin: 0 auto;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow:
+        0 10px 30px rgba(47, 6, 66, 0.3),
+        0 0 60px rgba(215, 154, 255, 0.2),
+        inset 0 0 15px rgba(255, 255, 255, 0.5);
+}
