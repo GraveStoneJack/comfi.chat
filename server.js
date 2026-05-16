@@ -188,9 +188,12 @@ app.use('/api/admin', adminRouter);
 
 // Serve admin portal under an obscure base path
 const ADMIN_BASE = process.env.ADMIN_BASE_PATH || '/ops-9c6b';
-app.use(ADMIN_BASE, express.static(path.join(__dirname, 'admin')));
-app.get(`${ADMIN_BASE}`, (_req, res) => {
-    res.sendFile(path.join(__dirname, 'admin', 'index.html'));
+const ADMIN_DIST = path.join(__dirname, 'admin-dist');
+const ADMIN_LEGACY = path.join(__dirname, 'admin');
+const adminStaticPath = require('fs').existsSync(path.join(ADMIN_DIST, 'index.html')) ? ADMIN_DIST : ADMIN_LEGACY;
+app.use(ADMIN_BASE, express.static(adminStaticPath));
+app.get([ADMIN_BASE, `${ADMIN_BASE}/*`], (_req, res) => {
+    res.sendFile(path.join(adminStaticPath, 'index.html'));
 });
 
 // Explicit logoff endpoint: mark offline and remove messages for this user

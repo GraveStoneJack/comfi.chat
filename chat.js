@@ -827,6 +827,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         const list = loadBlockedDevices();
         if (!list.includes(deviceId)) { list.push(deviceId); saveBlockedDevices(list); }
     }
+    async function recordBlockEvent(blockedUser, source = 'block_button', reason = '') {
+        if (!blockedUser || !currentUser) return;
+        try {
+            await fetch(`${API_URL}/api/reports/block`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    blockerUsername: currentUser.username,
+                    blockerDeviceId: getDeviceId(),
+                    blockedUsername: blockedUser.username,
+                    blockedDeviceId: blockedUser.deviceId,
+                    source,
+                    reason
+                })
+            });
+        } catch (error) {
+            console.error('Failed to record block event:', error);
+        }
+    }
 
     // Hidden chats helpers (stored per current username)
     function getHiddenChatsKey() { return `comfi.hiddenChats.${currentUser.username}`; }
@@ -1106,6 +1125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const confirmMsg = `Block ${user.username}? They won't be able to message you from this device.`;
             if (confirm(confirmMsg)) {
                 addBlockedDevice(user.deviceId);
+                recordBlockEvent(user, 'block_button');
                 // Remove from lists and UI
                 onlineUsers = onlineUsers.filter(u => u.deviceId !== user.deviceId);
                 activeChats = activeChats.filter(chat => chat.username !== user.username);
@@ -1140,8 +1160,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: JSON.stringify({
                     reportedUser: currentChatUser.username,
                     reportingUser: currentUser.username,
+                    reportingDeviceId: getDeviceId(),
                     reason,
-                    additionalInfo
+                    additionalInfo,
+                    reportedDeviceId: currentChatUser.deviceId,
+                    alsoBlock: !!document.getElementById('report-block-checkbox')?.checked
                 }),
             });
 
