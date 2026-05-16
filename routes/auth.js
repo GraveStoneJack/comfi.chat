@@ -13,6 +13,14 @@ function signToken(payload) {
     return jwt.sign(payload, secret, { expiresIn: '30d' });
 }
 
+function parseList(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+        return value.split(',').map(item => item.trim()).filter(Boolean);
+    }
+    return [];
+}
+
 function getBaseUrl(req) {
     // Prefer FRONTEND_URL if set to ensure email links open on the correct host
     const host = process.env.FRONTEND_URL || process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
@@ -90,7 +98,21 @@ router.post('/email/verify', async (req, res) => {
 
 router.post('/email/finalize', async (req, res) => {
     try {
-        const { tempToken, username, age, gender, displayName, profilePicture } = req.body || {};
+        const {
+            tempToken,
+            username,
+            age,
+            gender,
+            displayName,
+            profilePicture,
+            hairType,
+            hairColor,
+            eyeColor,
+            ethnicity,
+            hobbies,
+            sexuality,
+            lookingFor
+        } = req.body || {};
         if (!tempToken) return res.status(400).json({ error: 'tempToken required' });
         const secret = process.env.JWT_SECRET || 'dev-secret-change-me';
         let decoded;
@@ -104,7 +126,21 @@ router.post('/email/finalize', async (req, res) => {
         const exists = await User.findOne({ $or: [{ email }, { username }] });
         if (exists) return res.status(409).json({ error: 'Username or email already in use' });
 
-        const user = new User({ username, email, age, gender, displayName: displayName || username, profilePicture });
+        const user = new User({
+            username,
+            email,
+            age,
+            gender,
+            displayName: displayName || username,
+            profilePicture,
+            hairType,
+            hairColor,
+            eyeColor,
+            ethnicity,
+            hobbies: parseList(hobbies),
+            sexuality,
+            lookingFor: parseList(lookingFor)
+        });
         user.password = pending.passwordHash; // already hashed
         await user.save();
         await PendingUser.deleteOne({ _id: pending._id });

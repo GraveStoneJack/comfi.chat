@@ -1,0 +1,360 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: 'Poppins', system-ui, sans-serif;
+  color: #2f0642;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.38), transparent 28%),
+    linear-gradient(135deg, #d79aff 0%, #2f0642 99%, #3b0337 100%);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button,
+a.secondary,
+label.file-button {
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+button:hover,
+a.secondary:hover,
+label.file-button:hover {
+  transform: translateY(-1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
+}
+
+.app-frame {
+  width: 100%;
+  min-height: 100vh;
+  padding: 28px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.app-card {
+  width: min(1120px, 100%);
+  min-height: 680px;
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 30px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(244, 235, 255, 0.86));
+  box-shadow: 0 24px 80px rgba(47, 6, 66, 0.32), inset 0 0 24px rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(18px);
+}
+
+.theme-toggle-btn {
+  position: fixed;
+  top: 18px;
+  right: 18px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #3b0337;
+  box-shadow: 0 10px 28px rgba(47, 6, 66, 0.2);
+  z-index: 3;
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 44px;
+}
+
+.brand-link {
+  padding: 0;
+  background: transparent;
+  color: #2f0642;
+  font-size: 1.2rem;
+}
+
+.nav-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.nav-actions button {
+  padding: 9px 14px;
+  background: rgba(155, 77, 202, 0.12);
+  color: #622083;
+}
+
+.hero,
+.stack {
+  max-width: 680px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: #9b4dca;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 8px 0 14px;
+  font-size: clamp(2.2rem, 5vw, 4.6rem);
+  line-height: 0.98;
+  color: #2f0642;
+}
+
+p {
+  margin: 0;
+}
+
+.muted,
+.hero p {
+  color: #664673;
+  line-height: 1.7;
+}
+
+.button-row,
+.form-actions,
+.oauth-grid {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.primary,
+.secondary,
+a.secondary,
+label.file-button {
+  padding: 13px 20px;
+}
+
+.primary {
+  background: linear-gradient(135deg, #d79aff, #9b4dca);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(155, 77, 202, 0.34);
+}
+
+.secondary,
+a.secondary,
+label.file-button {
+  background: rgba(155, 77, 202, 0.12);
+  color: #7b2da6;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.form-grid.single {
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+  grid-template-columns: 1fr;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+  font-weight: 700;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 14px;
+  border: 1px solid rgba(59, 3, 55, 0.16);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.76);
+  color: #2f0642;
+}
+
+.field select[multiple] {
+  min-height: 124px;
+  border-radius: 18px;
+}
+
+.span-2 {
+  grid-column: span 2;
+}
+
+.notice {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(155, 77, 202, 0.12);
+  color: #5c2179;
+  overflow-wrap: anywhere;
+}
+
+.notice.success {
+  background: rgba(52, 211, 153, 0.16);
+  color: #047857;
+}
+
+.notice.error {
+  background: rgba(244, 63, 94, 0.14);
+  color: #be123c;
+}
+
+.oauth-grid button {
+  padding: 12px 16px;
+  background: rgba(47, 6, 66, 0.08);
+  color: #664673;
+}
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) 1fr;
+  gap: 26px;
+  align-items: start;
+}
+
+.profile-intro {
+  position: sticky;
+  top: 24px;
+}
+
+.profile-intro h1 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+.avatar-card {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.54);
+  border: 1px solid rgba(59, 3, 55, 0.1);
+}
+
+.avatar-card img,
+.avatar-placeholder {
+  width: 100%;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  object-fit: cover;
+  background: linear-gradient(135deg, #f8efff, #eadbff);
+  color: #9b4dca;
+  font-size: 5rem;
+  font-weight: 700;
+}
+
+.file-button {
+  display: block;
+  margin-top: 14px;
+  text-align: center;
+}
+
+.file-button input {
+  display: none;
+}
+
+body.dark {
+  color: #efeaff;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(215, 154, 255, 0.18), transparent 28%),
+    linear-gradient(135deg, #3b1450 0%, #13081b 100%);
+}
+
+body.dark .app-card {
+  background: linear-gradient(135deg, rgba(38, 29, 48, 0.94), rgba(21, 15, 27, 0.92));
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.04);
+}
+
+body.dark h1,
+body.dark .brand-link {
+  color: #efeaff;
+}
+
+body.dark .muted,
+body.dark .hero p {
+  color: #cfc6da;
+}
+
+body.dark .theme-toggle-btn,
+body.dark .avatar-card,
+body.dark .field input,
+body.dark .field select {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #efeaff;
+}
+
+body.dark .nav-actions button,
+body.dark .secondary,
+body.dark a.secondary,
+body.dark label.file-button {
+  background: rgba(215, 154, 255, 0.12);
+  color: #e4c6ff;
+}
+
+body.dark .notice {
+  color: #e4c6ff;
+}
+
+@media (max-width: 820px) {
+  .app-frame {
+    padding: 14px;
+    align-items: stretch;
+  }
+
+  .app-card {
+    min-height: calc(100vh - 28px);
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .top-nav,
+  .profile-layout,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .top-nav {
+    align-items: flex-start;
+  }
+
+  .span-2 {
+    grid-column: auto;
+  }
+
+  .profile-intro {
+    position: static;
+  }
+}
