@@ -5,6 +5,7 @@ const path = require('path');
 const checks = [
     { request: 'gopd/gOPD', packageName: 'gopd' },
     { request: 'mongoose/lib/drivers/node-mongodb-native/bulkWriteResult', packageName: 'mongoose' },
+    { request: 'mongodb/lib/cursor/explainable_cursor', packageName: 'mongodb' },
     { request: 'express', packageName: 'express' },
     { request: 'qs', packageName: 'qs' }
 ];
@@ -38,8 +39,8 @@ function removePackage(packageName) {
 const missing = findMissingRuntimeDependency();
 if (missing) {
     console.warn(`[install] Missing runtime dependency file "${missing.request}". Reifying node_modules from package-lock.json.`);
-    for (const check of checks) {
-        removePackage(check.packageName);
+    for (const packageName of new Set(checks.map(check => check.packageName))) {
+        removePackage(packageName);
     }
     fs.rmSync(path.join(process.cwd(), 'node_modules', '.package-lock.json'), { force: true });
     execFileSync('npm', ['install', '--ignore-scripts', '--no-audit', '--no-fund', '--prefer-online', '--force'], {
