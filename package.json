@@ -8,9 +8,11 @@
     "dev": "nodemon server.js",
     "admin:dev": "vite --config admin-client/vite.config.js",
     "admin:build": "vite build --config admin-client/vite.config.js",
-    "build": "npm run admin:build",
-    "postinstall": "node scripts/repairInstall.js && npm run admin:build",
-    "test": "npm run admin:build"
+    "user:dev": "vite --config user-client/vite.config.js",
+    "user:build": "vite build --config user-client/vite.config.js",
+    "build": "npm run admin:build && npm run user:build",
+    "postinstall": "node scripts/repairInstall.js && npm run build",
+    "test": "npm run build"
   },
   "keywords": [],
   "author": "",
