@@ -21,6 +21,7 @@ import {
 import {
   Activity,
   Archive,
+  AlertTriangle,
   BarChart3,
   Blocks,
   CheckCircle2,
@@ -32,6 +33,7 @@ import {
   MessageSquare,
   Moon,
   Search,
+  Settings,
   Shield,
   Sun,
   Trash2,
@@ -45,6 +47,7 @@ const NAV = [
   { id: 'reports', label: 'Reports', icon: Shield },
   { id: 'cases', label: 'Cases', icon: CheckCircle2 },
   { id: 'storage', label: 'Storage', icon: Archive },
+  { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'blocks', label: 'Blocks', icon: Blocks },
   { id: 'chats', label: 'Chats', icon: MessageSquare }
 ];
@@ -253,6 +256,7 @@ function Shell({ me, onLogout, theme, setTheme }) {
     reports: <ReportsPage />,
     cases: <CasesPage />,
     storage: <StoragePage openLightbox={setLightbox} />,
+    settings: <SettingsPage />,
     blocks: <BlocksPage />,
     chats: <ChatsPage openLightbox={setLightbox} />
   }[tab];
@@ -796,18 +800,117 @@ function StoragePage({ openLightbox }) {
         <Panel title="Storage Cleanup Center" subtitle="Review large or old media before deletion">
           <div className="cleanup-grid">
             {data.items.map(item => {
-              const url = `${location.origin}/api/admin/media/resolve?src=${encodeURIComponent(item.originalUrl || `/uploads/${item.filename}`)}`;
+              const url = `${location.origin}/api/admin/media/${item._id}/content`;
               return (
                 <article className="cleanup-card" key={item._id}>
-                  <button onClick={() => openLightbox(url)}><img src={url} alt={item.filename || 'media'} /></button>
-                  <strong>{item.filename || 'Media item'}</strong>
-                  <span>{item.uploader || 'Unknown uploader'} · {formatBytes(item.byteLength)} · {formatDate(item.createdAt)}</span>
+                  <MediaPreview url={url} alt={item.filename || 'media'} onOpen={() => openLightbox(url)} />
+                  <div className="cleanup-card-body">
+                    <strong title={item.filename || 'Media item'}>{item.filename || 'Media item'}</strong>
+                    <span>{item.uploader || 'Unknown uploader'}</span>
+                    <span>{formatBytes(item.byteLength)} · {formatDate(item.createdAt)}</span>
+                  </div>
                   <button className="danger subtle" onClick={() => deleteMedia(item)}><Trash2 size={14} /> Delete after review</button>
                 </article>
               );
             })}
           </div>
         </Panel>
+      )}
+    </div>
+  );
+}
+
+function MediaPreview({ url, alt, onOpen }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <button className={failed ? 'media-preview failed' : 'media-preview'} onClick={onOpen} type="button">
+      {failed ? (
+        <div>
+          <Image size={28} />
+          <span>Preview unavailable</span>
+        </div>
+      ) : (
+        <img src={url} alt={alt} onError={() => setFailed(true)} />
+      )}
+    </button>
+  );
+}
+
+function SettingsPage() {
+  const [confirmation, setConfirmation] = useState('');
+  const [wipeResult, setWipeResult] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+  const { loading, data, error } = useAsync(() => api('/api/admin/settings/summary'), [refresh]);
+  async function wipeData() {
+    if (confirmation !== 'WIPE COMFI DATA') return;
+    if (!confirm('This will permanently delete chats, users, reports, media, blocks, identities, and uploads. Admin accounts are kept. Continue?')) return;
+    setBusy(true);
+    try {
+      const result = await api('/api/admin/settings/wipe-data', {
+        method: 'POST',
+        body: JSON.stringify({ confirmation })
+      });
+      setWipeResult(result.deleted);
+      setConfirmation('');
+      setRefresh(x => x + 1);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="page-stack">
+      {loading && <Loading label="Loading settings..." />}
+      {error && <ErrorState message={error} />}
+      {data && (
+        <>
+          <section className="settings-grid">
+            <Panel title="Recommended Admin Settings" subtitle="Operational defaults for a moderation-heavy chat service">
+              <div className="settings-list">
+                {data.recommendations.map(item => (
+                  <div className="settings-row" key={item.title}>
+                    <CheckCircle2 size={18} />
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>{item.description}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+            <Panel title="Data Summary" subtitle="Current records that would be affected by cleanup actions">
+              <div className="settings-count-grid">
+                <Stat label="Messages" value={data.counts.messages} />
+                <Stat label="Reports" value={data.counts.reports} />
+                <Stat label="Registered users" value={data.counts.registeredUsers} />
+                <Stat label="Temp users" value={data.counts.tempUsers} />
+                <Stat label="Media" value={data.counts.media} />
+                <Stat label="Media size" value={formatBytes(data.counts.mediaBytes)} />
+              </div>
+            </Panel>
+          </section>
+          <Panel title="Danger Zone" subtitle="Use before public launch to remove test data. Admin accounts are preserved.">
+            <div className="danger-zone">
+              <AlertTriangle size={28} />
+              <div>
+                <strong>Wipe all service data</strong>
+                <p>This deletes chats, reports, registered users, pending users, temp users, login events, media records, uploaded files, blocks, moderation actions, and identity groupings. Admin accounts are not deleted.</p>
+                <label>
+                  Type <code>WIPE COMFI DATA</code> to confirm
+                  <input value={confirmation} onChange={e => setConfirmation(e.target.value)} placeholder="WIPE COMFI DATA" />
+                </label>
+                <button className="danger" disabled={confirmation !== 'WIPE COMFI DATA' || busy} onClick={wipeData}>
+                  <Trash2 size={16} /> {busy ? 'Wiping...' : 'Wipe all service data'}
+                </button>
+                {wipeResult && (
+                  <div className="surface-note">
+                    Deleted: {Object.entries(wipeResult).map(([key, value]) => `${key}: ${value}`).join(', ')}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Panel>
+        </>
       )}
     </div>
   );
