@@ -85,6 +85,23 @@ function dateBuckets(from, to) {
 	return buckets;
 }
 
+function riskForIdentity(row) {
+	const reportPoints = Math.min((row.reportCount || 0) * 18, 45);
+	const blockedPoints = Math.min((row.blockedByCount || 0) * 14, 35);
+	const aliasPoints = row.deviceId ? Math.min(Math.max((row.usernames || []).length - 1, 0) * 10, 25) : 0;
+	const volumePoints = Math.min(Math.floor((row.messageCount || 0) / 25) * 5, 20);
+	const recentHours = row.lastSeenAt ? (Date.now() - new Date(row.lastSeenAt).getTime()) / (60 * 60 * 1000) : Infinity;
+	const recentPoints = recentHours <= 24 ? 10 : recentHours <= 72 ? 5 : 0;
+	const score = Math.min(100, reportPoints + blockedPoints + aliasPoints + volumePoints + recentPoints);
+	const level = score >= 75 ? 'critical' : score >= 50 ? 'high' : score >= 25 ? 'medium' : 'low';
+	return { score, level };
+}
+
+function evidenceFilename(prefix, parts) {
+	const safe = parts.filter(Boolean).join('_').replace(/[^a-z0-9_.-]+/gi, '-').slice(0, 80);
+	return `${prefix}-${safe || 'bundle'}-${Date.now()}.json`;
+}
+
 async function recordAction(req, payload) {
 	try {
 		await ModerationAction.create({
@@ -229,6 +246,7 @@ async function buildIdentityRows({ search, limit = 100 } = {}) {
 		row.gender = latestDemo.gender || 'unknown';
 		row.country = latestDemo.country || 'Unknown';
 		row.countryCode = latestDemo.countryCode || '';
+		row.risk = riskForIdentity(row);
 		return row;
 	});
 	if (searchRegex) {
@@ -245,7 +263,9 @@ async function buildIdentityRows({ search, limit = 100 } = {}) {
 router.get('/dashboard/summary', async (req, res) => {
 	try {
 		const { from, to } = parseDateRange(req.query || {});
-		const [messageBuckets, loginBuckets, reportBuckets, mediaBuckets, activeUsers, openReports, mediaSize, frequentBlocks, frequentReports, identities] = await Promise.all([
+		const liveSince = new Date(Date.now() - 15 * 60 * 1000);
+		const previousSince = new Date(Date.now() - 30 * 60 * 1000);
+		const [messageBuckets, loginBuckets, reportBuckets, mediaBuckets, activeUsers, openReports, mediaSize, frequentBlocks, frequentReports, identities, liveMessages, previousLiveMessages, activeConversations] = await Promise.all([
 			Message.aggregate([
 				{ $match: activeMessageMatch({ timestamp: { $gte: from, $lte: to } }) },
 				{ $group: { _id: { $dateToString: { format: '%Y-%m-%d', date: '$timestamp' } }, messages: { $sum: 1 }, images: { $sum: { $cond: [{ $or: buildImageMessageOr().map(q => ({ $regexMatch: { input: '$message', regex: q.message.$regex, options: q.message.$options } })) }, 1, 0] } }, uniqueSenders: { $addToSet: '$senderDeviceId' } } },
@@ -271,7 +291,19 @@ router.get('/dashboard/summary', async (req, res) => {
 			Media.aggregate([{ $match: { deletedAt: { $exists: false } } }, { $group: { _id: null, bytes: { $sum: '$byteLength' }, count: { $sum: 1 } } }]),
 			ModerationBlock.aggregate([{ $group: { _id: '$blockedUsername', count: { $sum: 1 } } }, { $sort: { count: -1 } }, { $limit: 8 }]),
 			Report.aggregate([{ $group: { _id: '$reportedUser', count: { $sum: 1 } } }, { $sort: { count: -1 } }, { $limit: 8 }]),
-			buildIdentityRows({ limit: 1000 })
+			buildIdentityRows({ limit: 1000 }),
+			Message.countDocuments(activeMessageMatch({ timestamp: { $gte: liveSince } })),
+			Message.countDocuments(activeMessageMatch({ timestamp: { $gte: previousSince, $lt: liveSince } })),
+			Message.aggregate([
+				{ $match: activeMessageMatch({ timestamp: { $gte: liveSince } }) },
+				{ $project: {
+					a: { $cond: [{ $lte: ['$sender', '$recipient'] }, '$sender', '$recipient'] },
+					b: { $cond: [{ $lte: ['$sender', '$recipient'] }, '$recipient', '$sender'] }
+				} },
+				{ $group: { _id: { a: '$a', b: '$b' }, messages: { $sum: 1 } } },
+				{ $sort: { messages: -1 } },
+				{ $limit: 8 }
+			])
 		]);
 		const byDay = new Map(dateBuckets(from, to).map(day => [day, { day, messages: 0, images: 0, logins: 0, logouts: 0, uniqueDevices: 0, reports: 0, uploads: 0, bytes: 0 }]));
 		for (const row of messageBuckets) {
@@ -366,6 +398,18 @@ router.get('/dashboard/summary', async (req, res) => {
 				recurringDevices: deviceRows.filter(i => i.namesCount > 1).sort((a, b) => b.namesCount - a.namesCount || new Date(b.lastSeenAt || 0) - new Date(a.lastSeenAt || 0)).slice(0, 8),
 				highVolumeDevices: deviceRows.filter(i => i.messageCount > 0).sort((a, b) => b.messageCount - a.messageCount).slice(0, 8),
 				recentDevices: deviceRows.sort((a, b) => new Date(b.lastSeenAt || 0) - new Date(a.lastSeenAt || 0)).slice(0, 8)
+			},
+			risk: {
+				highest: identities.filter(i => i.risk).sort((a, b) => b.risk.score - a.risk.score).slice(0, 8),
+				criticalCount: identities.filter(i => i.risk && i.risk.level === 'critical').length,
+				highCount: identities.filter(i => i.risk && i.risk.level === 'high').length
+			},
+			liveNow: {
+				activeUsers,
+				messagesLast15m: liveMessages,
+				previous15mMessages: previousLiveMessages,
+				spikePercent: previousLiveMessages ? Math.round(((liveMessages - previousLiveMessages) / previousLiveMessages) * 100) : (liveMessages ? 100 : 0),
+				activeConversations: activeConversations.map(c => ({ userA: c._id.a, userB: c._id.b, messages: c.messages }))
 			}
 		});
 	} catch (e) {
@@ -398,11 +442,15 @@ router.get('/reports/:id', async (req, res) => {
 
 router.patch('/reports/:id', async (req, res) => {
 	try {
-		const { status, adminNotes } = req.body || {};
+		const { status, adminNotes, severity, assignedAdminId, followUpAt } = req.body || {};
 		const allowed = ['open', 'in_review', 'resolved', 'dismissed'];
 		if (status && !allowed.includes(status)) return res.status(400).json({ error: 'Invalid status' });
+		if (severity && !['low', 'medium', 'high', 'critical'].includes(severity)) return res.status(400).json({ error: 'Invalid severity' });
 		const update = {};
 		if (status) update.status = status;
+		if (severity) update.severity = severity;
+		if (assignedAdminId !== undefined) update.assignedAdminId = String(assignedAdminId || '');
+		if (followUpAt !== undefined) update.followUpAt = followUpAt ? new Date(followUpAt) : null;
 		if (adminNotes !== undefined) update.adminNotes = String(adminNotes || '');
 		update.reviewedByAdminId = req.admin && req.admin.sub;
 		update.reviewedAt = new Date();
@@ -413,7 +461,7 @@ router.patch('/reports/:id', async (req, res) => {
 			reportId: report._id,
 			targetUser: report.reportedUser,
 			relatedUser: report.reportingUser,
-			metadata: { status: report.status, adminNotes: report.adminNotes || '' }
+			metadata: { status: report.status, severity: report.severity, assignedAdminId: report.assignedAdminId, followUpAt: report.followUpAt, adminNotes: report.adminNotes || '' }
 		});
 		res.json(report);
 	} catch (e) {
@@ -500,10 +548,30 @@ router.get('/identities/detail', async (req, res) => {
 			username ? getConversationsForUser(username, deviceId) : Promise.resolve([]),
 			username ? getImagesForUser(username, deviceId, 60) : Promise.resolve([])
 		]);
-		res.json({ identity, loginEvents, reportsAgainst, reportsMade, blocksAgainst, blocksMade, actions, conversations, media });
+		const timeline = [
+			...loginEvents.map(e => ({ type: `login_${e.type}`, at: e.timestamp, title: `${e.type} as ${e.username}`, metadata: { deviceId: e.deviceId, userType: e.userType } })),
+			...reportsAgainst.map(r => ({ type: 'reported', at: r.createdAt, title: `${r.reportedUser} reported by ${r.reportingUser}`, metadata: { reason: r.reason, status: r.status, severity: r.severity } })),
+			...reportsMade.map(r => ({ type: 'reported_other', at: r.createdAt, title: `${r.reportingUser} reported ${r.reportedUser}`, metadata: { reason: r.reason, status: r.status } })),
+			...blocksAgainst.map(b => ({ type: 'blocked_by_other', at: b.createdAt, title: `${b.blockedUsername} blocked by ${b.blockerUsername}`, metadata: { source: b.source, reason: b.reason } })),
+			...blocksMade.map(b => ({ type: 'blocked_other', at: b.createdAt, title: `${b.blockerUsername} blocked ${b.blockedUsername}`, metadata: { source: b.source, reason: b.reason } })),
+			...actions.map(a => ({ type: 'admin_action', at: a.createdAt, title: a.actionType, metadata: a.metadata }))
+		].sort((a, b) => new Date(b.at || 0) - new Date(a.at || 0)).slice(0, 120);
+		res.json({ identity, loginEvents, reportsAgainst, reportsMade, blocksAgainst, blocksMade, actions, conversations, media, timeline });
 	} catch (e) {
 		console.error('[Admin] identity detail', e);
 		res.status(500).json({ error: 'Failed to load identity detail' });
+	}
+});
+
+router.get('/cases', async (req, res) => {
+	try {
+		const status = req.query.status;
+		const match = status && status !== 'all' ? { status } : {};
+		const reports = await Report.find(match).sort({ followUpAt: 1, createdAt: -1 }).limit(normalizeLimit(req.query.limit, 200, 500)).lean();
+		res.json(reports);
+	} catch (e) {
+		console.error('[Admin] cases', e);
+		res.status(500).json({ error: 'Failed to load cases' });
 	}
 });
 
@@ -902,6 +970,67 @@ router.get('/media', async (req, res) => {
 	} catch (e) {
 		console.error('[Admin] media list error', e);
 		res.status(500).json({ error: 'Failed to load media' });
+	}
+});
+
+router.get('/storage/cleanup', async (req, res) => {
+	try {
+		const limit = normalizeLimit(req.query.limit, 80, 200);
+		const olderThanDays = Math.max(1, Math.min(parseInt(req.query.olderThanDays || '30', 10) || 30, 3650));
+		const minBytes = Math.max(0, parseInt(req.query.minBytes || `${512 * 1024}`, 10) || 0);
+		const olderThan = new Date(Date.now() - olderThanDays * DAY_MS);
+		const match = { deletedAt: { $exists: false }, $or: [{ createdAt: { $lte: olderThan } }, { byteLength: { $gte: minBytes } }] };
+		const [items, totals] = await Promise.all([
+			Media.find(match).select('-bytes').sort({ byteLength: -1, createdAt: 1 }).limit(limit).lean(),
+			Media.aggregate([{ $match: { deletedAt: { $exists: false } } }, { $group: { _id: null, bytes: { $sum: '$byteLength' }, count: { $sum: 1 } } }])
+		]);
+		res.json({ items, summary: totals[0] || { bytes: 0, count: 0 }, filters: { olderThanDays, minBytes } });
+	} catch (e) {
+		console.error('[Admin] storage cleanup', e);
+		res.status(500).json({ error: 'Failed to load cleanup candidates' });
+	}
+});
+
+router.get('/evidence/report/:id', async (req, res) => {
+	try {
+		const report = await Report.findById(req.params.id).lean();
+		if (!report) return res.status(404).json({ error: 'Not found' });
+		const [messages, reportsAgainst, blocksAgainst] = await Promise.all([
+			Message.find(activeMessageMatch({ $or: [
+				{ sender: report.reportingUser, recipient: report.reportedUser },
+				{ sender: report.reportedUser, recipient: report.reportingUser }
+			] })).sort({ timestamp: 1 }).lean(),
+			Report.find({ reportedUser: report.reportedUser }).sort({ createdAt: -1 }).limit(50).lean(),
+			ModerationBlock.find({ blockedUsername: report.reportedUser }).sort({ createdAt: -1 }).limit(50).lean()
+		]);
+		const bundle = { exportedAt: new Date(), type: 'report', report, messages, reportsAgainst, blocksAgainst };
+		res.setHeader('Content-Disposition', `attachment; filename="${evidenceFilename('report', [report.reportingUser, report.reportedUser])}"`);
+		res.json(bundle);
+	} catch (e) {
+		console.error('[Admin] report evidence', e);
+		res.status(500).json({ error: 'Failed to export evidence' });
+	}
+});
+
+router.get('/evidence/conversation', async (req, res) => {
+	try {
+		const { userA, userB, devA, devB } = req.query || {};
+		if (!userA || !userB) return res.status(400).json({ error: 'Missing users' });
+		const clause1 = { sender: userA, recipient: userB };
+		const clause2 = { sender: userB, recipient: userA };
+		if (devA) clause1.senderDeviceId = devA;
+		if (devB) clause1.recipientDeviceId = devB;
+		if (devB) clause2.senderDeviceId = devB;
+		if (devA) clause2.recipientDeviceId = devA;
+		const [messages, reports] = await Promise.all([
+			Message.find(activeMessageMatch({ $or: [clause1, clause2] })).sort({ timestamp: 1 }).lean(),
+			Report.find({ $or: [{ reportingUser: userA, reportedUser: userB }, { reportingUser: userB, reportedUser: userA }] }).sort({ createdAt: -1 }).lean()
+		]);
+		res.setHeader('Content-Disposition', `attachment; filename="${evidenceFilename('conversation', [userA, userB])}"`);
+		res.json({ exportedAt: new Date(), type: 'conversation', participants: { userA, userB, devA, devB }, messages, reports });
+	} catch (e) {
+		console.error('[Admin] conversation evidence', e);
+		res.status(500).json({ error: 'Failed to export evidence' });
 	}
 });
 
