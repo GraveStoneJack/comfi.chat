@@ -20,10 +20,12 @@ import {
 } from 'recharts';
 import {
   Activity,
+  Archive,
   BarChart3,
   Blocks,
   CheckCircle2,
   ChevronRight,
+  Download,
   Eye,
   Image,
   LogOut,
@@ -41,6 +43,8 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
   { id: 'users', label: 'User States', icon: Users },
   { id: 'reports', label: 'Reports', icon: Shield },
+  { id: 'cases', label: 'Cases', icon: CheckCircle2 },
+  { id: 'storage', label: 'Storage', icon: Archive },
   { id: 'blocks', label: 'Blocks', icon: Blocks },
   { id: 'chats', label: 'Chats', icon: MessageSquare }
 ];
@@ -103,6 +107,21 @@ function imageUrlFromMessage(message) {
 
 function isImageMessage(message) {
   return typeof message === 'string' && (message.startsWith('[image]') || /\.(png|jpe?g|gif|webp|avif)(\?.*)?$/i.test(message));
+}
+
+async function downloadEvidence(url, fallbackName) {
+  const res = await fetch(url, { credentials: 'include' });
+  if (!res.ok) throw new Error('Failed to export evidence');
+  const blob = await res.blob();
+  const disposition = res.headers.get('content-disposition') || '';
+  const match = /filename="([^"]+)"/.exec(disposition);
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = match ? match[1] : fallbackName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(link.href);
 }
 
 function useAsync(loader, deps) {
@@ -232,6 +251,8 @@ function Shell({ me, onLogout, theme, setTheme }) {
     dashboard: <Dashboard onUserFilter={openUsersWithFilter} />,
     users: <UsersPage openLightbox={setLightbox} initialFilter={userFilter} onClearInitialFilter={() => setUserFilter(null)} />,
     reports: <ReportsPage />,
+    cases: <CasesPage />,
+    storage: <StoragePage openLightbox={setLightbox} />,
     blocks: <BlocksPage />,
     chats: <ChatsPage openLightbox={setLightbox} />
   }[tab];
@@ -357,6 +378,23 @@ function Dashboard({ onUserFilter }) {
         <KpiCard icon={Shield} label="Open reports" value={formatNumber(kpis.openReports)} hint="Open or in review" />
       </section>
       <section className="grid two">
+        <Panel title="Live Now" subtitle="Current activity and short-term spikes">
+          <div className="live-grid">
+            <Stat label="Active users" value={data.liveNow?.activeUsers} />
+            <Stat label="Messages last 15m" value={data.liveNow?.messagesLast15m} />
+            <Stat label="Spike vs previous 15m" value={`${data.liveNow?.spikePercent || 0}%`} />
+          </div>
+          <MiniFeed
+            title="Active Conversations"
+            items={data.liveNow?.activeConversations || []}
+            render={row => `${row.userA} ↔ ${row.userB}: ${row.messages} recent messages`}
+          />
+        </Panel>
+        <Panel title="Moderation Risk" subtitle="Users/devices with the strongest risk signals">
+          <RiskList items={data.risk?.highest || []} onSelect={item => onUserFilter({ type: item.deviceId ? 'deviceId' : 'currentUsername', value: item.deviceId || item.currentUsername })} />
+        </Panel>
+      </section>
+      <section className="grid two">
         <Panel title="Chat Activity" subtitle="Messages, images, and reports by day">
           <Chart height={320}>
             <AreaChart data={data.timeline}>
@@ -405,6 +443,26 @@ function Dashboard({ onUserFilter }) {
         <DeviceList title="High Volume Devices" subtitle="Devices with the most chat messages" items={data.needsAttention.highVolumeDevices} onSelect={device => onUserFilter({ type: 'deviceId', value: device.deviceId })} valueKey="messageCount" valueLabel="messages" />
         <DeviceList title="Recently Active Devices" subtitle="Latest seen devices and names used" items={data.needsAttention.recentDevices} onSelect={device => onUserFilter({ type: 'deviceId', value: device.deviceId })} valueKey="usernamesCount" valueLabel="names" />
       </section>
+    </div>
+  );
+}
+
+function RiskList({ items = [], onSelect }) {
+  if (!items.length) return <Empty label="No elevated risk signals yet." />;
+  return (
+    <div className="risk-list">
+      {items.map(item => (
+        <button className={`risk-row ${item.risk?.level || 'low'}`} key={item.key} onClick={() => onSelect(item)}>
+          <div>
+            <strong>{item.currentUsername}</strong>
+            <span>{item.deviceId ? shortDeviceId(item.deviceId) : 'No device id'} · {(item.usernames || []).length} names</span>
+          </div>
+          <div className="risk-score">
+            <strong>{item.risk?.score || 0}</strong>
+            <span>{item.risk?.level || 'low'}</span>
+          </div>
+        </button>
+      ))}
     </div>
   );
 }
@@ -571,6 +629,7 @@ function IdentityDetail({ detail, openLightbox }) {
         <Stat label="Images" value={identity.imageCount} />
         <Stat label="Reports" value={identity.reportCount} />
         <Stat label="Blocked by" value={identity.blockedByCount} />
+        <Stat label="Risk" value={identity.risk?.score || 0} />
       </div>
       <section>
         <h4>Names Used</h4>
@@ -598,6 +657,10 @@ function IdentityDetail({ detail, openLightbox }) {
           <MiniFeed title="Reports Against" items={detail.reportsAgainst} render={r => `${r.reportingUser} reported ${r.reportedUser}: ${r.reason}`} />
           <MiniFeed title="Blocks Against" items={detail.blocksAgainst} render={b => `${b.blockerUsername} blocked ${b.blockedUsername}`} />
         </div>
+      </section>
+      <section>
+        <h4>Repeat Offender Timeline</h4>
+        <Timeline items={detail.timeline || []} />
       </section>
     </div>
   );
@@ -632,11 +695,14 @@ function ReportsPage() {
 function ReportDetail({ report, onUpdated }) {
   const [status, setStatus] = useState(report.status);
   const [notes, setNotes] = useState(report.adminNotes || '');
+  const [severity, setSeverity] = useState(report.severity || 'medium');
+  const [assignedAdminId, setAssignedAdminId] = useState(report.assignedAdminId || '');
+  const [followUpAt, setFollowUpAt] = useState(report.followUpAt ? formatDateInput(report.followUpAt) : '');
   const chat = useAsync(() => api(`/api/admin/messages/history/${encodeURIComponent(report.reportingUser)}/${encodeURIComponent(report.reportedUser)}`), [report._id]);
   async function save() {
     await api(`/api/admin/reports/${report._id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ status, adminNotes: notes })
+      body: JSON.stringify({ status, adminNotes: notes, severity, assignedAdminId, followUpAt })
     });
     onUpdated();
   }
@@ -652,14 +718,97 @@ function ReportDetail({ report, onUpdated }) {
       <p className="surface-note">{report.additionalInfo || 'No additional notes from reporter.'}</p>
       <div className="form-grid">
         <label>Status<select value={status} onChange={e => setStatus(e.target.value)}><option>open</option><option>in_review</option><option>resolved</option><option>dismissed</option></select></label>
+        <label>Severity<select value={severity} onChange={e => setSeverity(e.target.value)}><option>low</option><option>medium</option><option>high</option><option>critical</option></select></label>
+        <label>Assigned admin<input value={assignedAdminId} onChange={e => setAssignedAdminId(e.target.value)} placeholder="Admin id or name" /></label>
+        <label>Follow-up date<input type="date" value={followUpAt} onChange={e => setFollowUpAt(e.target.value)} /></label>
         <label>Admin notes<textarea value={notes} onChange={e => setNotes(e.target.value)} rows="4" /></label>
       </div>
-      <button className="primary" onClick={save}><CheckCircle2 size={16} /> Save review</button>
+      <div className="action-row">
+        <button className="primary" onClick={save}><CheckCircle2 size={16} /> Save review</button>
+        <button className="ghost" onClick={() => downloadEvidence(`/api/admin/evidence/report/${report._id}`, `report-${report._id}.json`)}><Download size={16} /> Export evidence</button>
+      </div>
       <section>
         <h4>Related Conversation</h4>
         {chat.loading && <Loading label="Loading evidence..." />}
         {chat.data && <MessageFeed messages={chat.data} />}
       </section>
+    </div>
+  );
+}
+
+function CasesPage() {
+  const [status, setStatus] = useState('all');
+  const [selected, setSelected] = useState(null);
+  const [refresh, setRefresh] = useState(0);
+  const { loading, data, error } = useAsync(() => api(`/api/admin/cases?status=${encodeURIComponent(status)}`), [status, refresh]);
+  return (
+    <div className="split-layout">
+      <Panel title="Case Management" subtitle="Severity, owner, notes, and follow-up reminders">
+        <Toolbar>
+          <select value={status} onChange={e => setStatus(e.target.value)}>
+            <option value="all">All cases</option>
+            <option value="open">Open</option>
+            <option value="in_review">In review</option>
+            <option value="resolved">Resolved</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+        </Toolbar>
+        {loading && <Loading label="Loading cases..." />}
+        {error && <ErrorState message={error} />}
+        <div className="report-list">
+          {(data || []).map(report => (
+            <button key={report._id} className={selected?._id === report._id ? 'report-card active' : 'report-card'} onClick={() => setSelected(report)}>
+              <span className={`status ${report.status}`}>{report.status}</span>
+              <span className={`severity ${report.severity || 'medium'}`}>{report.severity || 'medium'}</span>
+              <strong>{report.reportedUser}</strong>
+              <small>Assigned: {report.assignedAdminId || 'Unassigned'} · Follow-up: {report.followUpAt ? formatDate(report.followUpAt) : 'None'}</small>
+            </button>
+          ))}
+        </div>
+      </Panel>
+      <Panel title="Case Detail" subtitle={selected ? selected.reason : 'Select a case'}>
+        {selected ? <ReportDetail report={selected} onUpdated={() => setRefresh(x => x + 1)} /> : <Empty label="Select a case to manage." />}
+      </Panel>
+    </div>
+  );
+}
+
+function StoragePage({ openLightbox }) {
+  const [olderThanDays, setOlderThanDays] = useState('30');
+  const [minBytes, setMinBytes] = useState(`${512 * 1024}`);
+  const [refresh, setRefresh] = useState(0);
+  const { loading, data, error } = useAsync(() => api(`/api/admin/storage/cleanup?olderThanDays=${olderThanDays}&minBytes=${minBytes}`), [olderThanDays, minBytes, refresh]);
+  async function deleteMedia(item) {
+    if (!confirm(`Delete ${item.filename || item.originalUrl} from admin media storage?`)) return;
+    await api(`/api/admin/media/${item._id}`, { method: 'DELETE', body: JSON.stringify({ reason: 'storage_cleanup' }) });
+    setRefresh(x => x + 1);
+  }
+  return (
+    <div className="page-stack">
+      <Toolbar>
+        <label>Older than days<input type="number" value={olderThanDays} onChange={e => setOlderThanDays(e.target.value)} /></label>
+        <label>Minimum size<input type="number" value={minBytes} onChange={e => setMinBytes(e.target.value)} /></label>
+        <span className="range-caption">{data ? `${formatNumber(data.summary.count)} retained files · ${formatBytes(data.summary.bytes)}` : ''}</span>
+      </Toolbar>
+      {loading && <Loading label="Loading cleanup candidates..." />}
+      {error && <ErrorState message={error} />}
+      {data && (
+        <Panel title="Storage Cleanup Center" subtitle="Review large or old media before deletion">
+          <div className="cleanup-grid">
+            {data.items.map(item => {
+              const url = `${location.origin}/api/admin/media/resolve?src=${encodeURIComponent(item.originalUrl || `/uploads/${item.filename}`)}`;
+              return (
+                <article className="cleanup-card" key={item._id}>
+                  <button onClick={() => openLightbox(url)}><img src={url} alt={item.filename || 'media'} /></button>
+                  <strong>{item.filename || 'Media item'}</strong>
+                  <span>{item.uploader || 'Unknown uploader'} · {formatBytes(item.byteLength)} · {formatDate(item.createdAt)}</span>
+                  <button className="danger subtle" onClick={() => deleteMedia(item)}><Trash2 size={14} /> Delete after review</button>
+                </article>
+              );
+            })}
+          </div>
+        </Panel>
+      )}
     </div>
   );
 }
@@ -729,6 +878,16 @@ function ChatsPage({ openLightbox }) {
     });
     setRefresh(x => x + 1);
   }
+  function exportConversation() {
+    if (!selected) return;
+    const params = new URLSearchParams({
+      userA: selected.userA,
+      userB: selected.userB,
+      ...(selected.devA ? { devA: selected.devA } : {}),
+      ...(selected.devB ? { devB: selected.devB } : {})
+    });
+    downloadEvidence(`/api/admin/evidence/conversation?${params.toString()}`, `conversation-${selected.userA}-${selected.userB}.json`);
+  }
   return (
     <div className="page-stack">
       <div className="chat-moderation-layout">
@@ -753,7 +912,12 @@ function ChatsPage({ openLightbox }) {
         </div>
         <div className="chat-right-column">
           <Panel title="Transcript" subtitle={selected ? `${selected.userA} and ${selected.userB}` : 'Select a conversation'}>
-            {selected && <button className="danger subtle" onClick={clearConversation}><Trash2 size={16} /> Clear conversation</button>}
+            {selected && (
+              <div className="action-row">
+                <button className="ghost" onClick={exportConversation}><Download size={16} /> Export evidence</button>
+                <button className="danger subtle" onClick={clearConversation}><Trash2 size={16} /> Clear conversation</button>
+              </div>
+            )}
             {selected ? <MessageFeed messages={history.data || []} openLightbox={openLightbox} onDelete={deleteMessage} contained /> : <Empty label="Choose a conversation to view messages and images." />}
           </Panel>
           <Panel title="Keyword Results" subtitle={`${search.data?.total || 0} matching messages`}>
@@ -761,6 +925,21 @@ function ChatsPage({ openLightbox }) {
           </Panel>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Timeline({ items = [] }) {
+  if (!items.length) return <Empty label="No timeline events yet." />;
+  return (
+    <div className="timeline">
+      {items.map((item, index) => (
+        <div className="timeline-item" key={`${item.type}-${item.at}-${index}`}>
+          <span>{formatDate(item.at)}</span>
+          <strong>{item.title}</strong>
+          <small>{item.type}</small>
+        </div>
+      ))}
     </div>
   );
 }
@@ -862,7 +1041,7 @@ function Chart({ height, children }) {
 }
 
 function Stat({ label, value }) {
-  return <div className="stat"><span>{label}</span><strong>{formatNumber(value)}</strong></div>;
+  return <div className="stat"><span>{label}</span><strong>{typeof value === 'number' ? formatNumber(value) : value || 0}</strong></div>;
 }
 
 function Empty({ label }) {

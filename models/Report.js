@@ -7,9 +7,12 @@ const reportSchema = new mongoose.Schema({
 	reason: { type: String, required: true, trim: true },
 	additionalInfo: { type: String, trim: true },
 	status: { type: String, enum: ['open', 'in_review', 'resolved', 'dismissed'], default: 'open', index: true },
-    adminNotes: { type: String, trim: true },
-    reviewedByAdminId: { type: String, index: true },
-    reviewedAt: { type: Date },
+	severity: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium', index: true },
+	assignedAdminId: { type: String, index: true },
+	followUpAt: { type: Date, index: true },
+	adminNotes: { type: String, trim: true },
+	reviewedByAdminId: { type: String, index: true },
+	reviewedAt: { type: Date },
 	createdAt: { type: Date, default: Date.now, index: true },
 	updatedAt: { type: Date, default: Date.now }
 }, { timestamps: { createdAt: 'createdAt', updatedAt: 'updatedAt' } });
