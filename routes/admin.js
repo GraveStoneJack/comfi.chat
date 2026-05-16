@@ -5,6 +5,7 @@ const { requireAdmin } = require('./adminAuth');
 const LoginEvent = require('../models/LoginEvent');
 const TempUser = require('../models/TempUser');
 const User = require('../models/User');
+const PendingUser = require('../models/PendingUser');
 const Media = require('../models/Media');
 const ModerationAction = require('../models/ModerationAction');
 const ModerationBlock = require('../models/ModerationBlock');
@@ -991,6 +992,109 @@ router.get('/storage/cleanup', async (req, res) => {
 	}
 });
 
+router.get('/settings/summary', async (_req, res) => {
+	try {
+		const [
+			messages,
+			reports,
+			loginEvents,
+			tempUsers,
+			registeredUsers,
+			pendingUsers,
+			media,
+			blocks,
+			actions,
+			identities
+		] = await Promise.all([
+			Message.countDocuments(),
+			Report.countDocuments(),
+			LoginEvent.countDocuments(),
+			TempUser.countDocuments(),
+			User.countDocuments(),
+			PendingUser.countDocuments(),
+			Media.aggregate([{ $group: { _id: null, count: { $sum: 1 }, bytes: { $sum: '$byteLength' } } }]),
+			ModerationBlock.countDocuments(),
+			ModerationAction.countDocuments(),
+			UserIdentity.countDocuments()
+		]);
+		res.json({
+			counts: {
+				messages,
+				reports,
+				loginEvents,
+				tempUsers,
+				registeredUsers,
+				pendingUsers,
+				media: (media[0] && media[0].count) || 0,
+				mediaBytes: (media[0] && media[0].bytes) || 0,
+				blocks,
+				actions,
+				identities
+			},
+			recommendations: [
+				{ title: 'Review reports daily', description: 'Open and in-review reports should be triaged before they age out of context.' },
+				{ title: 'Export evidence before deletion', description: 'Export report or conversation evidence before clearing chats or media.' },
+				{ title: 'Use storage cleanup weekly', description: 'Review large or old images, then delete only after moderation review.' },
+				{ title: 'Wipe staging before public launch', description: 'Use the danger zone to remove test chats, accounts, media, and moderation artifacts while preserving admin accounts.' }
+			],
+			dangerConfirmation: 'WIPE COMFI DATA'
+		});
+	} catch (e) {
+		console.error('[Admin] settings summary', e);
+		res.status(500).json({ error: 'Failed to load settings summary' });
+	}
+});
+
+router.post('/settings/wipe-data', async (req, res) => {
+	try {
+		const { confirmation } = req.body || {};
+		if (confirmation !== 'WIPE COMFI DATA') {
+			return res.status(400).json({ error: 'Confirmation text did not match' });
+		}
+		const collections = [
+			['messages', Message],
+			['reports', Report],
+			['loginEvents', LoginEvent],
+			['tempUsers', TempUser],
+			['registeredUsers', User],
+			['pendingUsers', PendingUser],
+			['media', Media],
+			['blocks', ModerationBlock],
+			['actions', ModerationAction],
+			['identities', UserIdentity]
+		];
+		const deleted = {};
+		for (const [name, model] of collections) {
+			const result = await model.deleteMany({});
+			deleted[name] = result.deletedCount || 0;
+		}
+		const uploadsDir = path.join(__dirname, '..', 'uploads');
+		let uploadFilesDeleted = 0;
+		try {
+			if (fs.existsSync(uploadsDir)) {
+				for (const entry of fs.readdirSync(uploadsDir)) {
+					const filePath = path.join(uploadsDir, entry);
+					if (fs.statSync(filePath).isFile()) {
+						fs.unlinkSync(filePath);
+						uploadFilesDeleted += 1;
+					}
+				}
+			}
+		} catch (fileError) {
+			console.error('[Admin] wipe uploads warning', fileError);
+		}
+		deleted.uploadFiles = uploadFilesDeleted;
+		await recordAction(req, {
+			actionType: 'clear_user_history',
+			metadata: { dangerZoneWipe: true, deleted }
+		});
+		res.json({ ok: true, deleted });
+	} catch (e) {
+		console.error('[Admin] wipe data', e);
+		res.status(500).json({ error: 'Failed to wipe data' });
+	}
+});
+
 router.get('/evidence/report/:id', async (req, res) => {
 	try {
 		const report = await Report.findById(req.params.id).lean();
@@ -1009,6 +1113,21 @@ router.get('/evidence/report/:id', async (req, res) => {
 	} catch (e) {
 		console.error('[Admin] report evidence', e);
 		res.status(500).json({ error: 'Failed to export evidence' });
+	}
+});
+
+router.get('/media/:id/content', async (req, res) => {
+	try {
+		const mediaDoc = await Media.findOne({ _id: req.params.id, deletedAt: { $exists: false } }).lean();
+		if (!mediaDoc || !mediaDoc.bytes) return res.status(404).send('Not found');
+		res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+		res.setHeader('Access-Control-Allow-Origin', '*');
+		res.setHeader('Content-Type', mediaDoc.contentType || 'application/octet-stream');
+		res.setHeader('Cache-Control', 'private, max-age=3600');
+		return res.end(mediaDoc.bytes);
+	} catch (e) {
+		console.error('[Admin] media content error', e);
+		res.status(500).send('Failed to resolve media');
 	}
 });
 
