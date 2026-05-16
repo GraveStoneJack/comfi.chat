@@ -407,6 +407,7 @@ label {
   border-radius: 22px;
   background: var(--surface);
   box-shadow: var(--shadow);
+  flex-wrap: wrap;
 }
 
 .search-box {
@@ -428,6 +429,31 @@ label {
   grid-template-columns: minmax(360px, 0.9fr) minmax(520px, 1.35fr);
   gap: 18px;
   align-items: start;
+}
+
+.chat-moderation-layout {
+  display: grid;
+  grid-template-columns: minmax(360px, 0.78fr) minmax(640px, 1.42fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.chat-left-column,
+.chat-right-column {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+
+.chat-left-column {
+  position: sticky;
+  top: 24px;
+}
+
+.conversation-list {
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .identity-list,
@@ -471,12 +497,26 @@ label {
 }
 
 .mini-tags span,
-.status {
+.status,
+.filter-chip {
   border-radius: 999px;
   padding: 5px 9px;
   font-size: 12px;
   color: var(--muted);
   background: rgba(155, 92, 255, 0.1);
+}
+
+.filter-chip {
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  padding: 10px 12px;
+}
+
+.filter-chip span {
+  color: var(--muted);
 }
 
 .mini-tags .good {
@@ -628,9 +668,35 @@ th {
   cursor: zoom-in;
 }
 
-.compact-feed {
-  max-height: 420px;
+.contained-feed {
+  max-height: 48vh;
   overflow: auto;
+  padding-right: 4px;
+}
+
+.compact-feed {
+  max-height: 34vh;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.chart-click-target,
+.chart-click-target * {
+  cursor: pointer;
+}
+
+.recharts-wrapper *:focus,
+.recharts-surface:focus,
+.recharts-sector:focus,
+.recharts-rectangle:focus,
+.recharts-bar-rectangle:focus,
+.recharts-pie-sector:focus {
+  outline: none !important;
+}
+
+.recharts-active-shape,
+.recharts-active-bar {
+  display: none;
 }
 
 .check {

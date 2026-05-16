@@ -298,10 +298,20 @@ router.get('/dashboard/summary', async (req, res) => {
 			byDay.set(row._id, day);
 		}
 		const recurringUsers = identities.filter(i => i.deviceId && i.usernames.length > 1).length;
+		const known = {
+			age: identities.filter(row => row.ageBand && row.ageBand !== 'Unknown'),
+			gender: identities.filter(row => row.gender && row.gender !== 'unknown'),
+			country: identities.filter(row => row.country && row.country !== 'Unknown')
+		};
 		const demographics = {
-			age: Object.entries(identities.reduce((acc, row) => ((acc[row.ageBand || 'Unknown'] = (acc[row.ageBand || 'Unknown'] || 0) + 1), acc), {})).map(([name, value]) => ({ name, value })),
-			gender: Object.entries(identities.reduce((acc, row) => ((acc[row.gender || 'unknown'] = (acc[row.gender || 'unknown'] || 0) + 1), acc), {})).map(([name, value]) => ({ name, value })),
-			country: Object.entries(identities.reduce((acc, row) => ((acc[row.country || 'Unknown'] = (acc[row.country || 'Unknown'] || 0) + 1), acc), {})).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 12)
+			age: Object.entries(known.age.reduce((acc, row) => ((acc[row.ageBand] = (acc[row.ageBand] || 0) + 1), acc), {})).map(([name, value]) => ({ name, value })),
+			gender: Object.entries(known.gender.reduce((acc, row) => ((acc[row.gender] = (acc[row.gender] || 0) + 1), acc), {})).map(([name, value]) => ({ name, value })),
+			country: Object.entries(known.country.reduce((acc, row) => ((acc[row.country] = (acc[row.country] || 0) + 1), acc), {})).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 12),
+			unknownCounts: {
+				age: identities.length - known.age.length,
+				gender: identities.length - known.gender.length,
+				country: identities.length - known.country.length
+			}
 		};
 		const totals = Array.from(byDay.values()).reduce((acc, row) => {
 			acc.messages += row.messages || 0;

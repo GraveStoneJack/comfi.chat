@@ -212,9 +212,14 @@ function LoginScreen({ onAuthed }) {
 function Shell({ me, onLogout, theme, setTheme }) {
   const [tab, setTab] = useState('dashboard');
   const [lightbox, setLightbox] = useState(null);
+  const [userFilter, setUserFilter] = useState(null);
+  function openUsersWithFilter(filter) {
+    setUserFilter(filter);
+    setTab('users');
+  }
   const content = {
-    dashboard: <Dashboard />,
-    users: <UsersPage openLightbox={setLightbox} />,
+    dashboard: <Dashboard onUserFilter={openUsersWithFilter} />,
+    users: <UsersPage openLightbox={setLightbox} initialFilter={userFilter} onClearInitialFilter={() => setUserFilter(null)} />,
     reports: <ReportsPage />,
     blocks: <BlocksPage />,
     chats: <ChatsPage openLightbox={setLightbox} />
@@ -289,11 +294,15 @@ function KpiCard({ icon: Icon, label, value, hint }) {
   );
 }
 
-function Dashboard() {
+function Dashboard({ onUserFilter }) {
   const { loading, data, error } = useAsync(() => api('/api/admin/dashboard/summary?days=30'), []);
   if (loading) return <Loading label="Loading dashboard intelligence..." />;
   if (error) return <ErrorState message={error} />;
   const kpis = data.kpis || {};
+  function handleDemographicSelect(type, item) {
+    if (!item || !item.name) return;
+    onUserFilter({ type, value: item.name });
+  }
   return (
     <div className="page-stack">
       <section className="kpi-grid">
@@ -339,9 +348,9 @@ function Dashboard() {
         </Panel>
       </section>
       <section className="grid three">
-        <DemographicChart title="Age Audience" data={data.demographics.age} />
-        <DemographicChart title="Gender Audience" data={data.demographics.gender} />
-        <DemographicChart title="Country Demographics" data={data.demographics.country} bar />
+        <DemographicChart title="Age Audience" data={data.demographics.age} onSelect={item => handleDemographicSelect('ageBand', item)} />
+        <DemographicChart title="Gender Audience" data={data.demographics.gender} onSelect={item => handleDemographicSelect('gender', item)} />
+        <DemographicChart title="Country Demographics" data={data.demographics.country} bar onSelect={item => handleDemographicSelect('country', item)} />
       </section>
       <section className="grid three">
         <AttentionList title="Frequently Reported" items={data.needsAttention.frequentReports} labelKey="username" />
@@ -352,9 +361,9 @@ function Dashboard() {
   );
 }
 
-function DemographicChart({ title, data = [], bar = false }) {
+function DemographicChart({ title, data = [], bar = false, onSelect }) {
   return (
-    <Panel title={title}>
+    <Panel title={title} subtitle="Click a segment to inspect the people in this group">
       <Chart height={260}>
         {bar ? (
           <BarChart data={data}>
@@ -362,12 +371,22 @@ function DemographicChart({ title, data = [], bar = false }) {
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
-            <Bar dataKey="value" fill="#9b5cff" radius={[8, 8, 0, 0]} />
+            <Bar dataKey="value" fill="#9b5cff" radius={[8, 8, 0, 0]} onClick={onSelect} className="chart-click-target" />
           </BarChart>
         ) : (
           <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={4}>
-              {data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
+            <Pie
+              data={data}
+              dataKey="value"
+              nameKey="name"
+              innerRadius={55}
+              outerRadius={90}
+              paddingAngle={4}
+              activeShape={false}
+              onClick={onSelect}
+              className="chart-click-target"
+            >
+              {data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="transparent" />)}
             </Pie>
             <Tooltip />
             <Legend />
@@ -393,11 +412,19 @@ function AttentionList({ title, items = [], labelKey, valueKey = 'count' }) {
   );
 }
 
-function UsersPage({ openLightbox }) {
+function UsersPage({ openLightbox, initialFilter, onClearInitialFilter }) {
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [refresh, setRefresh] = useState(0);
   const { loading, data, error } = useAsync(() => api(`/api/admin/identities?limit=300&search=${encodeURIComponent(search)}`), [search, refresh]);
+  const filteredData = useMemo(() => {
+    if (!Array.isArray(data)) return [];
+    if (!initialFilter) return data;
+    return data.filter(row => {
+      const value = String(row[initialFilter.type] || '').toLowerCase();
+      return value === String(initialFilter.value || '').toLowerCase();
+    });
+  }, [data, initialFilter]);
   const detail = useAsync(
     () => selected ? api(`/api/admin/identities/detail?username=${encodeURIComponent(selected.currentUsername)}${selected.deviceId ? `&deviceId=${encodeURIComponent(selected.deviceId)}` : ''}`) : Promise.resolve(null),
     [selected?.key]
@@ -406,6 +433,12 @@ function UsersPage({ openLightbox }) {
     <div className="page-stack">
       <Toolbar>
         <SearchBox value={search} onChange={setSearch} placeholder="Search usernames, devices, countries..." />
+        {initialFilter && (
+          <button className="filter-chip" onClick={onClearInitialFilter}>
+            {initialFilter.type.replace('ageBand', 'age')} · {initialFilter.value}
+            <span>Clear</span>
+          </button>
+        )}
         <button className="ghost" onClick={() => setRefresh(x => x + 1)}>Refresh</button>
         <button className="ghost" onClick={() => api('/api/admin/identities/backfill', { method: 'POST', body: JSON.stringify({}) }).then(() => setRefresh(x => x + 1))}>Backfill identities</button>
       </Toolbar>
@@ -413,9 +446,9 @@ function UsersPage({ openLightbox }) {
       {error && <ErrorState message={error} />}
       {data && (
         <div className="split-layout">
-          <Panel title="People and Devices" subtitle={`${data.length} grouped identities`}>
+          <Panel title="People and Devices" subtitle={`${filteredData.length} grouped identities${initialFilter ? ` matching ${initialFilter.value}` : ''}`}>
             <div className="identity-list">
-              {data.map(row => (
+              {filteredData.map(row => (
                 <button key={row.key} className={selected?.key === row.key ? 'identity-card active' : 'identity-card'} onClick={() => setSelected(row)}>
                   <div>
                     <strong>{row.currentUsername}</strong>
@@ -431,6 +464,7 @@ function UsersPage({ openLightbox }) {
                   <ChevronRight size={18} />
                 </button>
               ))}
+              {!filteredData.length && <Empty label="No identities match this filter." />}
             </div>
           </Panel>
           <Panel title="Identity Detail" subtitle={selected ? selected.currentUsername : 'Select a user or device'}>
@@ -622,40 +656,44 @@ function ChatsPage({ openLightbox }) {
   }
   return (
     <div className="page-stack">
-      <Toolbar>
-        <SearchBox value={query} onChange={setQuery} placeholder="Search keywords across all chats..." />
-        <input value={user} onChange={e => setUser(e.target.value)} placeholder="Filter by user" />
-        <label className="check"><input type="checkbox" checked={mediaOnly} onChange={e => setMediaOnly(e.target.checked)} /> Media only</label>
-      </Toolbar>
-      <div className="split-layout">
-        <Panel title="Conversations" subtitle="Grouped by participant and device">
-          {conversations.loading && <Loading label="Loading conversations..." />}
-          <div className="identity-list">
-            {(conversations.data || []).map(row => (
-              <button key={`${row.userA}-${row.userB}-${row.devA}-${row.devB}`} className={selected === row ? 'identity-card active' : 'identity-card'} onClick={() => setSelected(row)}>
-                <strong>{row.userA} ↔ {row.userB}</strong>
-                <span>{row.messagesCount} messages · {row.imagesCount} images</span>
-                <small>{formatDate(row.lastAt)}</small>
-              </button>
-            ))}
-          </div>
-        </Panel>
-        <Panel title="Transcript" subtitle={selected ? `${selected.userA} and ${selected.userB}` : 'Select a conversation'}>
-          {selected && <button className="danger subtle" onClick={clearConversation}><Trash2 size={16} /> Clear conversation</button>}
-          {selected ? <MessageFeed messages={history.data || []} openLightbox={openLightbox} onDelete={deleteMessage} /> : <Empty label="Choose a conversation to view messages and images." />}
-        </Panel>
+      <div className="chat-moderation-layout">
+        <div className="chat-left-column">
+          <Toolbar>
+            <SearchBox value={query} onChange={setQuery} placeholder="Search keywords across all chats..." />
+            <input value={user} onChange={e => setUser(e.target.value)} placeholder="Filter by user" />
+            <label className="check"><input type="checkbox" checked={mediaOnly} onChange={e => setMediaOnly(e.target.checked)} /> Media only</label>
+          </Toolbar>
+          <Panel title="Conversations" subtitle="Grouped by participant and device">
+            {conversations.loading && <Loading label="Loading conversations..." />}
+            <div className="identity-list conversation-list">
+              {(conversations.data || []).map(row => (
+                <button key={`${row.userA}-${row.userB}-${row.devA}-${row.devB}`} className={selected === row ? 'identity-card active' : 'identity-card'} onClick={() => setSelected(row)}>
+                  <strong>{row.userA} ↔ {row.userB}</strong>
+                  <span>{row.messagesCount} messages · {row.imagesCount} images</span>
+                  <small>{formatDate(row.lastAt)}</small>
+                </button>
+              ))}
+            </div>
+          </Panel>
+        </div>
+        <div className="chat-right-column">
+          <Panel title="Transcript" subtitle={selected ? `${selected.userA} and ${selected.userB}` : 'Select a conversation'}>
+            {selected && <button className="danger subtle" onClick={clearConversation}><Trash2 size={16} /> Clear conversation</button>}
+            {selected ? <MessageFeed messages={history.data || []} openLightbox={openLightbox} onDelete={deleteMessage} contained /> : <Empty label="Choose a conversation to view messages and images." />}
+          </Panel>
+          <Panel title="Keyword Results" subtitle={`${search.data?.total || 0} matching messages`}>
+            {search.loading ? <Loading label="Searching chats..." /> : <MessageFeed messages={search.data?.items || []} openLightbox={openLightbox} onDelete={deleteMessage} compact />}
+          </Panel>
+        </div>
       </div>
-      <Panel title="Keyword Results" subtitle={`${search.data?.total || 0} matching messages`}>
-        {search.loading ? <Loading label="Searching chats..." /> : <MessageFeed messages={search.data?.items || []} openLightbox={openLightbox} onDelete={deleteMessage} compact />}
-      </Panel>
     </div>
   );
 }
 
-function MessageFeed({ messages = [], openLightbox, onDelete, compact = false }) {
+function MessageFeed({ messages = [], openLightbox, onDelete, compact = false, contained = false }) {
   if (!messages.length) return <Empty label="No messages found." />;
   return (
-    <div className={compact ? 'message-feed compact-feed' : 'message-feed'}>
+    <div className={`message-feed ${compact ? 'compact-feed' : ''} ${contained ? 'contained-feed' : ''}`}>
       {messages.map(message => {
         const img = isImageMessage(message.message) ? imageUrlFromMessage(message.message) : '';
         return (
