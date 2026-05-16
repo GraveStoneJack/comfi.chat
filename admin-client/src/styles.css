@@ -838,6 +838,10 @@ th {
   gap: 14px;
 }
 
+.form-grid.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .action-row {
   display: flex;
   align-items: center;
@@ -852,6 +856,18 @@ th {
   padding: 14px;
   background: var(--surface-strong);
   color: var(--muted);
+}
+
+.surface-note.success {
+  border-color: rgba(5, 150, 105, 0.24);
+  color: var(--good);
+  background: rgba(5, 150, 105, 0.08);
+}
+
+.surface-note.danger-note {
+  border-color: rgba(225, 29, 72, 0.28);
+  color: var(--danger);
+  background: rgba(225, 29, 72, 0.08);
 }
 
 .message-row {
@@ -958,6 +974,31 @@ th {
   display: block;
   margin-top: 4px;
   color: var(--muted);
+}
+
+.settings-row.compact {
+  padding: 12px;
+}
+
+.settings-row code,
+.surface-note code {
+  color: var(--accent);
+  font-weight: 800;
+}
+
+.mail-settings-form,
+.mail-settings-heading {
+  display: grid;
+  gap: 16px;
+}
+
+.mail-settings-heading {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.test-email-input {
+  width: min(320px, 100%);
 }
 
 .settings-count-grid {

@@ -30,9 +30,11 @@ import {
   Eye,
   Image,
   LogOut,
+  Mail,
   MessageSquare,
   Moon,
   Search,
+  Send,
   Settings,
   Shield,
   Sun,
@@ -889,6 +891,7 @@ function SettingsPage() {
               </div>
             </Panel>
           </section>
+          <MailSettingsPanel mail={data.mail} recommendations={data.mailRecommendations} onSaved={() => setRefresh(x => x + 1)} />
           <Panel title="Danger Zone" subtitle="Use before public launch to remove test data. Admin accounts are preserved.">
             <div className="danger-zone">
               <AlertTriangle size={28} />
@@ -913,6 +916,159 @@ function SettingsPage() {
         </>
       )}
     </div>
+  );
+}
+
+function MailSettingsPanel({ mail, recommendations, onSaved }) {
+  const [form, setForm] = useState(mail || {});
+  const [password, setPassword] = useState('');
+  const [testRecipient, setTestRecipient] = useState('');
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    setForm(mail || {});
+    setPassword('');
+  }, [mail]);
+
+  function update(field, value) {
+    setForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  function applyIcloudDefaults() {
+    const icloud = recommendations?.icloud || {};
+    setForm(prev => ({
+      ...prev,
+      provider: 'icloud',
+      host: icloud.host || 'smtp.mail.me.com',
+      port: icloud.port || 587,
+      secure: !!icloud.secure,
+      fromAddress: prev.fromAddress || recommendations?.fromAddress || 'no-reply@comfi.chat',
+      replyTo: prev.replyTo || recommendations?.replyTo || 'support@comfi.chat',
+      fromName: prev.fromName || 'ComfiChat'
+    }));
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    setBusy(true);
+    setStatus('');
+    setError('');
+    try {
+      const result = await api('/api/admin/settings/mail', {
+        method: 'PUT',
+        body: JSON.stringify({
+          ...form,
+          port: Number(form.port || 587),
+          password: password || undefined
+        })
+      });
+      setForm(result.mail);
+      setPassword('');
+      setStatus('Mail settings saved.');
+      onSaved?.();
+    } catch (err) {
+      setError(err.message || 'Failed to save mail settings.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendTest() {
+    setTesting(true);
+    setStatus('');
+    setError('');
+    try {
+      const result = await api('/api/admin/settings/mail/test', {
+        method: 'POST',
+        body: JSON.stringify({ recipient: testRecipient })
+      });
+      setStatus(`Test email sent via ${result.source}.${result.preview ? ` Preview: ${result.preview}` : ''}`);
+    } catch (err) {
+      setError(err.message || 'Failed to send test email.');
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <Panel title="Mail Configuration" subtitle="Transactional email for verification and account messages">
+      <form className="mail-settings-form" onSubmit={save}>
+        <div className="mail-settings-heading">
+          <div className="settings-row compact">
+            <Mail size={18} />
+            <div>
+              <strong>Recommended sender</strong>
+              <span>Use <code>no-reply@comfi.chat</code> for verification emails and <code>support@comfi.chat</code> for replies.</span>
+            </div>
+          </div>
+          <button type="button" className="ghost" onClick={applyIcloudDefaults}>Use iCloud SMTP defaults</button>
+        </div>
+        <div className="form-grid two">
+          <label>
+            Enable mail sending
+            <select value={form.enabled ? 'yes' : 'no'} onChange={e => update('enabled', e.target.value === 'yes')}>
+              <option value="no">Disabled</option>
+              <option value="yes">Enabled</option>
+            </select>
+          </label>
+          <label>
+            Provider
+            <select value={form.provider || 'icloud'} onChange={e => update('provider', e.target.value)}>
+              <option value="icloud">Apple iCloud Mail</option>
+              <option value="custom-smtp">Custom SMTP</option>
+            </select>
+          </label>
+          <label>
+            SMTP host
+            <input value={form.host || ''} onChange={e => update('host', e.target.value)} placeholder="smtp.mail.me.com" />
+          </label>
+          <label>
+            SMTP port
+            <input type="number" value={form.port || 587} onChange={e => update('port', e.target.value)} placeholder="587" min="1" max="65535" />
+          </label>
+          <label>
+            Security
+            <select value={form.secure ? 'ssl' : 'starttls'} onChange={e => update('secure', e.target.value === 'ssl')}>
+              <option value="starttls">STARTTLS, usually port 587</option>
+              <option value="ssl">SSL/TLS, usually port 465</option>
+            </select>
+          </label>
+          <label>
+            SMTP username
+            <input value={form.username || ''} onChange={e => update('username', e.target.value)} placeholder="no-reply@comfi.chat" />
+          </label>
+          <label>
+            SMTP password
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={form.hasPassword ? 'Saved - leave blank to keep' : 'App-specific password'} />
+          </label>
+          <label>
+            Sending email address
+            <input type="email" value={form.fromAddress || ''} onChange={e => update('fromAddress', e.target.value)} placeholder="no-reply@comfi.chat" />
+          </label>
+          <label>
+            Sender name
+            <input value={form.fromName || ''} onChange={e => update('fromName', e.target.value)} placeholder="ComfiChat" />
+          </label>
+          <label>
+            Reply-to address
+            <input type="email" value={form.replyTo || ''} onChange={e => update('replyTo', e.target.value)} placeholder="support@comfi.chat" />
+          </label>
+        </div>
+        <div className="surface-note">
+          For iCloud custom domain mail, use <code>smtp.mail.me.com</code>, port <code>587</code>, STARTTLS, your full email address as the username, and an Apple app-specific password.
+        </div>
+        <div className="action-row">
+          <button className="primary" disabled={busy}>{busy ? 'Saving...' : 'Save mail settings'}</button>
+          <input className="test-email-input" value={testRecipient} onChange={e => setTestRecipient(e.target.value)} placeholder="Send test to..." type="email" />
+          <button type="button" className="ghost" disabled={!testRecipient || testing} onClick={sendTest}><Send size={16} /> {testing ? 'Sending...' : 'Send test'}</button>
+        </div>
+        {status && <div className="surface-note success">{status}</div>}
+        {error && <div className="surface-note danger-note">{error}</div>}
+      </form>
+    </Panel>
   );
 }
 

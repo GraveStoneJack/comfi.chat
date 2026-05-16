@@ -1,10 +1,10 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 const PendingUser = require('../models/PendingUser');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const { sendMail } = require('../lib/mailSettings');
 
 const router = express.Router();
 
@@ -25,20 +25,6 @@ function getBaseUrl(req) {
     // Prefer FRONTEND_URL if set to ensure email links open on the correct host
     const host = process.env.FRONTEND_URL || process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
     return host;
-}
-
-async function getMailer() {
-    if (process.env.SMTP_URL) {
-        return nodemailer.createTransport(process.env.SMTP_URL);
-    }
-    // Fallback: Ethereal for development
-    const test = await nodemailer.createTestAccount();
-    return nodemailer.createTransport({
-        host: 'smtp.ethereal.email',
-        port: 587,
-        secure: false,
-        auth: { user: test.user, pass: test.pass }
-    });
 }
 
 router.post('/email/signup', async (req, res) => {
@@ -62,17 +48,14 @@ router.post('/email/signup', async (req, res) => {
         );
 
         const verifyUrl = `${getBaseUrl(req)}/verify.html?token=${token}`;
-        const transporter = await getMailer();
-        const info = await transporter.sendMail({
-            from: process.env.MAIL_FROM || 'no-reply@comfi.chat',
+        const result = await sendMail({
             to: email,
             subject: 'Verify your ComfiChat email',
             text: `Click to verify your email: ${verifyUrl}`,
             html: `<p>Click to verify your email:</p><p><a href="${verifyUrl}">${verifyUrl}</a></p>`
         });
 
-        const preview = nodemailer.getTestMessageUrl ? nodemailer.getTestMessageUrl(info) : undefined;
-        return res.json({ ok: true, preview });
+        return res.json({ ok: true, preview: result.preview, mailSource: result.source });
     } catch (e) {
         console.error('[Auth] email signup error:', e);
         return res.status(500).json({ error: 'Failed to start signup' });

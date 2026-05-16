@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const moderationActionSchema = new mongoose.Schema({
     actionType: {
         type: String,
-        enum: ['report_status', 'delete_message', 'clear_user_history', 'delete_conversation', 'delete_media', 'block_recorded'],
+        enum: ['report_status', 'delete_message', 'clear_user_history', 'delete_conversation', 'delete_media', 'block_recorded', 'settings_update'],
         required: true,
         index: true
     },

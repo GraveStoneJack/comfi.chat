@@ -10,6 +10,7 @@ const Media = require('../models/Media');
 const ModerationAction = require('../models/ModerationAction');
 const ModerationBlock = require('../models/ModerationBlock');
 const UserIdentity = require('../models/UserIdentity');
+const { getSettings: getMailSettings, sanitize: sanitizeMailSettings, saveSettings: saveMailSettings, sendMail } = require('../lib/mailSettings');
 const fs = require('fs');
 const path = require('path');
 
@@ -1004,7 +1005,8 @@ router.get('/settings/summary', async (_req, res) => {
 			media,
 			blocks,
 			actions,
-			identities
+			identities,
+			mailSettings
 		] = await Promise.all([
 			Message.countDocuments(),
 			Report.countDocuments(),
@@ -1015,7 +1017,8 @@ router.get('/settings/summary', async (_req, res) => {
 			Media.aggregate([{ $group: { _id: null, count: { $sum: 1 }, bytes: { $sum: '$byteLength' } } }]),
 			ModerationBlock.countDocuments(),
 			ModerationAction.countDocuments(),
-			UserIdentity.countDocuments()
+			UserIdentity.countDocuments(),
+			getMailSettings({ includePassword: true })
 		]);
 		res.json({
 			counts: {
@@ -1035,13 +1038,66 @@ router.get('/settings/summary', async (_req, res) => {
 				{ title: 'Review reports daily', description: 'Open and in-review reports should be triaged before they age out of context.' },
 				{ title: 'Export evidence before deletion', description: 'Export report or conversation evidence before clearing chats or media.' },
 				{ title: 'Use storage cleanup weekly', description: 'Review large or old images, then delete only after moderation review.' },
+				{ title: 'Use no-reply@comfi.chat for verification', description: 'Keep transactional account email separate from a human support inbox such as support@comfi.chat.' },
 				{ title: 'Wipe staging before public launch', description: 'Use the danger zone to remove test chats, accounts, media, and moderation artifacts while preserving admin accounts.' }
 			],
+			mail: sanitizeMailSettings(mailSettings),
+			mailRecommendations: {
+				fromAddress: 'no-reply@comfi.chat',
+				replyTo: 'support@comfi.chat',
+				icloud: {
+					host: 'smtp.mail.me.com',
+					port: 587,
+					secure: false,
+					note: 'Use STARTTLS on port 587. Apple usually requires an app-specific password for SMTP.'
+				}
+			},
 			dangerConfirmation: 'WIPE COMFI DATA'
 		});
 	} catch (e) {
 		console.error('[Admin] settings summary', e);
 		res.status(500).json({ error: 'Failed to load settings summary' });
+	}
+});
+
+router.put('/settings/mail', async (req, res) => {
+	try {
+		if (!req.admin || (req.admin.role !== 'owner' && req.admin.role !== 'admin')) {
+			return res.status(403).json({ error: 'Forbidden' });
+		}
+		const saved = await saveMailSettings(req.body || {}, req.admin.sub);
+		await recordAction(req, {
+			actionType: 'settings_update',
+			metadata: { area: 'mail', enabled: saved.enabled, host: saved.host, fromAddress: saved.fromAddress }
+		});
+		res.json({ ok: true, mail: saved });
+	} catch (e) {
+		console.error('[Admin] save mail settings', e);
+		res.status(400).json({ error: e.message || 'Failed to save mail settings' });
+	}
+});
+
+router.post('/settings/mail/test', async (req, res) => {
+	try {
+		if (!req.admin || (req.admin.role !== 'owner' && req.admin.role !== 'admin')) {
+			return res.status(403).json({ error: 'Forbidden' });
+		}
+		const { recipient } = req.body || {};
+		if (!recipient) return res.status(400).json({ error: 'Recipient email is required' });
+		const result = await sendMail({
+			to: recipient,
+			subject: 'ComfiChat mail test',
+			text: 'This is a test email from your ComfiChat admin mail settings.',
+			html: '<p>This is a test email from your <strong>ComfiChat</strong> admin mail settings.</p>'
+		});
+		await recordAction(req, {
+			actionType: 'settings_update',
+			metadata: { area: 'mail-test', recipient, source: result.source }
+		});
+		res.json({ ok: true, source: result.source, preview: result.preview });
+	} catch (e) {
+		console.error('[Admin] test mail settings', e);
+		res.status(400).json({ error: e.message || 'Failed to send test email' });
 	}
 });
 
