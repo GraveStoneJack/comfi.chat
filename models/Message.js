@@ -33,6 +33,18 @@ const messageSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
         index: true
+    },
+    deletedAt: {
+        type: Date,
+        index: true
+    },
+    deletedByAdminId: {
+        type: String,
+        index: true
+    },
+    deleteReason: {
+        type: String,
+        trim: true
     }
 }, {
     timestamps: false
@@ -44,6 +56,7 @@ messageSchema.index({ recipient: 1, sender: 1, timestamp: 1 });
 // Indices to accelerate identity-based queries
 messageSchema.index({ sender: 1, senderDeviceId: 1, timestamp: -1 });
 messageSchema.index({ recipient: 1, recipientDeviceId: 1, timestamp: -1 });
+messageSchema.index({ message: 'text' });
 
 module.exports = mongoose.model('Message', messageSchema);
 
