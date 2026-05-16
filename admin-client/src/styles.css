@@ -410,6 +410,44 @@ label {
   flex-wrap: wrap;
 }
 
+.segmented-control {
+  display: inline-flex;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-strong);
+}
+
+.segmented-control button {
+  border: 0;
+  border-radius: 12px;
+  padding: 9px 12px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.segmented-control button.active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), #6d28d9);
+}
+
+.date-range-controls {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.date-range-controls label {
+  min-width: 150px;
+}
+
+.range-caption {
+  color: var(--muted);
+  font-size: 13px;
+  margin-left: auto;
+}
+
 .search-box {
   flex: 1;
   border: 1px solid var(--border);
@@ -623,6 +661,73 @@ th {
   background: var(--surface-strong);
 }
 
+.device-list {
+  display: grid;
+  gap: 12px;
+}
+
+.device-row {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface-strong);
+}
+
+.device-row:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.device-row strong,
+.device-row span,
+.device-row small {
+  display: block;
+}
+
+.device-row > div:first-child {
+  min-width: 0;
+}
+
+.device-row > div:first-child span {
+  margin-top: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.device-row > div:first-child small {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.device-metric {
+  min-width: 82px;
+  border-radius: 16px;
+  padding: 10px;
+  text-align: center;
+  color: var(--accent);
+  background: rgba(155, 92, 255, 0.1);
+}
+
+.device-metric strong {
+  font-size: 22px;
+}
+
+.device-metric span {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .status.open {
   color: #fb7185;
 }
@@ -692,11 +797,6 @@ th {
 .recharts-bar-rectangle:focus,
 .recharts-pie-sector:focus {
   outline: none !important;
-}
-
-.recharts-active-shape,
-.recharts-active-bar {
-  display: none;
 }
 
 .check {

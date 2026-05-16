@@ -13,6 +13,7 @@ import {
   Pie,
   PieChart,
   ResponsiveContainer,
+  Sector,
   Tooltip,
   XAxis,
   YAxis
@@ -81,6 +82,16 @@ function formatBytes(value) {
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString() : 'Never';
+}
+
+function formatDateInput(value) {
+  if (!value) return '';
+  return new Date(value).toISOString().slice(0, 10);
+}
+
+function shortDeviceId(value) {
+  if (!value) return 'No device id';
+  return `...${String(value).slice(-10)}`;
 }
 
 function imageUrlFromMessage(message) {
@@ -295,7 +306,15 @@ function KpiCard({ icon: Icon, label, value, hint }) {
 }
 
 function Dashboard({ onUserFilter }) {
-  const { loading, data, error } = useAsync(() => api('/api/admin/dashboard/summary?days=30'), []);
+  const [rangePreset, setRangePreset] = useState('30');
+  const [customRange, setCustomRange] = useState({ from: '', to: '' });
+  const dashboardQuery = useMemo(() => {
+    if (rangePreset === 'custom' && customRange.from && customRange.to) {
+      return `from=${encodeURIComponent(customRange.from)}&to=${encodeURIComponent(customRange.to)}`;
+    }
+    return `days=${rangePreset}`;
+  }, [rangePreset, customRange.from, customRange.to]);
+  const { loading, data, error } = useAsync(() => api(`/api/admin/dashboard/summary?${dashboardQuery}`), [dashboardQuery]);
   if (loading) return <Loading label="Loading dashboard intelligence..." />;
   if (error) return <ErrorState message={error} />;
   const kpis = data.kpis || {};
@@ -305,10 +324,35 @@ function Dashboard({ onUserFilter }) {
   }
   return (
     <div className="page-stack">
+      <Toolbar>
+        <div className="segmented-control" aria-label="Dashboard date range">
+          {['7', '30', '60', '90'].map(days => (
+            <button key={days} className={rangePreset === days ? 'active' : ''} onClick={() => setRangePreset(days)}>
+              {days} days
+            </button>
+          ))}
+          <button className={rangePreset === 'custom' ? 'active' : ''} onClick={() => setRangePreset('custom')}>Custom</button>
+        </div>
+        {rangePreset === 'custom' && (
+          <div className="date-range-controls">
+            <label>
+              From
+              <input type="date" value={customRange.from} onChange={event => setCustomRange(range => ({ ...range, from: event.target.value }))} />
+            </label>
+            <label>
+              To
+              <input type="date" value={customRange.to} onChange={event => setCustomRange(range => ({ ...range, to: event.target.value }))} />
+            </label>
+          </div>
+        )}
+        <span className="range-caption">
+          Showing {formatDateInput(data.range?.from)} to {formatDateInput(data.range?.to)}
+        </span>
+      </Toolbar>
       <section className="kpi-grid">
         <KpiCard icon={Activity} label="Active now" value={formatNumber(kpis.activeUsers)} hint="Temp users currently online" />
         <KpiCard icon={Users} label="Recurring devices" value={formatNumber(kpis.recurringUsers)} hint="Devices with multiple names" />
-        <KpiCard icon={MessageSquare} label="Messages" value={formatNumber(kpis.messages)} hint="Last 30 days" />
+        <KpiCard icon={MessageSquare} label="Messages" value={formatNumber(kpis.messages)} hint="Selected range" />
         <KpiCard icon={Image} label="Images" value={formatNumber(kpis.images)} hint={`${formatBytes(kpis.mediaBytes)} retained`} />
         <KpiCard icon={Shield} label="Open reports" value={formatNumber(kpis.openReports)} hint="Open or in review" />
       </section>
@@ -355,10 +399,18 @@ function Dashboard({ onUserFilter }) {
       <section className="grid three">
         <AttentionList title="Frequently Reported" items={data.needsAttention.frequentReports} labelKey="username" />
         <AttentionList title="Frequently Blocked" items={data.needsAttention.frequentBlocks} labelKey="username" />
-        <AttentionList title="High Volume Devices" items={data.needsAttention.highVolumeDevices} labelKey="currentUsername" valueKey="messageCount" />
+        <DeviceList title="Recurring Devices" subtitle="Single devices that used multiple names" items={data.needsAttention.recurringDevices} onSelect={device => onUserFilter({ type: 'deviceId', value: device.deviceId })} valueKey="namesCount" valueLabel="names" />
+      </section>
+      <section className="grid two">
+        <DeviceList title="High Volume Devices" subtitle="Devices with the most chat messages" items={data.needsAttention.highVolumeDevices} onSelect={device => onUserFilter({ type: 'deviceId', value: device.deviceId })} valueKey="messageCount" valueLabel="messages" />
+        <DeviceList title="Recently Active Devices" subtitle="Latest seen devices and names used" items={data.needsAttention.recentDevices} onSelect={device => onUserFilter({ type: 'deviceId', value: device.deviceId })} valueKey="usernamesCount" valueLabel="names" />
       </section>
     </div>
   );
+}
+
+function renderStableSector(props) {
+  return <Sector {...props} />;
 }
 
 function DemographicChart({ title, data = [], bar = false, onSelect }) {
@@ -371,7 +423,7 @@ function DemographicChart({ title, data = [], bar = false, onSelect }) {
             <XAxis dataKey="name" />
             <YAxis />
             <Tooltip />
-            <Bar dataKey="value" fill="#9b5cff" radius={[8, 8, 0, 0]} onClick={onSelect} className="chart-click-target" />
+            <Bar dataKey="value" fill="#9b5cff" radius={[8, 8, 0, 0]} onClick={onSelect} className="chart-click-target" isAnimationActive={false} />
           </BarChart>
         ) : (
           <PieChart>
@@ -382,9 +434,10 @@ function DemographicChart({ title, data = [], bar = false, onSelect }) {
               innerRadius={55}
               outerRadius={90}
               paddingAngle={4}
-              activeShape={false}
+              activeShape={renderStableSector}
               onClick={onSelect}
               className="chart-click-target"
+              isAnimationActive={false}
             >
               {data.map((_, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} stroke="transparent" />)}
             </Pie>
@@ -393,6 +446,28 @@ function DemographicChart({ title, data = [], bar = false, onSelect }) {
           </PieChart>
         )}
       </Chart>
+    </Panel>
+  );
+}
+
+function DeviceList({ title, subtitle, items = [], onSelect, valueKey, valueLabel }) {
+  return (
+    <Panel title={title} subtitle={subtitle}>
+      <div className="device-list">
+        {items.length ? items.map((item, index) => (
+          <button className="device-row" key={`${item.deviceId || item.currentUsername}-${index}`} onClick={() => item.deviceId && onSelect(item)}>
+            <div>
+              <strong>{shortDeviceId(item.deviceId)}</strong>
+              <span>{item.usernames?.length ? item.usernames.join(', ') : item.currentUsername || 'Unknown name'}</span>
+              <small>Last seen {formatDate(item.lastSeenAt)}</small>
+            </div>
+            <div className="device-metric">
+              <strong>{formatNumber(item[valueKey])}</strong>
+              <span>{valueLabel}</span>
+            </div>
+          </button>
+        )) : <Empty label="No device signals yet." />}
+      </div>
     </Panel>
   );
 }
@@ -435,7 +510,7 @@ function UsersPage({ openLightbox, initialFilter, onClearInitialFilter }) {
         <SearchBox value={search} onChange={setSearch} placeholder="Search usernames, devices, countries..." />
         {initialFilter && (
           <button className="filter-chip" onClick={onClearInitialFilter}>
-            {initialFilter.type.replace('ageBand', 'age')} · {initialFilter.value}
+            {initialFilter.type.replace('ageBand', 'age').replace('deviceId', 'device')} · {initialFilter.type === 'deviceId' ? shortDeviceId(initialFilter.value) : initialFilter.value}
             <span>Clear</span>
           </button>
         )}

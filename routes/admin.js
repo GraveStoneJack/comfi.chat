@@ -22,7 +22,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 function parseDateRange(query) {
 	const days = Math.max(1, Math.min(parseInt(query.days || '30', 10) || 30, 365));
 	const to = query.to ? new Date(query.to) : new Date();
+	if (query.to) to.setHours(23, 59, 59, 999);
 	const from = query.from ? new Date(query.from) : new Date(to.getTime() - days * DAY_MS);
+	if (query.from) from.setHours(0, 0, 0, 0);
 	return { from, to, days };
 }
 
@@ -298,6 +300,26 @@ router.get('/dashboard/summary', async (req, res) => {
 			byDay.set(row._id, day);
 		}
 		const recurringUsers = identities.filter(i => i.deviceId && i.usernames.length > 1).length;
+		const deviceRows = identities
+			.filter(i => i.deviceId)
+			.map(i => ({
+				deviceId: i.deviceId,
+				currentUsername: i.currentUsername,
+				usernames: i.usernames || [],
+				namesCount: (i.usernames || []).length,
+				usernamesCount: (i.usernames || []).length,
+				messageCount: i.messageCount || 0,
+				imageCount: i.imageCount || 0,
+				reportCount: i.reportCount || 0,
+				blockedByCount: i.blockedByCount || 0,
+				blocksMadeCount: i.blocksMadeCount || 0,
+				lastSeenAt: i.lastSeenAt,
+				lastMessageAt: i.lastMessageAt,
+				lastLoginAt: i.lastLoginAt,
+				country: i.country,
+				gender: i.gender,
+				ageBand: i.ageBand
+			}));
 		const known = {
 			age: identities.filter(row => row.ageBand && row.ageBand !== 'Unknown'),
 			gender: identities.filter(row => row.gender && row.gender !== 'unknown'),
@@ -341,7 +363,9 @@ router.get('/dashboard/summary', async (req, res) => {
 			needsAttention: {
 				frequentBlocks: frequentBlocks.map(r => ({ username: r._id || 'unknown', count: r.count })),
 				frequentReports: frequentReports.map(r => ({ username: r._id || 'unknown', count: r.count })),
-				highVolumeDevices: identities.filter(i => i.deviceId).sort((a, b) => b.messageCount - a.messageCount).slice(0, 8)
+				recurringDevices: deviceRows.filter(i => i.namesCount > 1).sort((a, b) => b.namesCount - a.namesCount || new Date(b.lastSeenAt || 0) - new Date(a.lastSeenAt || 0)).slice(0, 8),
+				highVolumeDevices: deviceRows.filter(i => i.messageCount > 0).sort((a, b) => b.messageCount - a.messageCount).slice(0, 8),
+				recentDevices: deviceRows.sort((a, b) => new Date(b.lastSeenAt || 0) - new Date(a.lastSeenAt || 0)).slice(0, 8)
 			}
 		});
 	} catch (e) {
