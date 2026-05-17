@@ -1038,7 +1038,8 @@ function MailSettingsPanel({ mail, recommendations, onSaved }) {
           </label>
           <label>
             SMTP username
-            <input value={form.username || ''} onChange={e => update('username', e.target.value)} placeholder="no-reply@comfi.chat" />
+            <input value={form.username || ''} onChange={e => update('username', e.target.value)} placeholder="your Apple Account email, e.g. name@icloud.com" />
+            <small>For iCloud, this is usually the Apple Account/iCloud email that generated the app-specific password, not the no-reply sender alias.</small>
           </label>
           <label>
             SMTP password
@@ -1058,7 +1059,7 @@ function MailSettingsPanel({ mail, recommendations, onSaved }) {
           </label>
         </div>
         <div className="surface-note">
-          For iCloud custom domain mail, use <code>smtp.mail.me.com</code>, port <code>587</code>, STARTTLS, your full email address as the username, and an Apple app-specific password.
+          For iCloud custom domain mail, use <code>smtp.mail.me.com</code>, port <code>587</code>, STARTTLS, your Apple Account/iCloud login email as the SMTP username, and an Apple app-specific password. The sending address can still be <code>no-reply@comfi.chat</code>.
         </div>
         <div className="action-row">
           <button className="primary" disabled={busy}>{busy ? 'Saving...' : 'Save mail settings'}</button>
