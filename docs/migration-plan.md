@@ -23,6 +23,7 @@ Move the unfinished user-facing app flows into React while keeping the working a
 
 3. Chat migration
    - Extract the current chat behavior into React state: connection status, online users, active chats, unread state, messages, media, blocking, reports, filters, and preferences.
+   - Use `docs/react-chat-state-map.md` and `user-client/src/chat/state.js` as the parity map before rebuilding the UI.
    - Keep API/WebSocket behavior compatible with the existing backend first.
    - Replace the legacy `chat.html` route only after the React chat reaches feature parity.
 
