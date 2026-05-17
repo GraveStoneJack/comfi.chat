@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useReducer, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   CHAT_ACTIONS,
   CHAT_STATUS,
   chatReducer,
+  createDeleteImageMessage,
   createImageMessage,
   createClientMessage,
   createReport,
@@ -17,10 +18,13 @@ import {
   loadBlockedDevices,
   loadHiddenChats,
   loadPreferences,
+  logoff,
   recordBlock,
   restoreChatSession,
   saveBlockedDevices,
   saveHiddenChats,
+  savePreferences,
+  stripImageToken,
   uploadChatImage,
   useChatSocket,
   useOnlineRoster,
@@ -574,13 +578,25 @@ function ChatImage({ message }) {
   );
 }
 
+const IMAGE_EXPIRY_OPTIONS = [
+  { value: 0, label: 'Forever' },
+  { value: 2, label: '2 seconds' },
+  { value: 5, label: '5 seconds' },
+  { value: 10, label: '10 seconds' },
+  { value: 30, label: '30 seconds' },
+  { value: 60, label: '60 seconds' }
+];
+
 function ChatShell() {
   const [state, dispatch] = useReducer(chatReducer, initialChatState);
   const [draft, setDraft] = useState('');
   const [sendError, setSendError] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageExpirySeconds, setImageExpirySeconds] = useState(0);
   const [reportForm, setReportForm] = useState({ open: false, reason: 'harassment', additionalInfo: '', alsoBlock: false });
   const [actionNotice, setActionNotice] = useState('');
+  const imageExpiryTimers = useRef(new Map());
+  const soundRef = useRef(null);
   const activeConversation = getActiveConversation(state);
   const visibleRoster = getVisibleRoster(state);
   const visibleConversations = getVisibleConversations(state);
@@ -589,11 +605,29 @@ function ChatShell() {
     [state.roster.users]
   );
   const currentUser = state.session.currentUser;
+  const handleIncomingMessage = useCallback((message) => {
+    if (state.preferences.soundEnabled) {
+      try {
+        if (!soundRef.current) {
+          soundRef.current = new Audio('/sounds/bubblepop.mp3');
+          soundRef.current.volume = 0.5;
+        }
+        soundRef.current.currentTime = 0;
+        soundRef.current.play().catch(() => {});
+      } catch (_) {}
+    }
+    if (state.preferences.notifications && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification(`New message from ${message.sender}`, {
+        body: isImageMessage(message.message) ? 'Photo' : message.message
+      });
+    }
+  }, [state.preferences.notifications, state.preferences.soundEnabled]);
   const socket = useChatSocket({
     currentUser,
     authToken: state.session.authToken,
     dispatch,
-    enabled: Boolean(currentUser?.username)
+    enabled: Boolean(currentUser?.username),
+    onIncomingMessage: handleIncomingMessage
   });
 
   useEffect(() => {
@@ -618,6 +652,11 @@ function ChatShell() {
     enabled: Boolean(currentUser?.username)
   });
   useOnlineRoster({ dispatch, enabled: Boolean(currentUser?.username) });
+
+  useEffect(() => () => {
+    for (const timer of imageExpiryTimers.current.values()) window.clearTimeout(timer);
+    imageExpiryTimers.current.clear();
+  }, []);
 
   async function openPeer(peer) {
     if (!peer?.username || !currentUser?.username) return;
@@ -675,6 +714,36 @@ function ChatShell() {
     dispatch({ type: CHAT_ACTIONS.messageSentOptimistic, payload: { message } });
   }
 
+  function sendDeleteImage(imageUrl, reason = 'manual', recipientUsername = activeConversation?.username) {
+    if (!recipientUsername || !currentUser?.username) return;
+    const token = createDeleteImageMessage(imageUrl, reason);
+    socket.sendMessage({
+      sender: currentUser.username,
+      recipient: recipientUsername,
+      message: token
+    });
+    dispatch({
+      type: CHAT_ACTIONS.messageDeleted,
+      payload: { username: recipientUsername, imageUrl, reason: reason === 'expired' ? 'Image expired' : 'Message removed' }
+    });
+  }
+
+  function scheduleImageExpiry(imageUrl, seconds, recipientUsername) {
+    if (!seconds) return;
+    const existing = imageExpiryTimers.current.get(imageUrl);
+    if (existing) window.clearTimeout(existing);
+    const timer = window.setTimeout(() => {
+      imageExpiryTimers.current.delete(imageUrl);
+      sendDeleteImage(imageUrl, 'expired', recipientUsername);
+      dispatch({ type: CHAT_ACTIONS.imageExpiryCleared, payload: { url: imageUrl } });
+    }, seconds * 1000);
+    imageExpiryTimers.current.set(imageUrl, timer);
+    dispatch({
+      type: CHAT_ACTIONS.imageExpiryScheduled,
+      payload: { url: imageUrl, expiresAt: Date.now() + seconds * 1000 }
+    });
+  }
+
   async function sendImage(event) {
     const file = event.target.files?.[0];
     event.target.value = '';
@@ -686,11 +755,32 @@ function ChatShell() {
       const fileUrl = result.fileUrl || result.url;
       if (!fileUrl) throw new Error('Upload did not return a file URL');
       sendChatMessage(createImageMessage(fileUrl));
+      scheduleImageExpiry(fileUrl, Number(imageExpirySeconds), activeConversation.username);
     } catch (err) {
       setSendError(err.message || 'Failed to send image.');
     } finally {
       setUploadingImage(false);
     }
+  }
+
+  async function updatePreference(patch) {
+    const next = { ...state.preferences, ...patch };
+    if (patch.notifications && 'Notification' in window && Notification.permission === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') next.notifications = false;
+    }
+    savePreferences(next);
+    dispatch({ type: CHAT_ACTIONS.preferencesChanged, payload: next });
+  }
+
+  async function logoutFromChat() {
+    if (currentUser?.username) {
+      try { await logoff(currentUser.username); } catch (_) {}
+    }
+    for (const timer of imageExpiryTimers.current.values()) window.clearTimeout(timer);
+    imageExpiryTimers.current.clear();
+    clearSession();
+    navigate('/login');
   }
 
   async function blockActivePeer() {
@@ -774,8 +864,19 @@ function ChatShell() {
           <h1>Chat</h1>
           <p className="muted">This is the new React shell using the live presence, roster, history, and websocket contracts.</p>
         </div>
-        <div className={`connection-pill ${state.connection.status}`}>
-          {state.connection.status === CHAT_STATUS.connected ? 'Connected' : titleCase(state.connection.status)}
+        <div className="react-chat-top-actions">
+          <div className={`connection-pill ${state.connection.status}`}>
+            {state.connection.status === CHAT_STATUS.connected ? 'Connected' : titleCase(state.connection.status)}
+          </div>
+          <label className="toggle-pill">
+            <input type="checkbox" checked={!!state.preferences.soundEnabled} onChange={e => updatePreference({ soundEnabled: e.target.checked })} />
+            Sound
+          </label>
+          <label className="toggle-pill">
+            <input type="checkbox" checked={!!state.preferences.notifications} onChange={e => updatePreference({ notifications: e.target.checked })} />
+            Notifications
+          </label>
+          <button className="secondary" onClick={logoutFromChat}>Logout</button>
         </div>
       </header>
 
@@ -882,9 +983,23 @@ function ChatShell() {
                 {activeConversation.messages.length === 0 && <div className="empty-thread">No messages yet. Say hello.</div>}
                 {activeConversation.messages.map((message, index) => {
                   const mine = message.sender === currentUser.username;
+                  const imageUrl = isImageMessage(message.message) ? stripImageToken(message.message) : '';
                   return (
                     <div className={`react-message ${mine ? 'mine' : 'theirs'} ${message.status === 'failed' ? 'failed' : ''}`} key={message.id || message.clientId || `${message.timestamp}-${index}`}>
-                      {isImageMessage(message.message) ? <ChatImage message={message.message} /> : <span>{message.message}</span>}
+                      {message.deleted ? (
+                        <span className="deleted-message">{message.deleteReason || 'Message removed'}</span>
+                      ) : isImageMessage(message.message) ? (
+                        <>
+                          <ChatImage message={message.message} />
+                          {mine && (
+                            <button className="message-inline-action" type="button" onClick={() => sendDeleteImage(imageUrl, 'manual')}>
+                              Delete photo
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <span>{message.message}</span>
+                      )}
                       <small>{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{message.status === 'failed' ? ' | failed' : ''}</small>
                     </div>
                   );
@@ -895,6 +1010,9 @@ function ChatShell() {
                   {uploadingImage ? 'Uploading...' : 'Photo'}
                   <input type="file" accept="image/*" onChange={sendImage} disabled={uploadingImage} />
                 </label>
+                <select className="image-expiry-select" value={imageExpirySeconds} onChange={e => setImageExpirySeconds(Number(e.target.value))}>
+                  {IMAGE_EXPIRY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
                 <input value={draft} onChange={e => setDraft(e.target.value)} placeholder={`Message ${activeConversation.username}...`} />
                 <button className="primary" disabled={!draft.trim()}>Send</button>
               </form>
