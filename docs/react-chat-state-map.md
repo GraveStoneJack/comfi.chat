@@ -58,6 +58,7 @@ Recommended next files:
 - `user-client/src/chat/storage.js`: storage key reads/writes.
 - `user-client/src/chat/useChatSocket.js`: websocket lifecycle, backoff, heartbeat, inbound dispatch.
 - `user-client/src/chat/usePresence.js`: online/offline lifecycle with `sendBeacon` or `fetch(..., { keepalive: true })`.
+- `user-client/src/chat/useOnlineRoster.js`: roster polling and dispatch.
 - `user-client/src/chat/messagePipeline.js`: image/delete token parsing, preview labels, emoticon conversion, sanitization.
 
 ## Parity Decisions

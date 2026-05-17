@@ -46,7 +46,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // CORS configuration
 const corsOptions = {
-    origin: ['https://comfi.chat', 'http://localhost:3000', 'https://admin.comfi.chat', 'http://localhost:5173'],
+    origin: ['https://comfi.chat', 'http://localhost:3000', 'https://admin.comfi.chat', 'http://localhost:5173', 'http://localhost:5174'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
