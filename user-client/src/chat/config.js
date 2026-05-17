@@ -7,6 +7,9 @@ export function getWebSocketUrl() {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL.replace(/^http/i, 'ws');
   }
+  if (window.location.hostname === 'localhost' && window.location.port === '5174') {
+    return 'ws://localhost:10000';
+  }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${window.location.host}`;
 }
