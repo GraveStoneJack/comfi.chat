@@ -429,11 +429,11 @@ function blockPeer(state, { username, deviceId }) {
   const blockedDeviceIds = deviceId && !state.conversations.blockedDeviceIds.includes(deviceId)
     ? [...state.conversations.blockedDeviceIds, deviceId]
     : state.conversations.blockedDeviceIds;
+  const hiddenState = hideConversation(state, username);
   return {
-    ...hideConversation(state, username),
+    ...hiddenState,
     conversations: {
-      ...state.conversations,
-      ...hideConversation(state, username).conversations,
+      ...hiddenState.conversations,
       blockedDeviceIds
     }
   };
@@ -469,13 +469,27 @@ function normalizeIncomingMessage(message) {
 function dedupeMessages(messages) {
   const seen = new Set();
   const result = [];
-  for (const message of messages) {
+  const sorted = [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  for (const message of sorted) {
     const key = messageKey(message);
     if (seen.has(key)) continue;
+    const pendingMatchIndex = result.findIndex(existing => (
+      existing.status === 'pending' &&
+      !message.clientId &&
+      existing.sender === message.sender &&
+      existing.recipient === message.recipient &&
+      existing.message === message.message &&
+      Math.abs(new Date(existing.timestamp) - new Date(message.timestamp)) < 10000
+    ));
+    if (pendingMatchIndex >= 0) {
+      result[pendingMatchIndex] = { ...message, status: 'sent' };
+      seen.add(key);
+      continue;
+    }
     seen.add(key);
     result.push(message);
   }
-  return result.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  return result;
 }
 
 function messageKey(message) {

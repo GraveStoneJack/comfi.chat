@@ -16,7 +16,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -149,6 +150,11 @@ p {
   flex-wrap: wrap;
   justify-content: center;
   margin-top: 22px;
+}
+
+.button-row.compact {
+  margin-top: 0;
+  justify-content: flex-start;
 }
 
 .primary,
@@ -349,6 +355,32 @@ label.file-button {
   gap: 10px;
 }
 
+.react-chat-filters {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.react-chat-filters select,
+.react-chat-filters input,
+.react-report-form select,
+.react-report-form textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(59, 3, 55, 0.14);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.76);
+  color: #2f0642;
+}
+
+.age-filter-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .chat-list-item,
 .empty-chat-list {
   width: 100%;
@@ -391,6 +423,50 @@ label.file-button {
   gap: 14px;
   padding-bottom: 14px;
   border-bottom: 1px solid rgba(59, 3, 55, 0.1);
+}
+
+.react-chat-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.react-chat-actions .secondary {
+  padding: 9px 12px;
+}
+
+.react-report-form {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(155, 77, 202, 0.18);
+  border-radius: 20px;
+  background: rgba(155, 77, 202, 0.08);
+}
+
+.react-report-form label {
+  display: grid;
+  gap: 6px;
+  color: #664673;
+  font-weight: 700;
+  text-align: left;
+}
+
+.react-report-form textarea {
+  min-height: 88px;
+  resize: vertical;
+}
+
+.checkbox-field {
+  display: flex !important;
+  grid-template-columns: none;
+  flex-direction: row;
+  align-items: center;
+}
+
+.checkbox-field input {
+  width: auto;
 }
 
 .react-chat-thread-header h2 {
@@ -440,10 +516,19 @@ label.file-button {
   font-size: 0.72rem;
 }
 
+.react-message-image {
+  display: block;
+  width: min(280px, 100%);
+  max-height: 320px;
+  object-fit: cover;
+  border-radius: 14px;
+}
+
 .react-chat-input {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: auto 1fr auto;
   gap: 10px;
+  align-items: center;
 }
 
 .react-chat-input input {
@@ -454,6 +539,22 @@ label.file-button {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.78);
   color: #2f0642;
+}
+
+.attachment-button {
+  display: inline-grid;
+  place-items: center;
+  min-height: 52px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: rgba(155, 77, 202, 0.12);
+  color: #7b2da6;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.attachment-button input {
+  display: none;
 }
 
 .empty-thread {
@@ -525,7 +626,13 @@ body.dark .react-chat-input input {
 
 body.dark .chat-list-item,
 body.dark .react-message.theirs,
-body.dark .react-chat-input input {
+body.dark .react-chat-input input,
+body.dark .react-chat-filters,
+body.dark .react-chat-filters select,
+body.dark .react-chat-filters input,
+body.dark .react-report-form,
+body.dark .react-report-form select,
+body.dark .react-report-form textarea {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.12);
 }
@@ -533,8 +640,16 @@ body.dark .react-chat-input input {
 body.dark .chat-list-item span,
 body.dark .empty-chat-list,
 body.dark .react-chat-thread-header p,
-body.dark .empty-thread {
+body.dark .empty-thread,
+body.dark .react-report-form label {
   color: #cfc6da;
+}
+
+body.dark .react-chat-filters select,
+body.dark .react-chat-filters input,
+body.dark .react-report-form select,
+body.dark .react-report-form textarea {
+  color: #efeaff;
 }
 
 @media (max-width: 820px) {

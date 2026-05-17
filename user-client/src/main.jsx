@@ -4,16 +4,24 @@ import {
   CHAT_ACTIONS,
   CHAT_STATUS,
   chatReducer,
+  createImageMessage,
   createClientMessage,
+  createReport,
   fetchHistory,
+  getImageCandidates,
   getActiveConversation,
   getVisibleConversations,
   getVisibleRoster,
   initialChatState,
+  isImageMessage,
   loadBlockedDevices,
   loadHiddenChats,
   loadPreferences,
+  recordBlock,
   restoreChatSession,
+  saveBlockedDevices,
+  saveHiddenChats,
+  uploadChatImage,
   useChatSocket,
   useOnlineRoster,
   usePresence
@@ -551,13 +559,35 @@ function Profile({ session, onAuthed }) {
   );
 }
 
+function ChatImage({ message }) {
+  const candidates = useMemo(() => getImageCandidates(message), [message]);
+  const [index, setIndex] = useState(0);
+  const src = candidates[index] || '';
+  if (!src) return <span>Photo unavailable</span>;
+  return (
+    <img
+      className="react-message-image"
+      src={src}
+      alt="Chat attachment"
+      onError={() => setIndex(prev => Math.min(prev + 1, candidates.length - 1))}
+    />
+  );
+}
+
 function ChatShell() {
   const [state, dispatch] = useReducer(chatReducer, initialChatState);
   const [draft, setDraft] = useState('');
   const [sendError, setSendError] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [reportForm, setReportForm] = useState({ open: false, reason: 'harassment', additionalInfo: '', alsoBlock: false });
+  const [actionNotice, setActionNotice] = useState('');
   const activeConversation = getActiveConversation(state);
   const visibleRoster = getVisibleRoster(state);
   const visibleConversations = getVisibleConversations(state);
+  const availableCountries = useMemo(
+    () => Array.from(new Set(state.roster.users.map(user => user.country).filter(Boolean))).sort(),
+    [state.roster.users]
+  );
   const currentUser = state.session.currentUser;
   const socket = useChatSocket({
     currentUser,
@@ -630,6 +660,101 @@ function ChatShell() {
     }
   }
 
+  function sendChatMessage(messageText) {
+    if (!activeConversation || !currentUser?.username) return;
+    const message = createClientMessage({
+      sender: currentUser.username,
+      recipient: activeConversation.username,
+      message: messageText
+    });
+    socket.sendMessage({
+      sender: message.sender,
+      recipient: message.recipient,
+      message: message.message
+    });
+    dispatch({ type: CHAT_ACTIONS.messageSentOptimistic, payload: { message } });
+  }
+
+  async function sendImage(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file || !activeConversation || !currentUser?.username) return;
+    setUploadingImage(true);
+    setSendError('');
+    try {
+      const result = await uploadChatImage(file, currentUser.username);
+      const fileUrl = result.fileUrl || result.url;
+      if (!fileUrl) throw new Error('Upload did not return a file URL');
+      sendChatMessage(createImageMessage(fileUrl));
+    } catch (err) {
+      setSendError(err.message || 'Failed to send image.');
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  async function blockActivePeer() {
+    if (!activeConversation || !currentUser?.username) return;
+    const peer = activeConversation.profile || {};
+    const deviceId = peer.deviceId || state.roster.usernameToDeviceId[activeConversation.username] || '';
+    if (!confirm(`Block ${activeConversation.username}? They will be hidden locally and recorded for moderation.`)) return;
+    setActionNotice('');
+    setSendError('');
+    try {
+      await recordBlock({
+        blockerUsername: currentUser.username,
+        blockerDeviceId: state.session.deviceId,
+        blockedUsername: activeConversation.username,
+        blockedDeviceId: deviceId,
+        source: 'react_chat_block',
+        reason: 'user_blocked'
+      });
+      const nextBlocked = Array.from(new Set([...state.conversations.blockedDeviceIds, deviceId].filter(Boolean)));
+      saveBlockedDevices(currentUser.username, nextBlocked);
+      dispatch({ type: CHAT_ACTIONS.peerBlocked, payload: { username: activeConversation.username, deviceId } });
+      setActionNotice(`${activeConversation.username} was blocked.`);
+    } catch (err) {
+      setSendError(err.message || 'Failed to block user.');
+    }
+  }
+
+  function hideActiveChat() {
+    if (!activeConversation || !currentUser?.username) return;
+    const nextHidden = Array.from(new Set([...state.conversations.hiddenUsernames, activeConversation.username]));
+    saveHiddenChats(currentUser.username, nextHidden);
+    dispatch({ type: CHAT_ACTIONS.chatHidden, payload: { username: activeConversation.username } });
+    setActionNotice(`${activeConversation.username} was hidden from chats.`);
+  }
+
+  async function submitReport(event) {
+    event.preventDefault();
+    if (!activeConversation || !currentUser?.username) return;
+    const peer = activeConversation.profile || {};
+    const reportedDeviceId = peer.deviceId || state.roster.usernameToDeviceId[activeConversation.username] || '';
+    setSendError('');
+    setActionNotice('');
+    try {
+      await createReport({
+        reportingUser: currentUser.username,
+        reportingDeviceId: state.session.deviceId,
+        reportedUser: activeConversation.username,
+        reportedDeviceId,
+        reason: reportForm.reason,
+        additionalInfo: reportForm.additionalInfo,
+        alsoBlock: reportForm.alsoBlock
+      });
+      if (reportForm.alsoBlock) {
+        const nextBlocked = Array.from(new Set([...state.conversations.blockedDeviceIds, reportedDeviceId].filter(Boolean)));
+        saveBlockedDevices(currentUser.username, nextBlocked);
+        dispatch({ type: CHAT_ACTIONS.peerBlocked, payload: { username: activeConversation.username, deviceId: reportedDeviceId } });
+      }
+      setReportForm({ open: false, reason: 'harassment', additionalInfo: '', alsoBlock: false });
+      setActionNotice('Report submitted.');
+    } catch (err) {
+      setSendError(err.message || 'Failed to submit report.');
+    }
+  }
+
   if (!currentUser?.username) {
     return (
       <section className="stack">
@@ -658,6 +783,24 @@ function ChatShell() {
         <aside className="react-chat-sidebar">
           <div className="chat-sidebar-section">
             <h3>Online Now</h3>
+            <div className="react-chat-filters">
+              <select value={state.roster.filters.gender} onChange={e => dispatch({ type: CHAT_ACTIONS.filtersChanged, payload: { gender: e.target.value } })}>
+                <option value="all">All genders</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+                <option value="non-binary">Non-binary</option>
+              </select>
+              <select value={state.roster.filters.country} onChange={e => dispatch({ type: CHAT_ACTIONS.filtersChanged, payload: { country: e.target.value } })}>
+                <option value="all">All countries</option>
+                {availableCountries.map(country => <option key={country} value={country}>{country}</option>)}
+              </select>
+              <div className="age-filter-row">
+                <input type="number" min="13" max="100" placeholder="Min" value={state.roster.filters.ageMin} onChange={e => dispatch({ type: CHAT_ACTIONS.filtersChanged, payload: { ageMin: e.target.value } })} />
+                <input type="number" min="13" max="100" placeholder="Max" value={state.roster.filters.ageMax} onChange={e => dispatch({ type: CHAT_ACTIONS.filtersChanged, payload: { ageMax: e.target.value } })} />
+              </div>
+              <button className="secondary" onClick={() => dispatch({ type: CHAT_ACTIONS.filtersChanged, payload: { gender: 'all', country: 'all', ageMin: '', ageMax: '' } })}>Clear filters</button>
+            </div>
             <div className="chat-list">
               {visibleRoster.length === 0 && <div className="empty-chat-list">No users online yet.</div>}
               {visibleRoster.map(user => (
@@ -699,24 +842,63 @@ function ChatShell() {
                   <h2>{activeConversation.profile?.displayName || activeConversation.username}</h2>
                   <p>{[activeConversation.profile?.age, activeConversation.profile?.country].filter(Boolean).join(' | ')}</p>
                 </div>
-                <button className="secondary" onClick={() => dispatch({ type: CHAT_ACTIONS.chatClosed })}>Close</button>
+                <div className="react-chat-actions">
+                  <button className="secondary" onClick={() => setReportForm(prev => ({ ...prev, open: !prev.open }))}>Report</button>
+                  <button className="secondary" onClick={blockActivePeer}>Block</button>
+                  <button className="secondary" onClick={hideActiveChat}>Hide</button>
+                  <button className="secondary" onClick={() => dispatch({ type: CHAT_ACTIONS.chatClosed })}>Close</button>
+                </div>
               </div>
+              {reportForm.open && (
+                <form className="react-report-form" onSubmit={submitReport}>
+                  <label>
+                    Reason
+                    <select value={reportForm.reason} onChange={e => setReportForm(prev => ({ ...prev, reason: e.target.value }))}>
+                      <option value="harassment">Harassment or bullying</option>
+                      <option value="spam">Spam or scam</option>
+                      <option value="inappropriate-content">Sexual/inappropriate content</option>
+                      <option value="hate-speech">Hate speech or discrimination</option>
+                      <option value="violence-threats">Violence or threats</option>
+                      <option value="impersonation">Impersonation</option>
+                      <option value="self-harm">Self-harm or suicide concerns</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </label>
+                  <label>
+                    Additional information
+                    <textarea value={reportForm.additionalInfo} onChange={e => setReportForm(prev => ({ ...prev, additionalInfo: e.target.value }))} placeholder="Optional context for moderators" />
+                  </label>
+                  <label className="checkbox-field">
+                    <input type="checkbox" checked={reportForm.alsoBlock} onChange={e => setReportForm(prev => ({ ...prev, alsoBlock: e.target.checked }))} />
+                    Also block this user
+                  </label>
+                  <div className="button-row compact">
+                    <button className="primary">Submit report</button>
+                    <button type="button" className="secondary" onClick={() => setReportForm(prev => ({ ...prev, open: false }))}>Cancel</button>
+                  </div>
+                </form>
+              )}
               <div className="react-chat-messages">
                 {activeConversation.messages.length === 0 && <div className="empty-thread">No messages yet. Say hello.</div>}
                 {activeConversation.messages.map((message, index) => {
                   const mine = message.sender === currentUser.username;
                   return (
                     <div className={`react-message ${mine ? 'mine' : 'theirs'} ${message.status === 'failed' ? 'failed' : ''}`} key={message.id || message.clientId || `${message.timestamp}-${index}`}>
-                      <span>{message.message}</span>
+                      {isImageMessage(message.message) ? <ChatImage message={message.message} /> : <span>{message.message}</span>}
                       <small>{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{message.status === 'failed' ? ' | failed' : ''}</small>
                     </div>
                   );
                 })}
               </div>
               <form className="react-chat-input" onSubmit={sendText}>
+                <label className="attachment-button">
+                  {uploadingImage ? 'Uploading...' : 'Photo'}
+                  <input type="file" accept="image/*" onChange={sendImage} disabled={uploadingImage} />
+                </label>
                 <input value={draft} onChange={e => setDraft(e.target.value)} placeholder={`Message ${activeConversation.username}...`} />
                 <button className="primary" disabled={!draft.trim()}>Send</button>
               </form>
+              {actionNotice && <div className="notice success">{actionNotice}</div>}
               {sendError && <div className="notice error">{sendError}</div>}
             </>
           ) : (
