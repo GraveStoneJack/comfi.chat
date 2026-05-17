@@ -1,5 +1,23 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import {
+  CHAT_ACTIONS,
+  CHAT_STATUS,
+  chatReducer,
+  createClientMessage,
+  fetchHistory,
+  getActiveConversation,
+  getVisibleConversations,
+  getVisibleRoster,
+  initialChatState,
+  loadBlockedDevices,
+  loadHiddenChats,
+  loadPreferences,
+  restoreChatSession,
+  useChatSocket,
+  useOnlineRoster,
+  usePresence
+} from './chat';
 import './styles.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -152,7 +170,8 @@ function Welcome({ session }) {
         {session.user ? (
           <>
             <button className="primary" onClick={() => navigate('/profile')}>Edit profile</button>
-            <a className="secondary" href="/chat">Open current chat</a>
+            <button className="primary" onClick={() => navigate('/app/chat')}>Open React chat</button>
+            <a className="secondary" href="/chat">Open legacy chat</a>
           </>
         ) : (
           <>
@@ -532,6 +551,186 @@ function Profile({ session, onAuthed }) {
   );
 }
 
+function ChatShell() {
+  const [state, dispatch] = useReducer(chatReducer, initialChatState);
+  const [draft, setDraft] = useState('');
+  const [sendError, setSendError] = useState('');
+  const activeConversation = getActiveConversation(state);
+  const visibleRoster = getVisibleRoster(state);
+  const visibleConversations = getVisibleConversations(state);
+  const currentUser = state.session.currentUser;
+  const socket = useChatSocket({
+    currentUser,
+    authToken: state.session.authToken,
+    dispatch,
+    enabled: Boolean(currentUser?.username)
+  });
+
+  useEffect(() => {
+    const restored = restoreChatSession();
+    dispatch({ type: CHAT_ACTIONS.sessionRestored, payload: restored });
+    dispatch({ type: CHAT_ACTIONS.preferencesLoaded, payload: loadPreferences() });
+    if (restored.currentUser?.username) {
+      dispatch({
+        type: CHAT_ACTIONS.blockedDevicesLoaded,
+        payload: { deviceIds: loadBlockedDevices(restored.currentUser.username) }
+      });
+      dispatch({
+        type: CHAT_ACTIONS.hiddenChatsLoaded,
+        payload: { usernames: loadHiddenChats(restored.currentUser.username) }
+      });
+    }
+  }, []);
+
+  usePresence({
+    currentUser,
+    deviceId: state.session.deviceId,
+    enabled: Boolean(currentUser?.username)
+  });
+  useOnlineRoster({ dispatch, enabled: Boolean(currentUser?.username) });
+
+  async function openPeer(peer) {
+    if (!peer?.username || !currentUser?.username) return;
+    dispatch({ type: CHAT_ACTIONS.chatOpened, payload: { peer } });
+    try {
+      const messages = await fetchHistory(currentUser.username, peer.username);
+      dispatch({ type: CHAT_ACTIONS.historyLoaded, payload: { username: peer.username, messages } });
+    } catch (err) {
+      setSendError(err.message || 'Failed to load conversation history.');
+    }
+  }
+
+  function openExistingConversation(conversation) {
+    openPeer(conversation.profile || { username: conversation.username });
+  }
+
+  function sendText(event) {
+    event.preventDefault();
+    setSendError('');
+    if (!draft.trim() || !activeConversation || !currentUser?.username) return;
+    const message = createClientMessage({
+      sender: currentUser.username,
+      recipient: activeConversation.username,
+      message: draft
+    });
+    try {
+      socket.sendMessage({
+        sender: message.sender,
+        recipient: message.recipient,
+        message: message.message
+      });
+      dispatch({ type: CHAT_ACTIONS.messageSentOptimistic, payload: { message } });
+      setDraft('');
+    } catch (err) {
+      dispatch({
+        type: CHAT_ACTIONS.messageSendFailed,
+        payload: { username: activeConversation.username, clientId: message.clientId, error: err.message }
+      });
+      setSendError(err.message || 'Failed to send message.');
+    }
+  }
+
+  if (!currentUser?.username) {
+    return (
+      <section className="stack">
+        <p className="eyebrow">React chat preview</p>
+        <h1>Complete your account first</h1>
+        <p className="muted">Sign in or create a profile before opening chat.</p>
+        <button className="primary" onClick={() => navigate('/login')}>Sign in</button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="react-chat-shell">
+      <header className="react-chat-header">
+        <div>
+          <p className="eyebrow">React chat preview</p>
+          <h1>Chat</h1>
+          <p className="muted">This is the new React shell using the live presence, roster, history, and websocket contracts.</p>
+        </div>
+        <div className={`connection-pill ${state.connection.status}`}>
+          {state.connection.status === CHAT_STATUS.connected ? 'Connected' : titleCase(state.connection.status)}
+        </div>
+      </header>
+
+      <div className="react-chat-grid">
+        <aside className="react-chat-sidebar">
+          <div className="chat-sidebar-section">
+            <h3>Online Now</h3>
+            <div className="chat-list">
+              {visibleRoster.length === 0 && <div className="empty-chat-list">No users online yet.</div>}
+              {visibleRoster.map(user => (
+                <button
+                  className={`chat-list-item ${activeConversation?.username === user.username ? 'active' : ''}`}
+                  key={user._id || user.username}
+                  onClick={() => openPeer(user)}
+                >
+                  <strong>{user.username}</strong>
+                  <span>{[user.age, user.gender, user.country].filter(Boolean).join(' | ') || 'Online'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="chat-sidebar-section">
+            <h3>Chats</h3>
+            <div className="chat-list">
+              {visibleConversations.length === 0 && <div className="empty-chat-list">No active chats yet.</div>}
+              {visibleConversations.map(conversation => (
+                <button
+                  className={`chat-list-item ${activeConversation?.username === conversation.username ? 'active' : ''}`}
+                  key={conversation.username}
+                  onClick={() => openExistingConversation(conversation)}
+                >
+                  <strong>{conversation.username}{conversation.unread ? ' •' : ''}</strong>
+                  <span>{conversation.lastMessage || 'Open conversation'}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        <main className="react-chat-panel">
+          {activeConversation ? (
+            <>
+              <div className="react-chat-thread-header">
+                <div>
+                  <h2>{activeConversation.profile?.displayName || activeConversation.username}</h2>
+                  <p>{[activeConversation.profile?.age, activeConversation.profile?.country].filter(Boolean).join(' | ')}</p>
+                </div>
+                <button className="secondary" onClick={() => dispatch({ type: CHAT_ACTIONS.chatClosed })}>Close</button>
+              </div>
+              <div className="react-chat-messages">
+                {activeConversation.messages.length === 0 && <div className="empty-thread">No messages yet. Say hello.</div>}
+                {activeConversation.messages.map((message, index) => {
+                  const mine = message.sender === currentUser.username;
+                  return (
+                    <div className={`react-message ${mine ? 'mine' : 'theirs'} ${message.status === 'failed' ? 'failed' : ''}`} key={message.id || message.clientId || `${message.timestamp}-${index}`}>
+                      <span>{message.message}</span>
+                      <small>{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}{message.status === 'failed' ? ' | failed' : ''}</small>
+                    </div>
+                  );
+                })}
+              </div>
+              <form className="react-chat-input" onSubmit={sendText}>
+                <input value={draft} onChange={e => setDraft(e.target.value)} placeholder={`Message ${activeConversation.username}...`} />
+                <button className="primary" disabled={!draft.trim()}>Send</button>
+              </form>
+              {sendError && <div className="notice error">{sendError}</div>}
+            </>
+          ) : (
+            <div className="empty-thread large">
+              <h2>Select someone online</h2>
+              <p>Open a user from the online list to start the React chat flow.</p>
+            </div>
+          )}
+        </main>
+      </div>
+    </section>
+  );
+}
+
 function NotFound() {
   return (
     <section className="stack">
@@ -561,6 +760,7 @@ function App() {
   else if (route.path === '/login') screen = <Login onAuthed={onAuthed} />;
   else if (route.path === '/verify' || route.path === '/verify.html') screen = <Verify search={route.search} />;
   else if (route.path === '/profile' || route.path === '/profile.html') screen = <Profile session={session} onAuthed={onAuthed} />;
+  else if (route.path === '/app/chat') screen = <ChatShell />;
   else screen = <NotFound />;
 
   return <Shell session={session} onLogout={onLogout}>{screen}</Shell>;
