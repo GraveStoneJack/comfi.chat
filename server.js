@@ -168,11 +168,21 @@ wss.on('close', () => {
 	clearInterval(heartbeatInterval);
 });
 
+function redactRequestBody(value) {
+    const sensitiveKeys = new Set(['password', 'passwordHash', 'passwordEncrypted', 'token', 'tempToken', 'authToken', 'code', 'totpSecret']);
+    if (!value || typeof value !== 'object') return value;
+    if (Array.isArray(value)) return value.map(redactRequestBody);
+    return Object.fromEntries(Object.entries(value).map(([key, val]) => {
+        if (sensitiveKeys.has(key)) return [key, '[REDACTED]'];
+        return [key, redactRequestBody(val)];
+    }));
+}
+
 // Debug middleware
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-    if (req.method === 'POST') {
-        console.log('Request body:', req.body);
+    if (process.env.LOG_REQUEST_BODY === 'true' && ['POST', 'PUT', 'PATCH'].includes(req.method)) {
+        console.log('Request body:', redactRequestBody(req.body));
     }
     next();
 });

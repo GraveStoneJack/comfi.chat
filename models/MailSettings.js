@@ -6,6 +6,7 @@ const mailSettingsSchema = new mongoose.Schema({
 	host: { type: String, trim: true },
 	port: { type: Number, min: 1, max: 65535, default: 587 },
 	secure: { type: Boolean, default: false },
+	authMethod: { type: String, enum: ['LOGIN', 'PLAIN'], default: 'LOGIN' },
 	username: { type: String, trim: true },
 	passwordEncrypted: { type: String, select: false },
 	fromAddress: { type: String, trim: true, lowercase: true },

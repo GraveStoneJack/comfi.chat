@@ -1007,6 +1007,49 @@ th {
   width: min(320px, 100%);
 }
 
+.admin-account-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.admin-create-form {
+  align-content: start;
+}
+
+.admin-accounts-table {
+  margin-top: 18px;
+}
+
+.muted-block {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.inline-admin-action {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto;
+  gap: 8px;
+}
+
+.admin-secret-box {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.admin-secret-box code {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
 .settings-count-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

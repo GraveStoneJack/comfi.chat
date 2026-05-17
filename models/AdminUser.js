@@ -5,7 +5,7 @@ const adminUserSchema = new mongoose.Schema({
 	username: { type: String, required: true, unique: true, trim: true },
 	email: { type: String, required: true, unique: true, lowercase: true, trim: true },
 	passwordHash: { type: String, required: true, select: false },
-	role: { type: String, enum: ['owner', 'admin', 'moderator'], default: 'owner' },
+	role: { type: String, enum: ['owner', 'admin', 'moderator', 'viewer'], default: 'owner' },
 	totpSecret: { type: String, required: true, select: false },
 	isActive: { type: Boolean, default: true },
 	lastLoginAt: { type: Date },
