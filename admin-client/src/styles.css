@@ -212,6 +212,12 @@ label {
   font-weight: 700;
 }
 
+label small {
+  color: var(--muted);
+  font-weight: 600;
+  line-height: 1.5;
+}
+
 .primary,
 .ghost,
 .icon-button,
