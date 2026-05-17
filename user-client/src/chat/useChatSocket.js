@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
-import { CHAT_ACTIONS, CHAT_STATUS } from './state.js';
+import { CHAT_ACTIONS, CHAT_STATUS, isDeleteImageToken, stripDeleteToken } from './state.js';
 import { CHAT_TIMING, getWebSocketUrl } from './config.js';
+import { describeDeleteReason } from './messagePipeline.js';
 
-export function useChatSocket({ currentUser, authToken, dispatch, enabled = true }) {
+export function useChatSocket({ currentUser, authToken, dispatch, enabled = true, onIncomingMessage }) {
   const socketRef = useRef(null);
   const heartbeatRef = useRef(null);
   const reconnectRef = useRef(null);
@@ -68,7 +69,16 @@ export function useChatSocket({ currentUser, authToken, dispatch, enabled = true
           const data = JSON.parse(event.data);
           if (!data || data.type === 'heartbeat' || data.type === 'pong') return;
           if (data.type === 'message') {
+            if (isDeleteImageToken(data.message)) {
+              const username = data.sender === currentUser.username ? data.recipient : data.sender;
+              dispatch({
+                type: CHAT_ACTIONS.messageDeleted,
+                payload: { username, imageUrl: stripDeleteToken(data.message), reason: describeDeleteReason(data.message) }
+              });
+              return;
+            }
             dispatch({ type: CHAT_ACTIONS.messageReceived, payload: { message: data } });
+            if (data.sender !== currentUser.username) onIncomingMessage?.(data);
           }
         } catch (error) {
           dispatch({
@@ -99,7 +109,7 @@ export function useChatSocket({ currentUser, authToken, dispatch, enabled = true
       cleanupSocket();
       dispatch({ type: CHAT_ACTIONS.connectionChanged, payload: { status: CHAT_STATUS.disconnected } });
     };
-  }, [currentUser?.username, authToken, dispatch, enabled]);
+  }, [currentUser?.username, authToken, dispatch, enabled, onIncomingMessage]);
 
   return {
     sendMessage(payload) {

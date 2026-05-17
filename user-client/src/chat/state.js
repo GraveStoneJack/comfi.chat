@@ -419,7 +419,9 @@ function markImageDeleted(state, { username, imageUrl, reason }) {
   if (!conversation) return state;
   return patchConversation(state, username, {
     messages: conversation.messages.map(message => {
-      if (stripImageToken(message.message) !== imageUrl) return message;
+      const raw = stripImageToken(message.message);
+      const matches = raw === imageUrl || imageUrl?.endsWith(raw) || raw?.endsWith(imageUrl);
+      if (!matches) return message;
       return { ...message, deleted: true, deleteReason: reason || 'manual' };
     })
   });

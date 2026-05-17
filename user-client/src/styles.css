@@ -319,6 +319,30 @@ label.file-button {
   color: #047857;
 }
 
+.react-chat-top-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+
+.toggle-pill {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #622083;
+  font-weight: 800;
+}
+
+.toggle-pill input {
+  width: auto;
+}
+
 .react-chat-grid {
   min-height: 560px;
   display: grid;
@@ -524,14 +548,29 @@ label.file-button {
   border-radius: 14px;
 }
 
+.message-inline-action {
+  justify-self: start;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+  font-size: 0.8rem;
+}
+
+.deleted-message {
+  font-style: italic;
+  opacity: 0.75;
+}
+
 .react-chat-input {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(110px, auto) 1fr auto;
   gap: 10px;
   align-items: center;
 }
 
-.react-chat-input input {
+.react-chat-input input,
+.react-chat-input select {
   width: 100%;
   min-height: 52px;
   padding: 12px 16px;
@@ -539,6 +578,10 @@ label.file-button {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.78);
   color: #2f0642;
+}
+
+.image-expiry-select {
+  border-radius: 999px;
 }
 
 .attachment-button {
@@ -627,6 +670,8 @@ body.dark .react-chat-input input {
 body.dark .chat-list-item,
 body.dark .react-message.theirs,
 body.dark .react-chat-input input,
+body.dark .react-chat-input select,
+body.dark .toggle-pill,
 body.dark .react-chat-filters,
 body.dark .react-chat-filters select,
 body.dark .react-chat-filters input,
@@ -647,6 +692,7 @@ body.dark .react-report-form label {
 
 body.dark .react-chat-filters select,
 body.dark .react-chat-filters input,
+body.dark .react-chat-input select,
 body.dark .react-report-form select,
 body.dark .react-report-form textarea {
   color: #efeaff;
@@ -675,12 +721,20 @@ body.dark .react-report-form textarea {
     flex-direction: column;
   }
 
+  .react-chat-top-actions {
+    justify-content: flex-start;
+  }
+
   .react-chat-grid {
     min-height: auto;
   }
 
   .react-chat-panel {
     min-height: 560px;
+  }
+
+  .react-chat-input {
+    grid-template-columns: 1fr;
   }
 
   .top-nav {
