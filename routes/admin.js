@@ -17,6 +17,12 @@ const path = require('path');
 const router = express.Router();
 
 router.use(requireAdmin);
+router.use((req, res, next) => {
+	if (req.admin && req.admin.role === 'viewer' && req.method !== 'GET') {
+		return res.status(403).json({ error: 'Viewer accounts are read-only' });
+	}
+	next();
+});
 
 const IMAGE_RE = /^(?:\[image\])|(?:\.(png|jpe?g|gif|webp|avif)(\?.*)?$)/i;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -1049,6 +1055,7 @@ router.get('/settings/summary', async (_req, res) => {
 					host: 'smtp.mail.me.com',
 					port: 587,
 					secure: false,
+					authMethod: 'LOGIN',
 					note: 'Use STARTTLS on port 587. Apple usually requires an app-specific password for SMTP.'
 				}
 			},
@@ -1103,6 +1110,9 @@ router.post('/settings/mail/test', async (req, res) => {
 
 router.post('/settings/wipe-data', async (req, res) => {
 	try {
+		if (!req.admin || (req.admin.role !== 'owner' && req.admin.role !== 'admin')) {
+			return res.status(403).json({ error: 'Forbidden' });
+		}
 		const { confirmation } = req.body || {};
 		if (confirmation !== 'WIPE COMFI DATA') {
 			return res.status(400).json({ error: 'Confirmation text did not match' });

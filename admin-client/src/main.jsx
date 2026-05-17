@@ -29,6 +29,7 @@ import {
   Download,
   Eye,
   Image,
+  KeyRound,
   LogOut,
   Mail,
   MessageSquare,
@@ -39,6 +40,7 @@ import {
   Shield,
   Sun,
   Trash2,
+  UserPlus,
   Users
 } from 'lucide-react';
 import './styles.css';
@@ -91,6 +93,10 @@ function formatBytes(value) {
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString() : 'Never';
+}
+
+function titleCase(value) {
+  return String(value || '').replace(/\b\w/g, char => char.toUpperCase());
 }
 
 function formatDateInput(value) {
@@ -258,7 +264,7 @@ function Shell({ me, onLogout, theme, setTheme }) {
     reports: <ReportsPage />,
     cases: <CasesPage />,
     storage: <StoragePage openLightbox={setLightbox} />,
-    settings: <SettingsPage />,
+    settings: <SettingsPage me={me} />,
     blocks: <BlocksPage />,
     chats: <ChatsPage openLightbox={setLightbox} />
   }[tab];
@@ -838,7 +844,7 @@ function MediaPreview({ url, alt, onOpen }) {
   );
 }
 
-function SettingsPage() {
+function SettingsPage({ me }) {
   const [confirmation, setConfirmation] = useState('');
   const [wipeResult, setWipeResult] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -891,6 +897,7 @@ function SettingsPage() {
               </div>
             </Panel>
           </section>
+          <AdminAccountsPanel me={me} />
           <MailSettingsPanel mail={data.mail} recommendations={data.mailRecommendations} onSaved={() => setRefresh(x => x + 1)} />
           <Panel title="Danger Zone" subtitle="Use before public launch to remove test data. Admin accounts are preserved.">
             <div className="danger-zone">
@@ -945,6 +952,7 @@ function MailSettingsPanel({ mail, recommendations, onSaved }) {
       host: icloud.host || 'smtp.mail.me.com',
       port: icloud.port || 587,
       secure: !!icloud.secure,
+      authMethod: icloud.authMethod || 'LOGIN',
       fromAddress: prev.fromAddress || recommendations?.fromAddress || 'no-reply@comfi.chat',
       replyTo: prev.replyTo || recommendations?.replyTo || 'support@comfi.chat',
       fromName: prev.fromName || 'ComfiChat'
@@ -1037,6 +1045,13 @@ function MailSettingsPanel({ mail, recommendations, onSaved }) {
             </select>
           </label>
           <label>
+            SMTP auth method
+            <select value={form.authMethod || 'LOGIN'} onChange={e => update('authMethod', e.target.value)}>
+              <option value="LOGIN">LOGIN, recommended for iCloud</option>
+              <option value="PLAIN">PLAIN</option>
+            </select>
+          </label>
+          <label>
             SMTP username
             <input value={form.username || ''} onChange={e => update('username', e.target.value)} placeholder="your Apple Account email, e.g. name@icloud.com" />
             <small>For iCloud, this is usually the Apple Account/iCloud email that generated the app-specific password, not the no-reply sender alias.</small>
@@ -1069,6 +1084,227 @@ function MailSettingsPanel({ mail, recommendations, onSaved }) {
         {status && <div className="surface-note success">{status}</div>}
         {error && <div className="surface-note danger-note">{error}</div>}
       </form>
+    </Panel>
+  );
+}
+
+const ADMIN_ROLE_OPTIONS = ['owner', 'admin', 'moderator', 'viewer'];
+const ROLE_HELP = {
+  owner: 'Full access, including owner accounts and destructive launch cleanup.',
+  admin: 'Can manage settings, admin accounts, and moderation operations.',
+  moderator: 'Can perform moderation work but cannot manage admin accounts or mail settings.',
+  viewer: 'Read-only admin portal access.'
+};
+
+function AdminAccountsPanel({ me }) {
+  const canManage = me && (me.role === 'owner' || me.role === 'admin');
+  const [refresh, setRefresh] = useState(0);
+  const [createForm, setCreateForm] = useState({ username: '', email: '', password: '', role: 'viewer' });
+  const [passwords, setPasswords] = useState({});
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [secretResult, setSecretResult] = useState(null);
+  const { loading, data, error: loadError } = useAsync(
+    () => canManage ? api('/api/admin/auth/users') : Promise.resolve([]),
+    [canManage, refresh]
+  );
+
+  function updateCreate(field, value) {
+    setCreateForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  async function createAdmin(event) {
+    event.preventDefault();
+    setStatus('');
+    setError('');
+    setSecretResult(null);
+    try {
+      const result = await api('/api/admin/auth/users', {
+        method: 'POST',
+        body: JSON.stringify(createForm)
+      });
+      setSecretResult({ username: result.admin.username, totpSecret: result.totpSecret, otpauth: result.otpauth });
+      setStatus(`Created ${result.admin.username}. Save the MFA secret before closing this page.`);
+      setCreateForm({ username: '', email: '', password: '', role: 'viewer' });
+      setRefresh(x => x + 1);
+    } catch (err) {
+      setError(err.message || 'Failed to create admin account.');
+    }
+  }
+
+  async function updateAdmin(admin, patch) {
+    setStatus('');
+    setError('');
+    try {
+      await api(`/api/admin/auth/users/${admin.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(patch)
+      });
+      setStatus(`Updated ${admin.username}.`);
+      setRefresh(x => x + 1);
+    } catch (err) {
+      setError(err.message || 'Failed to update admin account.');
+    }
+  }
+
+  async function rotatePassword(admin) {
+    const password = passwords[admin.id] || '';
+    if (password.length < 8) {
+      setError('New admin passwords must be at least 8 characters.');
+      return;
+    }
+    setStatus('');
+    setError('');
+    try {
+      await api(`/api/admin/auth/users/${admin.id}/password`, {
+        method: 'POST',
+        body: JSON.stringify({ password })
+      });
+      setPasswords(prev => ({ ...prev, [admin.id]: '' }));
+      setStatus(`Password rotated for ${admin.username}.`);
+    } catch (err) {
+      setError(err.message || 'Failed to rotate password.');
+    }
+  }
+
+  async function resetMfa(admin) {
+    if (!confirm(`Reset MFA for ${admin.username}? Their old authenticator code will stop working.`)) return;
+    setStatus('');
+    setError('');
+    setSecretResult(null);
+    try {
+      const result = await api(`/api/admin/auth/users/${admin.id}/mfa-reset`, { method: 'POST', body: JSON.stringify({}) });
+      setSecretResult({ username: admin.username, totpSecret: result.totpSecret, otpauth: result.otpauth });
+      setStatus(`MFA reset for ${admin.username}. Save the new MFA secret before closing this page.`);
+    } catch (err) {
+      setError(err.message || 'Failed to reset MFA.');
+    }
+  }
+
+  if (!canManage) {
+    return (
+      <Panel title="Admin Accounts" subtitle="Owner/admin permission required">
+        <div className="surface-note">Your role can view portal data, but account management is restricted to owner and admin accounts.</div>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel title="Admin Accounts" subtitle="Create accounts, rotate passwords, assign roles, and reset MFA">
+      <div className="admin-account-grid">
+        <form className="form-grid admin-create-form" onSubmit={createAdmin}>
+          <label>
+            Username
+            <input value={createForm.username} onChange={e => updateCreate('username', e.target.value)} required />
+          </label>
+          <label>
+            Email
+            <input type="email" value={createForm.email} onChange={e => updateCreate('email', e.target.value)} required />
+          </label>
+          <label>
+            Initial password
+            <input type="password" value={createForm.password} onChange={e => updateCreate('password', e.target.value)} minLength="8" required />
+          </label>
+          <label>
+            Role
+            <select value={createForm.role} onChange={e => updateCreate('role', e.target.value)}>
+              {ADMIN_ROLE_OPTIONS.filter(role => me.role === 'owner' || role !== 'owner').map(role => (
+                <option key={role} value={role}>{titleCase(role)}</option>
+              ))}
+            </select>
+          </label>
+          <button className="primary"><UserPlus size={16} /> Create admin account</button>
+        </form>
+
+        <div className="settings-list">
+          {ADMIN_ROLE_OPTIONS.map(role => (
+            <div className="settings-row compact" key={role}>
+              <Shield size={18} />
+              <div>
+                <strong>{titleCase(role)}</strong>
+                <span>{ROLE_HELP[role]}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {loading && <Loading label="Loading admin accounts..." />}
+      {loadError && <ErrorState message={loadError} />}
+      {data && (
+        <div className="table-wrap admin-accounts-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Password</th>
+                <th>MFA</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map(admin => {
+                const isSelf = admin.id === me.id;
+                return (
+                  <tr key={admin.id}>
+                    <td>
+                      <strong>{admin.username}</strong>
+                      <span className="muted-block">{admin.email}</span>
+                      <span className="muted-block">Last login: {formatDate(admin.lastLoginAt)}</span>
+                    </td>
+                    <td>
+                      <select
+                        value={admin.role}
+                        disabled={admin.role === 'owner' && me.role !== 'owner'}
+                        onChange={e => updateAdmin(admin, { role: e.target.value })}
+                      >
+                        {ADMIN_ROLE_OPTIONS.filter(role => me.role === 'owner' || role !== 'owner').map(role => (
+                          <option key={role} value={role}>{titleCase(role)}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <select
+                        value={admin.isActive ? 'active' : 'inactive'}
+                        disabled={isSelf}
+                        onChange={e => updateAdmin(admin, { isActive: e.target.value === 'active' })}
+                      >
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                      </select>
+                    </td>
+                    <td>
+                      <div className="inline-admin-action">
+                        <input
+                          type="password"
+                          value={passwords[admin.id] || ''}
+                          onChange={e => setPasswords(prev => ({ ...prev, [admin.id]: e.target.value }))}
+                          placeholder="New password"
+                        />
+                        <button className="ghost" type="button" onClick={() => rotatePassword(admin)}><KeyRound size={16} /> Rotate</button>
+                      </div>
+                    </td>
+                    <td>
+                      <button className="ghost" type="button" onClick={() => resetMfa(admin)}>Reset MFA</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {secretResult && (
+        <div className="surface-note success admin-secret-box">
+          <strong>MFA secret for {secretResult.username}</strong>
+          <code>{secretResult.totpSecret}</code>
+          <textarea readOnly value={secretResult.otpauth} />
+        </div>
+      )}
+      {status && <div className="surface-note success">{status}</div>}
+      {error && <div className="surface-note danger-note">{error}</div>}
     </Panel>
   );
 }
