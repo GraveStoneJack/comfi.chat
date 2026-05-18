@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#9b4dca" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#2f0642" media="(prefers-color-scheme: dark)">
+    <meta name="format-detection" content="telephone=no">
+    <title>ComfiChat Privacy Policy</title>
+    <meta name="description" content="Read the ComfiChat Privacy Policy for information about account data, profiles, chat messages, uploads, device data, and moderation records.">
+    <link rel="canonical" href="https://comfi.chat/privacy.html">
+    <meta name="robots" content="index,follow,max-image-preview:large">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <div class="theme-toggle">
+        <button id="theme-toggle-btn" class="theme-toggle-btn">Auto</button>
+    </div>
+    <div class="container content-container">
+        <nav class="page-nav" aria-label="Site navigation">
+            <a href="/">Home</a>
+            <a href="/about.html">About</a>
+            <a href="/terms.html">Terms</a>
+        </nav>
+        <header>
+            <h1>Privacy Policy</h1>
+            <p class="effective-date">Effective May 18, 2026</p>
+        </header>
+        <main>
+            <section>
+                <h2>Overview</h2>
+                <p>
+                    This Privacy Policy explains how ComfiChat collects, uses, stores, and protects information when you use the site,
+                    create a profile, join chat rooms, send messages, upload content, or use safety features.
+                </p>
+            </section>
+            <section>
+                <h2>Information We Collect</h2>
+                <ul>
+                    <li>Account information, such as email address, password credentials, and verification status.</li>
+                    <li>Profile information, such as username, display name, age, gender, country, interests, and profile photos.</li>
+                    <li>Chat information, including messages, conversation history, image attachments, timestamps, and delivery details.</li>
+                    <li>Safety information, including reports, blocks, moderation notes, device identifiers, and related evidence.</li>
+                    <li>Technical information, such as IP-derived country data, device/browser information, logs, cookies, and local storage identifiers.</li>
+                </ul>
+            </section>
+            <section>
+                <h2>How We Use Information</h2>
+                <p>We use information to:</p>
+                <ul>
+                    <li>Operate chat, profiles, account verification, uploads, and login features.</li>
+                    <li>Show online users, help users choose who to chat with, and maintain conversation history.</li>
+                    <li>Detect abuse, investigate reports, enforce rules, and protect users and the service.</li>
+                    <li>Maintain security, debug issues, prevent spam, and improve reliability.</li>
+                    <li>Comply with legal obligations and respond to valid legal requests.</li>
+                </ul>
+            </section>
+            <section>
+                <h2>Cookies And Local Storage</h2>
+                <p>
+                    ComfiChat uses browser storage for preferences, session state, device identifiers, theme settings, hidden chats,
+                    blocked devices, and chat-related functionality. These tools help the site remember your choices and keep chat working.
+                </p>
+            </section>
+            <section>
+                <h2>Sharing Information</h2>
+                <p>
+                    We do not sell your personal information. We may share information with service providers that help us host,
+                    store, secure, email, moderate, or operate ComfiChat. We may also disclose information if required by law,
+                    to protect users, or to investigate abuse or security issues.
+                </p>
+            </section>
+            <section>
+                <h2>Messages And Public Safety</h2>
+                <p>
+                    Chat messages and uploaded content may be stored so users can see conversation history and so moderators can review
+                    reports or abuse patterns. Do not share sensitive personal information with strangers.
+                </p>
+            </section>
+            <section>
+                <h2>Data Retention</h2>
+                <p>
+                    We keep information for as long as needed to operate ComfiChat, maintain user safety, resolve disputes, enforce terms,
+                    comply with law, and improve the service. Some information may be deleted sooner when it is no longer needed.
+                </p>
+            </section>
+            <section>
+                <h2>Your Choices</h2>
+                <p>
+                    You can update profile information, log out, clear local browser storage, block users, and submit reports.
+                    Depending on where you live, you may have rights to request access, correction, deletion, or restriction of certain personal information.
+                </p>
+            </section>
+            <section>
+                <h2>Children And Teens</h2>
+                <p>
+                    ComfiChat is not for children under 13. Users who are old enough to use the site should still avoid sharing private information
+                    and should report unsafe behavior immediately.
+                </p>
+            </section>
+            <section>
+                <h2>Security</h2>
+                <p>
+                    We use reasonable technical and organizational measures to protect information, but no online service can guarantee perfect security.
+                    Use a strong password and be careful about what you share in chat.
+                </p>
+            </section>
+            <section>
+                <h2>Changes To This Policy</h2>
+                <p>
+                    We may update this Privacy Policy as ComfiChat changes. Continued use of the site after an update means the updated policy applies.
+                </p>
+            </section>
+        </main>
+        <footer>
+            <p>&copy; 2025 ComfiChat. All rights reserved.</p>
+        </footer>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        const key = 'comfi.theme';
+        const getSystemPref = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        const applyTheme = (mode) => {
+            const resolved = mode === 'auto' ? getSystemPref() : mode;
+            document.body.classList.toggle('dark', resolved === 'dark');
+            themeBtn.textContent = mode === 'auto' ? 'Auto' : (resolved === 'dark' ? 'Dark' : 'Light');
+        };
+        let mode = localStorage.getItem(key) || 'auto';
+        applyTheme(mode);
+        themeBtn.addEventListener('click', () => {
+            mode = mode === 'auto' ? 'light' : (mode === 'light' ? 'dark' : 'auto');
+            localStorage.setItem(key, mode);
+            applyTheme(mode);
+        });
+    });
+    </script>
+</body>
+</html>
