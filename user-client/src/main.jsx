@@ -38,6 +38,40 @@ const API_BASE = getApiBase();
 const SESSION_TOKEN = 'authToken';
 const SESSION_USER = 'user';
 const PENDING_TOKEN = 'pendingTempToken';
+const SITE_URL = 'https://comfi.chat';
+
+const routeMeta = {
+  home: {
+    title: 'ComfiChat - Anonymous Chat Rooms to Talk to Strangers Online',
+    description: 'ComfiChat is a free online chat site for anonymous chat rooms, random conversations, and talking to strangers in a simple live chat experience.',
+    robots: 'index,follow,max-image-preview:large',
+    canonical: `${SITE_URL}/`
+  },
+  signup: {
+    title: 'ComfiChat Sign Up - Join Online Chat Rooms',
+    description: 'Create a ComfiChat account to join online chat rooms, meet new people, and start live conversations with strangers.',
+    robots: 'index,follow,max-image-preview:large',
+    canonical: `${SITE_URL}/signup.html`
+  },
+  chat: {
+    title: 'ComfiChat Chat Room - Talk to Strangers Online',
+    description: 'Open ComfiChat to join online chat rooms, see who is online, and talk to strangers in live one-to-one conversations.',
+    robots: 'index,follow,max-image-preview:large',
+    canonical: `${SITE_URL}/chat.html`
+  },
+  private: {
+    title: 'ComfiChat Account',
+    description: 'Manage your ComfiChat account and profile.',
+    robots: 'noindex,follow',
+    canonical: `${SITE_URL}/`
+  },
+  notFound: {
+    title: 'Page Not Found - ComfiChat',
+    description: 'The requested ComfiChat page could not be found.',
+    robots: 'noindex,follow',
+    canonical: `${SITE_URL}/`
+  }
+};
 
 const genderOptions = ['male', 'female', 'non-binary', 'other', 'prefer not to say'];
 const sexualityOptions = ['straight', 'gay', 'lesbian', 'bisexual', 'other', 'prefer not to say'];
@@ -105,6 +139,57 @@ function useRoute() {
     };
   }, []);
   return route;
+}
+
+function upsertMeta(selector, createElement, updateElement) {
+  let element = document.head.querySelector(selector);
+  if (!element) {
+    element = createElement();
+    document.head.appendChild(element);
+  }
+  updateElement(element);
+}
+
+function useDocumentMeta(meta) {
+  useEffect(() => {
+    if (!meta) return;
+    document.title = meta.title;
+    upsertMeta(
+      'meta[name="description"]',
+      () => {
+        const element = document.createElement('meta');
+        element.setAttribute('name', 'description');
+        return element;
+      },
+      element => element.setAttribute('content', meta.description)
+    );
+    upsertMeta(
+      'meta[name="robots"]',
+      () => {
+        const element = document.createElement('meta');
+        element.setAttribute('name', 'robots');
+        return element;
+      },
+      element => element.setAttribute('content', meta.robots)
+    );
+    upsertMeta(
+      'link[rel="canonical"]',
+      () => {
+        const element = document.createElement('link');
+        element.setAttribute('rel', 'canonical');
+        return element;
+      },
+      element => element.setAttribute('href', meta.canonical)
+    );
+  }, [meta]);
+}
+
+function getRouteMeta(path) {
+  if (path === '/' || path === '/app') return routeMeta.home;
+  if (path === '/signup' || path === '/signup.html') return routeMeta.signup;
+  if (path === '/chat' || path === '/chat.html' || path === '/app/chat') return routeMeta.chat;
+  if (path === '/login' || path === '/verify' || path === '/verify.html' || path === '/profile' || path === '/profile.html') return routeMeta.private;
+  return routeMeta.notFound;
 }
 
 function useTheme() {
@@ -1155,6 +1240,7 @@ function NotFound() {
 function App() {
   const route = useRoute();
   const [session, setSession] = useState(getSession);
+  useDocumentMeta(getRouteMeta(route.path));
 
   function onLogout() {
     clearSession();
