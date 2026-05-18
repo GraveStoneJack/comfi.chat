@@ -460,14 +460,15 @@ function Dashboard({ onUserFilter }) {
 }
 
 function RiskList({ items = [], onSelect }) {
-  if (!items.length) return <Empty label="No elevated risk signals yet." />;
+  const elevated = items.filter(item => (item.risk?.score || 0) > 0);
+  if (!elevated.length) return <Empty label="No elevated risk signals yet." />;
   return (
     <div className="risk-list">
-      {items.map(item => (
+      {elevated.map(item => (
         <button className={`risk-row ${item.risk?.level || 'low'}`} key={item.key} onClick={() => onSelect(item)}>
           <div>
             <strong>{item.currentUsername}</strong>
-            <span>{item.deviceId ? shortDeviceId(item.deviceId) : 'No device id'} · {(item.usernames || []).length} names</span>
+            <span>{item.deviceId ? shortDeviceId(item.deviceId) : 'No device id'} · {(item.usernames || []).length} names · {item.risk?.signals?.content || 0} content flags</span>
           </div>
           <div className="risk-score">
             <strong>{item.risk?.score || 0}</strong>
@@ -787,7 +788,7 @@ function CasesPage() {
 
 function StoragePage({ openLightbox }) {
   const [olderThanDays, setOlderThanDays] = useState('30');
-  const [minBytes, setMinBytes] = useState(`${512 * 1024}`);
+  const [minBytes, setMinBytes] = useState('0');
   const [refresh, setRefresh] = useState(0);
   const { loading, data, error } = useAsync(() => api(`/api/admin/storage/cleanup?olderThanDays=${olderThanDays}&minBytes=${minBytes}`), [olderThanDays, minBytes, refresh]);
   async function deleteMedia(item) {
@@ -800,6 +801,8 @@ function StoragePage({ openLightbox }) {
       <Toolbar>
         <label>Older than days<input type="number" value={olderThanDays} onChange={e => setOlderThanDays(e.target.value)} /></label>
         <label>Minimum size<input type="number" value={minBytes} onChange={e => setMinBytes(e.target.value)} /></label>
+        <button className="ghost" onClick={() => { setOlderThanDays('30'); setMinBytes('0'); }}>Show all retained media</button>
+        <button className="ghost" onClick={() => { setOlderThanDays('30'); setMinBytes(`${512 * 1024}`); }}>Cleanup candidates</button>
         <span className="range-caption">{data ? `${formatNumber(data.summary.count)} retained files · ${formatBytes(data.summary.bytes)}` : ''}</span>
       </Toolbar>
       {loading && <Loading label="Loading cleanup candidates..." />}
