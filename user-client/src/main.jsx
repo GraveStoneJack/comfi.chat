@@ -587,12 +587,23 @@ const IMAGE_EXPIRY_OPTIONS = [
   { value: 60, label: '60 seconds' }
 ];
 
+const EMOJI_GROUPS = {
+  recent: [],
+  smileys: ['😀', '😄', '😊', '😂', '😍', '😘', '😎', '🥳', '😢', '😡', '🤔', '😴'],
+  gestures: ['👋', '👍', '👎', '👌', '👏', '🙌', '🙏', '💪', '🤝', '✌️', '🤞', '🫶'],
+  hearts: ['❤️', '💜', '💕', '💖', '💘', '💔', '🔥', '✨', '⭐', '🌹', '💋', '🎉']
+};
+
 function ChatShell() {
   const [state, dispatch] = useReducer(chatReducer, initialChatState);
   const [draft, setDraft] = useState('');
   const [sendError, setSendError] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageExpirySeconds, setImageExpirySeconds] = useState(0);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [emojiTab, setEmojiTab] = useState('smileys');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [reportForm, setReportForm] = useState({ open: false, reason: 'harassment', additionalInfo: '', alsoBlock: false });
   const [actionNotice, setActionNotice] = useState('');
   const imageExpiryTimers = useRef(new Map());
@@ -600,6 +611,17 @@ function ChatShell() {
   const activeConversation = getActiveConversation(state);
   const visibleRoster = getVisibleRoster(state);
   const visibleConversations = getVisibleConversations(state);
+  const threadMessages = activeConversation?.messages || [];
+  const searchMatches = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return [];
+    return threadMessages
+      .map((message, index) => ({ message, index }))
+      .filter(({ message }) => String(message.message || '').toLowerCase().includes(query));
+  }, [searchQuery, threadMessages]);
+  const displayedMessages = searchQuery.trim()
+    ? searchMatches.map(match => match.message)
+    : threadMessages;
   const availableCountries = useMemo(
     () => Array.from(new Set(state.roster.users.map(user => user.country).filter(Boolean))).sort(),
     [state.roster.users]
@@ -697,6 +719,15 @@ function ChatShell() {
       });
       setSendError(err.message || 'Failed to send message.');
     }
+  }
+
+  function insertEmoji(emoji) {
+    setDraft(prev => `${prev}${emoji}`);
+    const recentEmojis = [emoji, ...state.preferences.recentEmojis.filter(item => item !== emoji)].slice(0, 18);
+    const next = { ...state.preferences, recentEmojis };
+    savePreferences(next);
+    dispatch({ type: CHAT_ACTIONS.preferencesChanged, payload: next });
+    setEmojiOpen(false);
   }
 
   function sendChatMessage(messageText) {
@@ -944,12 +975,20 @@ function ChatShell() {
                   <p>{[activeConversation.profile?.age, activeConversation.profile?.country].filter(Boolean).join(' | ')}</p>
                 </div>
                 <div className="react-chat-actions">
+                  <button className="secondary" onClick={() => setSearchOpen(prev => !prev)}>Search</button>
                   <button className="secondary" onClick={() => setReportForm(prev => ({ ...prev, open: !prev.open }))}>Report</button>
                   <button className="secondary" onClick={blockActivePeer}>Block</button>
                   <button className="secondary" onClick={hideActiveChat}>Hide</button>
                   <button className="secondary" onClick={() => dispatch({ type: CHAT_ACTIONS.chatClosed })}>Close</button>
                 </div>
               </div>
+              {searchOpen && (
+                <div className="react-chat-search">
+                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search this conversation..." />
+                  <span>{searchQuery.trim() ? `${searchMatches.length} matches` : 'Type to search messages'}</span>
+                  <button className="secondary" onClick={() => { setSearchQuery(''); setSearchOpen(false); }}>Close search</button>
+                </div>
+              )}
               {reportForm.open && (
                 <form className="react-report-form" onSubmit={submitReport}>
                   <label>
@@ -980,8 +1019,8 @@ function ChatShell() {
                 </form>
               )}
               <div className="react-chat-messages">
-                {activeConversation.messages.length === 0 && <div className="empty-thread">No messages yet. Say hello.</div>}
-                {activeConversation.messages.map((message, index) => {
+                {displayedMessages.length === 0 && <div className="empty-thread">{searchQuery.trim() ? 'No messages match your search.' : 'No messages yet. Say hello.'}</div>}
+                {displayedMessages.map((message, index) => {
                   const mine = message.sender === currentUser.username;
                   const imageUrl = isImageMessage(message.message) ? stripImageToken(message.message) : '';
                   return (
@@ -1005,6 +1044,23 @@ function ChatShell() {
                   );
                 })}
               </div>
+              {emojiOpen && (
+                <div className="emoji-popover-react">
+                  <div className="emoji-tabs-react">
+                    {['recent', 'smileys', 'gestures', 'hearts'].map(tab => (
+                      <button key={tab} className={emojiTab === tab ? 'active' : ''} onClick={() => setEmojiTab(tab)}>
+                        {titleCase(tab)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="emoji-grid-react">
+                    {(emojiTab === 'recent' ? state.preferences.recentEmojis : EMOJI_GROUPS[emojiTab]).map(emoji => (
+                      <button key={emoji} onClick={() => insertEmoji(emoji)}>{emoji}</button>
+                    ))}
+                    {emojiTab === 'recent' && state.preferences.recentEmojis.length === 0 && <span>No recent emojis yet.</span>}
+                  </div>
+                </div>
+              )}
               <form className="react-chat-input" onSubmit={sendText}>
                 <label className="attachment-button">
                   {uploadingImage ? 'Uploading...' : 'Photo'}
@@ -1013,6 +1069,7 @@ function ChatShell() {
                 <select className="image-expiry-select" value={imageExpirySeconds} onChange={e => setImageExpirySeconds(Number(e.target.value))}>
                   {IMAGE_EXPIRY_OPTIONS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
                 </select>
+                <button type="button" className="attachment-button emoji-button" onClick={() => setEmojiOpen(prev => !prev)}>Emoji</button>
                 <input value={draft} onChange={e => setDraft(e.target.value)} placeholder={`Message ${activeConversation.username}...`} />
                 <button className="primary" disabled={!draft.trim()}>Send</button>
               </form>
