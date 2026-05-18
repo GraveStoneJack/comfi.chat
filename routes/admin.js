@@ -26,6 +26,7 @@ router.use((req, res, next) => {
 
 const IMAGE_RE = /^(?:\[image\])|(?:\.(png|jpe?g|gif|webp|avif)(\?.*)?$)/i;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const HIGH_RISK_MESSAGE_RE = /(child\s*(?:exploitation|abuse|porn|sexual)|csam|minor\s*(?:sex|sexual|nude|nudes)|underage\s*(?:sex|sexual|nude|nudes)|rape|kill\s+yourself|suicide|self[-\s]?harm|bomb|terror|blackmail|extort|doxx|stalking|traffick|hate\s*speech)/i;
 
 function parseDateRange(query) {
 	const days = Math.max(1, Math.min(parseInt(query.days || '30', 10) || 30, 365));
@@ -94,15 +95,23 @@ function dateBuckets(from, to) {
 }
 
 function riskForIdentity(row) {
-	const reportPoints = Math.min((row.reportCount || 0) * 18, 45);
-	const blockedPoints = Math.min((row.blockedByCount || 0) * 14, 35);
-	const aliasPoints = row.deviceId ? Math.min(Math.max((row.usernames || []).length - 1, 0) * 10, 25) : 0;
-	const volumePoints = Math.min(Math.floor((row.messageCount || 0) / 25) * 5, 20);
-	const recentHours = row.lastSeenAt ? (Date.now() - new Date(row.lastSeenAt).getTime()) / (60 * 60 * 1000) : Infinity;
-	const recentPoints = recentHours <= 24 ? 10 : recentHours <= 72 ? 5 : 0;
-	const score = Math.min(100, reportPoints + blockedPoints + aliasPoints + volumePoints + recentPoints);
+	const contentPoints = Math.min((row.contentFlagCount || 0) * 30, 60);
+	const reportPoints = Math.min((row.reportCount || 0) * 20, 45);
+	const blockedPoints = Math.min((row.blockedByCount || 0) * 15, 30);
+	const aliasPoints = row.deviceId ? Math.min(Math.max((row.usernames || []).length - 2, 0) * 8, 16) : 0;
+	const volumePoints = Math.min(Math.floor((row.messageCount || 0) / 100) * 4, 12);
+	const score = Math.min(100, contentPoints + reportPoints + blockedPoints + aliasPoints + volumePoints);
 	const level = score >= 75 ? 'critical' : score >= 50 ? 'high' : score >= 25 ? 'medium' : 'low';
-	return { score, level };
+	return { score, level, signals: { content: row.contentFlagCount || 0, reports: row.reportCount || 0, blocks: row.blockedByCount || 0 } };
+}
+
+function mediaBuffer(bytes) {
+	if (!bytes) return null;
+	if (Buffer.isBuffer(bytes)) return bytes;
+	if (bytes.buffer && Buffer.isBuffer(bytes.buffer)) return bytes.buffer;
+	if (bytes.buffer) return Buffer.from(bytes.buffer);
+	if (Array.isArray(bytes.data)) return Buffer.from(bytes.data);
+	return Buffer.from(bytes);
 }
 
 function evidenceFilename(prefix, parts) {
@@ -140,6 +149,7 @@ async function buildIdentityRows({ search, limit = 100 } = {}) {
 				lastMessageAt: null,
 				messageCount: 0,
 				imageCount: 0,
+				contentFlagCount: 0,
 				reportCount: 0,
 				blockedByCount: 0,
 				blocksMadeCount: 0,
@@ -178,7 +188,8 @@ async function buildIdentityRows({ search, limit = 100 } = {}) {
 				images: { $sum: { $cond: [{ $or: [
 					{ $regexMatch: { input: '$message', regex: '^\\[image\\]', options: 'i' } },
 					{ $regexMatch: { input: '$message', regex: '\\.(png|jpe?g|gif|webp|avif)(\\?.*)?$', options: 'i' } }
-				] }, 1, 0] } }
+				] }, 1, 0] } },
+				contentFlags: { $sum: { $cond: [{ $regexMatch: { input: '$message', regex: HIGH_RISK_MESSAGE_RE } }, 1, 0] } }
 			} }
 		]),
 		Message.aggregate([
@@ -209,6 +220,7 @@ async function buildIdentityRows({ search, limit = 100 } = {}) {
 		const identity = ensure(row._id.deviceId, row._id.username);
 		identity.messageCount += row.messages || 0;
 		identity.imageCount += row.images || 0;
+		identity.contentFlagCount += row.contentFlags || 0;
 		touchDates(identity, row.firstAt, row.lastAt, 'message');
 	}
 	for (const user of tempUsers) {
@@ -509,6 +521,7 @@ router.post('/identities/backfill', async (req, res) => {
 					lastMessageAt: row.lastMessageAt,
 					messageCount: row.messageCount,
 					imageCount: row.imageCount,
+					contentFlagCount: row.contentFlagCount,
 					reportCount: row.reportCount,
 					blockedByCount: row.blockedByCount,
 					blocksMadeCount: row.blocksMadeCount,
@@ -985,7 +998,7 @@ router.get('/storage/cleanup', async (req, res) => {
 	try {
 		const limit = normalizeLimit(req.query.limit, 80, 200);
 		const olderThanDays = Math.max(1, Math.min(parseInt(req.query.olderThanDays || '30', 10) || 30, 3650));
-		const minBytes = Math.max(0, parseInt(req.query.minBytes || `${512 * 1024}`, 10) || 0);
+		const minBytes = Math.max(0, parseInt(req.query.minBytes || '0', 10) || 0);
 		const olderThan = new Date(Date.now() - olderThanDays * DAY_MS);
 		const match = { deletedAt: { $exists: false }, $or: [{ createdAt: { $lte: olderThan } }, { byteLength: { $gte: minBytes } }] };
 		const [items, totals] = await Promise.all([
@@ -1186,11 +1199,13 @@ router.get('/media/:id/content', async (req, res) => {
 	try {
 		const mediaDoc = await Media.findOne({ _id: req.params.id, deletedAt: { $exists: false } }).lean();
 		if (!mediaDoc || !mediaDoc.bytes) return res.status(404).send('Not found');
+		const bytes = mediaBuffer(mediaDoc.bytes);
+		if (!bytes) return res.status(404).send('Not found');
 		res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 		res.setHeader('Access-Control-Allow-Origin', '*');
 		res.setHeader('Content-Type', mediaDoc.contentType || 'application/octet-stream');
 		res.setHeader('Cache-Control', 'private, max-age=3600');
-		return res.end(mediaDoc.bytes);
+		return res.end(bytes);
 	} catch (e) {
 		console.error('[Admin] media content error', e);
 		res.status(500).send('Failed to resolve media');
@@ -1276,11 +1291,13 @@ router.get('/media/resolve', async (req, res) => {
 			mediaDoc = await Media.findOne({ originalUrl: src, deletedAt: { $exists: false } }).sort({ createdAt: -1 }).lean();
 		}
 		if (!mediaDoc || !mediaDoc.bytes) return res.status(404).send('Not found');
+		const bytes = mediaBuffer(mediaDoc.bytes);
+		if (!bytes) return res.status(404).send('Not found');
 		res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 		res.setHeader('Access-Control-Allow-Origin', '*');
 		res.setHeader('Content-Type', mediaDoc.contentType || 'application/octet-stream');
 		res.setHeader('Cache-Control', 'private, max-age=31536000');
-		return res.end(mediaDoc.bytes);
+		return res.end(bytes);
 	} catch (e) {
 		console.error('[Admin] media resolve error', e);
 		res.status(500).send('Failed to resolve');
