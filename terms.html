@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#9b4dca" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#2f0642" media="(prefers-color-scheme: dark)">
+    <meta name="format-detection" content="telephone=no">
+    <title>ComfiChat Terms of Use</title>
+    <meta name="description" content="Read the ComfiChat Terms of Use for using the online chat site, anonymous chat rooms, profiles, messages, and safety tools.">
+    <link rel="canonical" href="https://comfi.chat/terms.html">
+    <meta name="robots" content="index,follow,max-image-preview:large">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <div class="theme-toggle">
+        <button id="theme-toggle-btn" class="theme-toggle-btn">Auto</button>
+    </div>
+    <div class="container content-container">
+        <nav class="page-nav" aria-label="Site navigation">
+            <a href="/">Home</a>
+            <a href="/about.html">About</a>
+            <a href="/privacy.html">Privacy</a>
+        </nav>
+        <header>
+            <h1>Terms of Use</h1>
+            <p class="effective-date">Effective May 18, 2026</p>
+        </header>
+        <main>
+            <section>
+                <h2>Acceptance Of Terms</h2>
+                <p>
+                    By accessing or using ComfiChat, you agree to these Terms of Use. If you do not agree, do not use the site.
+                    These terms apply to the website, chat rooms, profiles, messages, uploads, and related features.
+                </p>
+            </section>
+            <section>
+                <h2>Eligibility</h2>
+                <p>
+                    You must be at least 13 years old to use ComfiChat. If the laws where you live require a higher minimum age
+                    or parental consent, you are responsible for following those rules.
+                </p>
+            </section>
+            <section>
+                <h2>Your Account And Profile</h2>
+                <p>
+                    You are responsible for the information you provide, the activity that happens through your profile or session,
+                    and keeping access to your account secure. Do not impersonate another person, create misleading profiles, or use
+                    ComfiChat to deceive other users.
+                </p>
+            </section>
+            <section>
+                <h2>Acceptable Use</h2>
+                <p>You agree not to use ComfiChat to:</p>
+                <ul>
+                    <li>Harass, threaten, abuse, exploit, or target another person.</li>
+                    <li>Share illegal, hateful, violent, sexually exploitative, or non-consensual content.</li>
+                    <li>Contact minors in an inappropriate, sexual, manipulative, or unsafe way.</li>
+                    <li>Spam, scam, phish, advertise, scrape, automate, or disrupt the service.</li>
+                    <li>Upload malware or attempt to bypass moderation, security, or access controls.</li>
+                    <li>Share private information about another person without permission.</li>
+                </ul>
+            </section>
+            <section>
+                <h2>User Content</h2>
+                <p>
+                    You keep ownership of the content you send or upload, but you give ComfiChat permission to host, store,
+                    process, display, moderate, and remove that content as needed to operate and protect the service.
+                    You are responsible for making sure your content is lawful and does not violate anyone else's rights.
+                </p>
+            </section>
+            <section>
+                <h2>Moderation And Enforcement</h2>
+                <p>
+                    ComfiChat may review reports, remove content, limit features, block users or devices, suspend accounts,
+                    or preserve records when needed for safety, security, legal compliance, or service integrity.
+                    We are not required to monitor every conversation.
+                </p>
+            </section>
+            <section>
+                <h2>No Guarantee Of Availability</h2>
+                <p>
+                    ComfiChat is provided on an "as is" and "as available" basis. We may change, pause, or discontinue features
+                    at any time. We do not guarantee uninterrupted access, error-free operation, or that every user you meet is who they claim to be.
+                </p>
+            </section>
+            <section>
+                <h2>Limitation Of Liability</h2>
+                <p>
+                    To the fullest extent allowed by law, ComfiChat is not liable for indirect, incidental, special, consequential,
+                    or punitive damages, or for user behavior, lost data, service interruptions, or content shared by users.
+                </p>
+            </section>
+            <section>
+                <h2>Changes To These Terms</h2>
+                <p>
+                    We may update these terms from time to time. Continued use of ComfiChat after an update means you accept the updated terms.
+                </p>
+            </section>
+        </main>
+        <footer>
+            <p>&copy; 2025 ComfiChat. All rights reserved.</p>
+        </footer>
+    </div>
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        const key = 'comfi.theme';
+        const getSystemPref = () => window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        const applyTheme = (mode) => {
+            const resolved = mode === 'auto' ? getSystemPref() : mode;
+            document.body.classList.toggle('dark', resolved === 'dark');
+            themeBtn.textContent = mode === 'auto' ? 'Auto' : (resolved === 'dark' ? 'Dark' : 'Light');
+        };
+        let mode = localStorage.getItem(key) || 'auto';
+        applyTheme(mode);
+        themeBtn.addEventListener('click', () => {
+            mode = mode === 'auto' ? 'light' : (mode === 'light' ? 'dark' : 'auto');
+            localStorage.setItem(key, mode);
+            applyTheme(mode);
+        });
+    });
+    </script>
+</body>
+</html>

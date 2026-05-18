@@ -52,9 +52,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const talkStrangersBtn = document.querySelector('.talk-strangers-btn');
     const backBtnContainer = document.getElementById('back-btn-container');
     const backBtn = document.getElementById('back-btn');
-    const aboutLink = document.getElementById('about-link');
-    const termsLink = document.getElementById('terms-link');
-    const privacyLink = document.getElementById('privacy-link');
     const authSection = document.querySelector('.auth-section');
     const mainContent = authSection.innerHTML;
 
@@ -83,21 +80,6 @@ document.addEventListener('DOMContentLoaded', () => {
         authSection.innerHTML = mainContent;
         backBtnContainer.style.display = 'none';
         reattachTalkStrangersListener();
-    });
-
-    aboutLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showPage('About ComfiChat', 'ComfiChat is a sophisticated platform for meeting new people...');
-    });
-
-    termsLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showPage('Terms of Use', 'By using ComfiChat, you agree to the following terms...');
-    });
-
-    privacyLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        showPage('Privacy Policy', 'At ComfiChat, we take your privacy seriously...');
     });
 
     function generateAgeOptions() {
@@ -240,15 +222,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Error creating temporary user. Please try again.');
             }
         });
-    }
-
-
-    function showPage(title, content) {
-        authSection.innerHTML = `
-            <h2>${title}</h2>
-            <p>${content}</p>
-        `;
-        backBtnContainer.style.display = 'block';
     }
 
     function reattachTalkStrangersListener() {
