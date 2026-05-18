@@ -1,5 +1,12 @@
 export function getApiBase() {
-  return import.meta.env.VITE_API_URL || '';
+  if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;
+  if (window.location.hostname === 'localhost' && window.location.port === '5174') {
+    return 'http://localhost:10000';
+  }
+  if (window.location.hostname === 'comfi.chat') {
+    return 'https://luxeonchat-backend.onrender.com';
+  }
+  return '';
 }
 
 export function getWebSocketUrl() {
@@ -9,6 +16,9 @@ export function getWebSocketUrl() {
   }
   if (window.location.hostname === 'localhost' && window.location.port === '5174') {
     return 'ws://localhost:10000';
+  }
+  if (window.location.hostname === 'comfi.chat') {
+    return 'wss://luxeonchat-backend.onrender.com';
   }
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${window.location.host}`;

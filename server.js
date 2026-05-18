@@ -222,14 +222,16 @@ if (fs.existsSync(userIndexPath)) {
         '/verify',
         '/verify.html',
         '/profile',
-        '/profile.html'
+        '/profile.html',
+        '/chat',
+        '/chat.html'
     ], (_req, res) => {
         res.sendFile(userIndexPath);
     });
 }
 
-// Temporary bridge to the legacy chat while the React chat migration is in progress.
-app.get(['/chat', '/chat.html'], (_req, res) => {
+// Keep the legacy chat available temporarily after routing /chat to React.
+app.get(['/legacy-chat', '/legacy-chat.html'], (_req, res) => {
     res.sendFile(path.join(__dirname, 'chat.html'));
 });
 app.get(['/chat.js', '/styles.css'], (req, res) => {

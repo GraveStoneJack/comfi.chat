@@ -1,4 +1,5 @@
 import { isDeleteImageToken, isImageMessage, stripDeleteToken, stripImageToken } from './state.js';
+import { getApiBase } from './config.js';
 
 const EMOTICONS = new Map([
   [':)', '😊'],
@@ -45,7 +46,7 @@ export function resolveImageUrl(message, origin = window.location.origin) {
   if (/^data:image\//i.test(raw)) return raw;
   if (/^https?:\/\//i.test(raw)) return raw;
   const suffix = raw.startsWith('/') ? raw : `/${raw}`;
-  return `${origin}${suffix}`;
+  return `${getApiBase() || origin}${suffix}`;
 }
 
 export function getImageCandidates(message, origin = window.location.origin) {
@@ -55,7 +56,14 @@ export function getImageCandidates(message, origin = window.location.origin) {
   if (/^data:image\//i.test(raw)) return [raw];
   const candidates = [];
   if (/^https?:\/\//i.test(raw)) candidates.push(raw);
-  else candidates.push(`${origin}${raw.startsWith('/') ? raw : `/${raw}`}`);
+  else {
+    const suffix = raw.startsWith('/') ? raw : `/${raw}`;
+    const apiBase = getApiBase();
+    if (apiBase) candidates.push(`${apiBase}${suffix}`);
+    candidates.push(`${origin}${suffix}`);
+  }
+  const apiBase = getApiBase();
+  if (apiBase) candidates.push(`${apiBase}/api/upload/resolve?src=${encodeURIComponent(raw)}`);
   candidates.push(`${origin}/api/upload/resolve?src=${encodeURIComponent(raw)}`);
   return Array.from(new Set(candidates));
 }

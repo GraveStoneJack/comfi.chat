@@ -3,11 +3,18 @@ import { CHAT_ACTIONS, CHAT_STATUS, isDeleteImageToken, stripDeleteToken } from 
 import { CHAT_TIMING, getWebSocketUrl } from './config.js';
 import { describeDeleteReason } from './messagePipeline.js';
 
-export function useChatSocket({ currentUser, authToken, dispatch, enabled = true, onIncomingMessage }) {
+export function useChatSocket({ currentUser, authToken, dispatch, enabled = true, onIncomingMessage, blockedDeviceIds = [], usernameToDeviceId = {} }) {
   const socketRef = useRef(null);
   const heartbeatRef = useRef(null);
   const reconnectRef = useRef(null);
   const attemptsRef = useRef(0);
+  const blockedDeviceIdsRef = useRef(blockedDeviceIds);
+  const usernameToDeviceIdRef = useRef(usernameToDeviceId);
+
+  useEffect(() => {
+    blockedDeviceIdsRef.current = blockedDeviceIds;
+    usernameToDeviceIdRef.current = usernameToDeviceId;
+  }, [blockedDeviceIds, usernameToDeviceId]);
 
   useEffect(() => {
     if (!enabled || !currentUser?.username) return undefined;
@@ -68,7 +75,17 @@ export function useChatSocket({ currentUser, authToken, dispatch, enabled = true
         try {
           const data = JSON.parse(event.data);
           if (!data || data.type === 'heartbeat' || data.type === 'pong') return;
+          if (data.type === 'delete-message') {
+            const username = data.sender === currentUser.username ? data.recipient : data.sender;
+            dispatch({
+              type: CHAT_ACTIONS.messageDeleted,
+              payload: { username, imageUrl: data.message, reason: 'Message removed' }
+            });
+            return;
+          }
           if (data.type === 'message') {
+            const senderDeviceId = usernameToDeviceIdRef.current[data.sender];
+            if (senderDeviceId && blockedDeviceIdsRef.current.includes(senderDeviceId)) return;
             if (isDeleteImageToken(data.message)) {
               const username = data.sender === currentUser.username ? data.recipient : data.sender;
               dispatch({
