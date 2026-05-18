@@ -177,6 +177,36 @@ body.dark .auth-section h2 { color: #eae0ff; text-shadow: none; }
     box-shadow: 0 5px 15px rgba(155, 77, 202, 0.4);
 }
 
+.seo-copy {
+    margin-top: 28px;
+    text-align: left;
+    color: #3b0337;
+    line-height: 1.65;
+}
+
+.seo-copy h2 {
+    font-size: 1.15rem;
+    margin-bottom: 10px;
+    color: #2f0642;
+}
+
+.seo-copy p {
+    margin-bottom: 12px;
+}
+
+.seo-copy ul {
+    padding-left: 20px;
+}
+
+.seo-copy li {
+    margin-bottom: 8px;
+}
+
+body.dark .seo-copy,
+body.dark .seo-copy h2 {
+    color: #eae0ff;
+}
+
 footer {
     margin-top: 30px;
     padding-top: 20px;
