@@ -51,6 +51,12 @@ export function clearChatSession() {
   sessionStorage.removeItem(CHAT_STORAGE_KEYS.authToken);
 }
 
+export function clearLocalChatState(username) {
+  if (!username) return;
+  localStorage.removeItem(CHAT_STORAGE_KEYS.blocklist(username));
+  localStorage.removeItem(CHAT_STORAGE_KEYS.hiddenChats(username));
+}
+
 export function loadPreferences() {
   return {
     notifications: false,

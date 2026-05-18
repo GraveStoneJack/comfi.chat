@@ -13,6 +13,7 @@ export function useOnlineRoster({ dispatch, enabled = true }) {
         const users = await fetchOnlineUsers();
         if (!cancelled) {
           dispatch({ type: CHAT_ACTIONS.rosterLoaded, payload: { users } });
+          dispatch({ type: CHAT_ACTIONS.uiChanged, payload: { rosterError: '' } });
         }
       } catch (error) {
         if (!cancelled) {

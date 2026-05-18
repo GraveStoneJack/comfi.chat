@@ -4,11 +4,13 @@ import {
   CHAT_ACTIONS,
   CHAT_STATUS,
   chatReducer,
+  clearLocalChatState,
   createDeleteImageMessage,
   createImageMessage,
   createClientMessage,
   createReport,
   fetchHistory,
+  getApiBase,
   getImageCandidates,
   getActiveConversation,
   getVisibleConversations,
@@ -32,7 +34,7 @@ import {
 } from './chat';
 import './styles.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = getApiBase();
 const SESSION_TOKEN = 'authToken';
 const SESSION_USER = 'user';
 const PENDING_TOKEN = 'pendingTempToken';
@@ -608,6 +610,7 @@ function ChatShell() {
   const [reportForm, setReportForm] = useState({ open: false, reason: 'harassment', additionalInfo: '', alsoBlock: false });
   const [actionNotice, setActionNotice] = useState('');
   const imageExpiryTimers = useRef(new Map());
+  const sendTimestamps = useRef([]);
   const soundRef = useRef(null);
   const activeConversation = getActiveConversation(state);
   const visibleRoster = getVisibleRoster(state);
@@ -658,7 +661,9 @@ function ChatShell() {
     authToken: state.session.authToken,
     dispatch,
     enabled: Boolean(currentUser?.username),
-    onIncomingMessage: handleIncomingMessage
+    onIncomingMessage: handleIncomingMessage,
+    blockedDeviceIds: state.conversations.blockedDeviceIds,
+    usernameToDeviceId: state.roster.usernameToDeviceId
   });
 
   useEffect(() => {
@@ -714,6 +719,8 @@ function ChatShell() {
     event.preventDefault();
     setSendError('');
     if (!draft.trim() || !activeConversation || !currentUser?.username) return;
+    if (!canSendToActivePeer()) return;
+    if (!consumeSendSlot()) return;
     const message = createClientMessage({
       sender: currentUser.username,
       recipient: activeConversation.username,
@@ -736,6 +743,27 @@ function ChatShell() {
     }
   }
 
+  function consumeSendSlot() {
+    const now = Date.now();
+    sendTimestamps.current = sendTimestamps.current.filter(time => now - time < 5000);
+    if (sendTimestamps.current.length >= 5) {
+      setSendError('Please slow down. You can send up to 5 messages every 5 seconds.');
+      return false;
+    }
+    sendTimestamps.current.push(now);
+    return true;
+  }
+
+  function canSendToActivePeer() {
+    if (!activeConversation) return false;
+    const deviceId = activeConversation.profile?.deviceId || state.roster.usernameToDeviceId[activeConversation.username];
+    if (deviceId && state.conversations.blockedDeviceIds.includes(deviceId)) {
+      setSendError(`You blocked ${activeConversation.username}. Unblock before sending messages.`);
+      return false;
+    }
+    return true;
+  }
+
   function insertEmoji(emoji) {
     setDraft(prev => `${prev}${emoji}`);
     const recentEmojis = [emoji, ...state.preferences.recentEmojis.filter(item => item !== emoji)].slice(0, 18);
@@ -747,6 +775,8 @@ function ChatShell() {
 
   function sendChatMessage(messageText) {
     if (!activeConversation || !currentUser?.username) return;
+    if (!canSendToActivePeer()) return;
+    if (!consumeSendSlot()) return;
     const message = createClientMessage({
       sender: currentUser.username,
       recipient: activeConversation.username,
@@ -794,6 +824,7 @@ function ChatShell() {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file || !activeConversation || !currentUser?.username) return;
+    if (!canSendToActivePeer()) return;
     setUploadingImage(true);
     setSendError('');
     try {
@@ -826,6 +857,7 @@ function ChatShell() {
     for (const timer of imageExpiryTimers.current.values()) window.clearTimeout(timer);
     imageExpiryTimers.current.clear();
     clearSession();
+    clearLocalChatState(currentUser?.username);
     navigate('/login');
   }
 
@@ -894,7 +926,7 @@ function ChatShell() {
   if (!currentUser?.username) {
     return (
       <section className="stack">
-        <p className="eyebrow">React chat preview</p>
+        <p className="eyebrow">Comfi chat</p>
         <h1>Complete your account first</h1>
         <p className="muted">Sign in or create a profile before opening chat.</p>
         <button className="primary" onClick={() => navigate('/login')}>Sign in</button>
@@ -906,9 +938,9 @@ function ChatShell() {
     <section className="react-chat-shell">
       <header className="react-chat-header">
         <div>
-          <p className="eyebrow">React chat preview</p>
+          <p className="eyebrow">Comfi chat</p>
           <h1>Chat</h1>
-          <p className="muted">This is the new React shell using the live presence, roster, history, and websocket contracts.</p>
+          <p className="muted">Live presence, conversation history, photos, and safety tools are ready.</p>
         </div>
         <div className="react-chat-top-actions">
           <div className={`connection-pill ${state.connection.status}`}>
@@ -956,6 +988,7 @@ function ChatShell() {
               <button className="secondary" onClick={() => dispatch({ type: CHAT_ACTIONS.filtersChanged, payload: { gender: 'all', country: 'all', ageMin: '', ageMax: '' } })}>Clear filters</button>
             </div>
             <div className="chat-list">
+              {state.ui.rosterError && <div className="notice error">{state.ui.rosterError}</div>}
               {visibleRoster.length === 0 && <div className="empty-chat-list">No users online yet.</div>}
               {visibleRoster.map(user => (
                 <button
@@ -1101,7 +1134,7 @@ function ChatShell() {
           ) : (
             <div className="empty-thread large">
               <h2>Select someone online</h2>
-              <p>Open a user from the online list to start the React chat flow.</p>
+              <p>Open a user from the online list to start chatting.</p>
             </div>
           )}
         </main>
@@ -1139,7 +1172,7 @@ function App() {
   else if (route.path === '/login') screen = <Login onAuthed={onAuthed} />;
   else if (route.path === '/verify' || route.path === '/verify.html') screen = <Verify search={route.search} />;
   else if (route.path === '/profile' || route.path === '/profile.html') screen = <Profile session={session} onAuthed={onAuthed} />;
-  else if (route.path === '/app/chat') screen = <ChatShell />;
+  else if (route.path === '/app/chat' || route.path === '/chat' || route.path === '/chat.html') screen = <ChatShell />;
   else screen = <NotFound />;
 
   return <Shell session={session} onLogout={onLogout}>{screen}</Shell>;
