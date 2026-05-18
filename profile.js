@@ -68,8 +68,8 @@ document.addEventListener('DOMContentLoaded', () => {
             providerId: params.providerId || undefined
         };
 
-        if (!payload.username || !payload.email || !payload.age || !payload.gender) {
-            alert('Please fill the required fields');
+        if (!payload.username || !payload.displayName || !payload.age || !payload.gender || !payload.sexuality) {
+            alert('Please fill in username, display name, age, gender, and sexuality.');
             return;
         }
 

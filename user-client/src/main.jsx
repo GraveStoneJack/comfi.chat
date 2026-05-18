@@ -520,10 +520,10 @@ function Profile({ session, onAuthed }) {
   function buildPayload() {
     return {
       username: profile.username.trim(),
-      displayName: profile.displayName.trim() || profile.username.trim(),
+      displayName: profile.displayName.trim(),
       age: Number(profile.age),
       gender: profile.gender,
-      sexuality: profile.sexuality || undefined,
+      sexuality: profile.sexuality,
       lookingFor: profile.lookingFor,
       hairType: profile.hairType || undefined,
       hairColor: profile.hairColor || undefined,
@@ -540,9 +540,9 @@ function Profile({ session, onAuthed }) {
     setError('');
     setNotice('');
     const payload = buildPayload();
-    if (!payload.username || !payload.age || !payload.gender) {
+    if (!payload.username || !payload.displayName || !payload.age || !payload.gender || !payload.sexuality) {
       setSaving(false);
-      setError('Username, age, and gender are required.');
+      setError('Username, display name, age, gender, and sexuality are required.');
       return;
     }
 
@@ -614,7 +614,7 @@ function Profile({ session, onAuthed }) {
         </label>
         <label className="field">
           <span>Display name</span>
-          <input name="displayName" value={profile.displayName || ''} onChange={update} maxLength="50" />
+          <input name="displayName" value={profile.displayName || ''} onChange={update} required maxLength="50" />
         </label>
         <label className="field">
           <span>Age</span>
@@ -624,7 +624,7 @@ function Profile({ session, onAuthed }) {
           </select>
         </label>
         <SelectField label="Gender" name="gender" value={profile.gender} onChange={update} options={genderOptions} required />
-        <SelectField label="Sexuality" name="sexuality" value={profile.sexuality} onChange={update} options={sexualityOptions} />
+        <SelectField label="Sexuality" name="sexuality" value={profile.sexuality} onChange={update} options={sexualityOptions} required />
         <label className="field">
           <span>Looking for</span>
           <select multiple value={profile.lookingFor} onChange={updateMulti}>
