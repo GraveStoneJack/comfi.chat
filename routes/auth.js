@@ -101,7 +101,11 @@ router.post('/email/finalize', async (req, res) => {
         let decoded;
         try { decoded = jwt.verify(tempToken, secret); } catch { return res.status(401).json({ error: 'Invalid temp token' }); }
         if (!decoded || decoded.type !== 'pending' || !decoded.pendingEmail) return res.status(401).json({ error: 'Invalid temp token' });
-        if (!username || !age || !gender) return res.status(400).json({ error: 'username, age, gender required' });
+        const cleanDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
+        const cleanSexuality = typeof sexuality === 'string' ? sexuality.trim() : '';
+        if (!username || !cleanDisplayName || !age || !gender || !cleanSexuality) {
+            return res.status(400).json({ error: 'username, displayName, age, gender, sexuality required' });
+        }
 
         const pending = await PendingUser.findOne({ email: decoded.pendingEmail }).select('+passwordHash');
         if (!pending || !pending.verified) return res.status(400).json({ error: 'Pending record not verified' });
@@ -114,14 +118,14 @@ router.post('/email/finalize', async (req, res) => {
             email,
             age,
             gender,
-            displayName: displayName || username,
+            displayName: cleanDisplayName,
             profilePicture,
             hairType,
             hairColor,
             eyeColor,
             ethnicity,
             hobbies: parseList(hobbies),
-            sexuality,
+            sexuality: cleanSexuality,
             lookingFor: parseList(lookingFor)
         });
         user.password = pending.passwordHash; // already hashed

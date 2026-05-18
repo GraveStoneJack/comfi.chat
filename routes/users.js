@@ -46,8 +46,10 @@ router.post('/register', async (req, res) => {
             providerId
         } = req.body || {};
 
-        if (!username || !email || !age || !gender) {
-            return res.status(400).json({ error: 'username, email, age and gender are required' });
+        const cleanDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
+        const cleanSexuality = typeof sexuality === 'string' ? sexuality.trim() : '';
+        if (!username || !email || !cleanDisplayName || !age || !gender || !cleanSexuality) {
+            return res.status(400).json({ error: 'username, email, displayName, age, gender and sexuality are required' });
         }
 
         const existing = await User.findOne({ $or: [ { username }, { email } ] });
@@ -58,7 +60,7 @@ router.post('/register', async (req, res) => {
         const user = new User({
             username,
             email,
-            displayName: displayName || username,
+            displayName: cleanDisplayName,
             age,
             gender,
             profilePicture,
@@ -67,7 +69,7 @@ router.post('/register', async (req, res) => {
             eyeColor,
             ethnicity,
             hobbies: Array.isArray(hobbies) ? hobbies : (typeof hobbies === 'string' && hobbies ? hobbies.split(',').map(s => s.trim()).filter(Boolean) : []),
-            sexuality,
+            sexuality: cleanSexuality,
             lookingFor: Array.isArray(lookingFor) ? lookingFor : (typeof lookingFor === 'string' && lookingFor ? lookingFor.split(',').map(s => s.trim()).filter(Boolean) : [])
         });
 
