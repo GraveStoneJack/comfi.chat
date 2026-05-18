@@ -604,6 +604,7 @@ function ChatShell() {
   const [emojiTab, setEmojiTab] = useState('smileys');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [reportForm, setReportForm] = useState({ open: false, reason: 'harassment', additionalInfo: '', alsoBlock: false });
   const [actionNotice, setActionNotice] = useState('');
   const imageExpiryTimers = useRef(new Map());
@@ -639,9 +640,17 @@ function ChatShell() {
       } catch (_) {}
     }
     if (state.preferences.notifications && document.hidden && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification(`New message from ${message.sender}`, {
-        body: isImageMessage(message.message) ? 'Photo' : message.message
+      const body = isImageMessage(message.message) ? 'Shared a photo' : String(message.message || '').slice(0, 120);
+      const notification = new Notification(`ComfiChat: ${message.sender}`, {
+        body,
+        tag: `comfi-${message.sender}`,
+        renotify: true,
+        silent: !state.preferences.soundEnabled
       });
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
     }
   }, [state.preferences.notifications, state.preferences.soundEnabled]);
   const socket = useChatSocket({
@@ -683,6 +692,7 @@ function ChatShell() {
   async function openPeer(peer) {
     if (!peer?.username || !currentUser?.username) return;
     dispatch({ type: CHAT_ACTIONS.chatOpened, payload: { peer } });
+    setMobileSidebarOpen(false);
     try {
       const messages = await fetchHistory(currentUser.username, peer.username);
       dispatch({ type: CHAT_ACTIONS.historyLoaded, payload: { username: peer.username, messages } });
@@ -693,6 +703,11 @@ function ChatShell() {
 
   function openExistingConversation(conversation) {
     openPeer(conversation.profile || { username: conversation.username });
+  }
+
+  function closeMobileThread() {
+    dispatch({ type: CHAT_ACTIONS.chatClosed });
+    setMobileSidebarOpen(true);
   }
 
   function sendText(event) {
@@ -911,8 +926,15 @@ function ChatShell() {
         </div>
       </header>
 
+      <div className="mobile-chat-controls">
+        <button className="primary" onClick={() => setMobileSidebarOpen(prev => !prev)}>
+          {mobileSidebarOpen ? 'Hide chats' : 'Show chats'}
+        </button>
+        {activeConversation && <button className="secondary" onClick={closeMobileThread}>Back to chats</button>}
+      </div>
+
       <div className="react-chat-grid">
-        <aside className="react-chat-sidebar">
+        <aside className={`react-chat-sidebar ${mobileSidebarOpen ? 'open' : ''}`}>
           <div className="chat-sidebar-section">
             <h3>Online Now</h3>
             <div className="react-chat-filters">
@@ -979,7 +1001,7 @@ function ChatShell() {
                   <button className="secondary" onClick={() => setReportForm(prev => ({ ...prev, open: !prev.open }))}>Report</button>
                   <button className="secondary" onClick={blockActivePeer}>Block</button>
                   <button className="secondary" onClick={hideActiveChat}>Hide</button>
-                  <button className="secondary" onClick={() => dispatch({ type: CHAT_ACTIONS.chatClosed })}>Close</button>
+                  <button className="secondary desktop-only" onClick={() => dispatch({ type: CHAT_ACTIONS.chatClosed })}>Close</button>
                 </div>
               </div>
               {searchOpen && (

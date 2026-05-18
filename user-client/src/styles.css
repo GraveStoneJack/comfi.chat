@@ -350,6 +350,10 @@ label.file-button {
   gap: 18px;
 }
 
+.mobile-chat-controls {
+  display: none;
+}
+
 .react-chat-sidebar,
 .react-chat-panel {
   border: 1px solid rgba(59, 3, 55, 0.12);
@@ -362,6 +366,8 @@ label.file-button {
   display: grid;
   align-content: start;
   gap: 22px;
+  max-height: 70vh;
+  overflow: auto;
 }
 
 .chat-sidebar-section {
@@ -438,6 +444,10 @@ label.file-button {
   display: grid;
   grid-template-rows: auto 1fr auto auto;
   gap: 14px;
+}
+
+.desktop-only {
+  display: inline-flex;
 }
 
 .react-chat-thread-header {
@@ -816,16 +826,57 @@ body.dark .react-report-form textarea {
     justify-content: flex-start;
   }
 
+  .mobile-chat-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
   .react-chat-grid {
     min-height: auto;
+    position: relative;
+  }
+
+  .react-chat-sidebar {
+    display: none;
+    max-height: none;
+  }
+
+  .react-chat-sidebar.open {
+    display: grid;
   }
 
   .react-chat-panel {
     min-height: 560px;
+    padding: 14px;
+  }
+
+  .react-chat-thread-header {
+    flex-direction: column;
+  }
+
+  .react-chat-actions {
+    justify-content: flex-start;
+  }
+
+  .react-chat-search {
+    grid-template-columns: 1fr;
+  }
+
+  .react-message {
+    max-width: 88%;
   }
 
   .react-chat-input {
     grid-template-columns: 1fr;
+  }
+
+  .emoji-popover-react {
+    width: 100%;
+  }
+
+  .desktop-only {
+    display: none;
   }
 
   .top-nav {
