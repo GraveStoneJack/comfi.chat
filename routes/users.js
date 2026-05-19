@@ -40,6 +40,7 @@ router.post('/register', async (req, res) => {
             eyeColor,
             ethnicity,
             hobbies,
+            transgender,
             sexuality,
             lookingFor,
             provider,
@@ -69,6 +70,7 @@ router.post('/register', async (req, res) => {
             eyeColor,
             ethnicity,
             hobbies: Array.isArray(hobbies) ? hobbies : (typeof hobbies === 'string' && hobbies ? hobbies.split(',').map(s => s.trim()).filter(Boolean) : []),
+            transgender,
             sexuality: cleanSexuality,
             lookingFor: Array.isArray(lookingFor) ? lookingFor : (typeof lookingFor === 'string' && lookingFor ? lookingFor.split(',').map(s => s.trim()).filter(Boolean) : [])
         });
@@ -137,7 +139,7 @@ router.get('/me', authMiddleware, async (req, res) => {
 router.put('/me', authMiddleware, async (req, res) => {
     try {
         const allowed = [
-            'displayName','age','gender','profilePicture','hairType','hairColor','eyeColor','ethnicity','hobbies','sexuality','lookingFor','weight','height'
+            'displayName','age','gender','transgender','profilePicture','hairType','hairColor','eyeColor','ethnicity','hobbies','sexuality','lookingFor','weight','height'
         ];
         const update = {};
         for (const key of allowed) {

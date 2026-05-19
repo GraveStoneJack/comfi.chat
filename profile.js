@@ -56,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
             displayName: document.getElementById('displayName').value.trim(),
             age: parseInt(document.getElementById('age').value, 10),
             gender: document.getElementById('gender').value,
+            transgender: document.getElementById('transgender').value || undefined,
             sexuality: document.getElementById('sexuality').value || undefined,
             lookingFor: Array.from(document.getElementById('lookingFor').selectedOptions).map(o => o.value),
             hairType: document.getElementById('hairType').value || undefined,

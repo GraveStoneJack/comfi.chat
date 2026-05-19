@@ -58,7 +58,21 @@ const userSchema = new mongoose.Schema({
     },
     ethnicity: {
         type: String,
-        enum: ['asian', 'black', 'hispanic', 'white', 'mixed', 'other']
+        enum: [
+            'african-black',
+            'arab',
+            'central-asian',
+            'east-asian',
+            'south-asian',
+            'middle-eastern-west-asian',
+            'latino-hispanic',
+            'native-american',
+            'pacific-islander',
+            'white-european',
+            'mixed-multiracial',
+            'other',
+            'prefer-not-to-say'
+        ]
     },
     hobbies: [{
         type: String,
@@ -67,12 +81,16 @@ const userSchema = new mongoose.Schema({
     }],
     sexuality: {
         type: String,
-        enum: ['straight', 'gay', 'lesbian', 'bisexual', 'other', 'prefer not to say']
+        enum: ['straight', 'gay', 'lesbian', 'bisexual', 'pansexual', 'questioning', 'asexual', 'other', 'prefer-not-to-say']
     },
     gender: {
         type: String,
-        enum: ['male', 'female', 'non-binary', 'other', 'prefer not to say'],
+        enum: ['male', 'female', 'non-binary', 'genderfluid', 'agender', 'demiboy', 'demigirl', 'other', 'prefer-not-to-say'],
         required: true
+    },
+    transgender: {
+        type: String,
+        enum: ['yes', 'no', 'prefer-not-to-say']
     },
     lookingFor: [{
         type: String,

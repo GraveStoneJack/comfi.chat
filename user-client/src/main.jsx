@@ -73,12 +73,13 @@ const routeMeta = {
   }
 };
 
-const genderOptions = ['male', 'female', 'non-binary', 'other', 'prefer not to say'];
-const sexualityOptions = ['straight', 'gay', 'lesbian', 'bisexual', 'other', 'prefer not to say'];
+const genderOptions = ['male', 'female', 'non-binary', 'genderfluid', 'agender', 'demiboy', 'demigirl', 'other', 'prefer-not-to-say'];
+const transgenderOptions = ['yes', 'no', 'prefer-not-to-say'];
+const sexualityOptions = ['straight', 'gay', 'lesbian', 'bisexual', 'pansexual', 'questioning', 'asexual', 'other', 'prefer-not-to-say'];
 const hairTypeOptions = ['straight', 'wavy', 'curly', 'coily', 'other'];
 const hairColorOptions = ['black', 'brown', 'blonde', 'red', 'grey', 'white', 'other'];
 const eyeColorOptions = ['brown', 'blue', 'green', 'hazel', 'grey', 'other'];
-const ethnicityOptions = ['asian', 'black', 'hispanic', 'white', 'mixed', 'other'];
+const ethnicityOptions = ['african-black', 'arab', 'central-asian', 'east-asian', 'south-asian', 'middle-eastern-west-asian', 'latino-hispanic', 'native-american', 'pacific-islander', 'white-european', 'mixed-multiracial', 'other', 'prefer-not-to-say'];
 const lookingForOptions = ['friendship', 'dating', 'relationship', 'casual', 'networking'];
 
 function getSession() {
@@ -224,7 +225,13 @@ function cycleTheme(mode) {
 }
 
 function titleCase(value) {
-  return String(value || '').replace(/\b\w/g, char => char.toUpperCase());
+  return String(value || '').replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function formatGenderLabel(user) {
+  if (!user?.gender) return '';
+  const gender = titleCase(user.gender);
+  return user.transgender === 'yes' ? `Trans ${gender}` : gender;
 }
 
 function SelectField({ label, name, value, onChange, options, required = false }) {
@@ -463,6 +470,7 @@ function emptyProfile() {
     displayName: '',
     age: '',
     gender: '',
+    transgender: '',
     sexuality: '',
     lookingFor: [],
     hairType: '',
@@ -550,6 +558,7 @@ function Profile({ session, onAuthed }) {
       displayName: profile.displayName.trim(),
       age: Number(profile.age),
       gender: profile.gender,
+      transgender: profile.transgender || undefined,
       sexuality: profile.sexuality,
       lookingFor: profile.lookingFor,
       hairType: profile.hairType || undefined,
@@ -652,6 +661,7 @@ function Profile({ session, onAuthed }) {
           </select>
         </label>
         <SelectField label="Gender" name="gender" value={profile.gender} onChange={update} options={genderOptions} required />
+        <SelectField label="Transgender" name="transgender" value={profile.transgender} onChange={update} options={transgenderOptions} />
         <SelectField label="Sexuality" name="sexuality" value={profile.sexuality} onChange={update} options={sexualityOptions} required />
         <label className="field">
           <span>Looking for</span>
@@ -1091,8 +1101,12 @@ function ChatShell() {
                 <option value="all">All genders</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-                <option value="other">Other</option>
                 <option value="non-binary">Non-binary</option>
+                <option value="genderfluid">Genderfluid</option>
+                <option value="agender">Agender</option>
+                <option value="demiboy">Demiboy</option>
+                <option value="demigirl">Demigirl</option>
+                <option value="other">Other</option>
               </select>
               <select value={state.roster.filters.country} onChange={e => dispatch({ type: CHAT_ACTIONS.filtersChanged, payload: { country: e.target.value } })}>
                 <option value="all">All countries</option>
@@ -1116,7 +1130,7 @@ function ChatShell() {
                   <ProfileAvatar user={user} size="sm" />
                   <span className="chat-list-copy">
                     <strong>{user.displayName || user.username}</strong>
-                    <span>{[user.age, user.gender, user.country].filter(Boolean).join(' | ') || 'Online'}</span>
+                    <span>{[user.age, formatGenderLabel(user), user.country].filter(Boolean).join(' | ') || 'Online'}</span>
                   </span>
                 </button>
               ))}
