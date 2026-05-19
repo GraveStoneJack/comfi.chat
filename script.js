@@ -46,41 +46,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if ((localStorage.getItem(THEME_KEY) || 'auto') === 'auto') applyTheme('auto');
         });
     }
-    const googleBtn = document.querySelector('.google-btn');
-    const appleBtn = document.querySelector('.apple-btn');
-    const emailBtn = document.querySelector('.email-btn');
-    const talkStrangersBtn = document.querySelector('.talk-strangers-btn');
     const backBtnContainer = document.getElementById('back-btn-container');
     const backBtn = document.getElementById('back-btn');
     const authSection = document.querySelector('.auth-section');
     const mainContent = authSection.innerHTML;
 
-    googleBtn.addEventListener('click', () => {
-        // TODO: Replace with real OAuth redirect. For now, proceed to profile with provider hint.
-        window.location.href = '/profile.html?provider=google';
-    });
-
-    appleBtn.addEventListener('click', () => {
-        window.location.href = '/profile.html?provider=apple';
-    });
-
-    emailBtn.addEventListener('click', () => {
-        window.location.href = '/signup.html';
-    });
-
-    talkStrangersBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        console.log('Talk to Strangers clicked');
-        showTalkToStrangersForm();
-        backBtnContainer.style.display = 'block';
-    });
-
     backBtn.addEventListener('click', (e) => {
         e.preventDefault();
         authSection.innerHTML = mainContent;
         backBtnContainer.style.display = 'none';
-        reattachTalkStrangersListener();
+        reattachAuthLinks();
     });
+
+    if (window.location.hash === '#sign-in') {
+        showSignInForm();
+        backBtnContainer.style.display = 'block';
+    }
 
     function generateAgeOptions() {
         let options = '';
@@ -88,6 +69,33 @@ document.addEventListener('DOMContentLoaded', () => {
             options += `<option value="${i}">${i}</option>`;
         }
         return options;
+    }
+
+    function showSignInForm() {
+        authSection.innerHTML = `
+            <h2>Sign in</h2>
+            <div class="auth-options">
+                <button type="button" class="auth-btn google-btn signin-google-btn">
+                    <i class="fab fa-google"></i> Sign in with Google
+                </button>
+                <button type="button" class="auth-btn apple-btn signin-apple-btn">
+                    <i class="fab fa-apple"></i> Sign in with Apple
+                </button>
+                <button type="button" class="auth-btn email-btn signin-email-btn">
+                    <i class="far fa-envelope"></i> Sign in with Email
+                </button>
+            </div>
+        `;
+
+        authSection.querySelector('.signin-google-btn')?.addEventListener('click', () => {
+            window.location.href = '/profile.html?provider=google';
+        });
+        authSection.querySelector('.signin-apple-btn')?.addEventListener('click', () => {
+            window.location.href = '/profile.html?provider=apple';
+        });
+        authSection.querySelector('.signin-email-btn')?.addEventListener('click', () => {
+            window.location.href = '/login.html';
+        });
     }
 
     function showTalkToStrangersForm() {
@@ -215,7 +223,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     window.location.href = '/chat';
                 } else if (data.code === 'username_registered') {
                     alert('This username belongs to a registered account. Please sign in instead.');
-                    window.location.href = '/login';
+                    showSignInForm();
+                    backBtnContainer.style.display = 'block';
                 } else {
                     console.error('Server error:', data);
                     alert(data.error || 'Error creating temporary user');
@@ -227,15 +236,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function reattachTalkStrangersListener() {
+    function reattachAuthLinks() {
         const newTalkStrangersBtn = document.querySelector('.talk-strangers-btn');
         if (newTalkStrangersBtn) {
             newTalkStrangersBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                console.log('Talk to Strangers clicked');
                 showTalkToStrangersForm();
                 backBtnContainer.style.display = 'block';
             });
         }
+        const signInLink = document.querySelector('.sign-in-link');
+        if (signInLink) {
+            signInLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                showSignInForm();
+                backBtnContainer.style.display = 'block';
+            });
+        }
+        const googleBtn = document.querySelector('.google-btn');
+        const appleBtn = document.querySelector('.apple-btn');
+        const emailBtn = document.querySelector('.email-btn');
+        googleBtn?.addEventListener('click', () => { window.location.href = '/profile.html?provider=google'; });
+        appleBtn?.addEventListener('click', () => { window.location.href = '/profile.html?provider=apple'; });
+        emailBtn?.addEventListener('click', () => { window.location.href = '/signup.html'; });
     }
+
+    reattachAuthLinks();
 });

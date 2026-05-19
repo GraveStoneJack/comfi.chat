@@ -3,4 +3,13 @@ http://www.comfi.chat/*    https://comfi.chat/:splat    301!
 https://www.comfi.chat/*   https://comfi.chat/:splat    301!
 http://comfi.chat/*        https://comfi.chat/:splat    301!
 
+# Friendly routes for static pages
+/login       /login.html       200
+/signup      /signup.html      200
+/chat        /chat.html        200
+/profile     /profile.html     200
+/verify      /verify.html      200
 
+# React user app routes (served from built bundle)
+/app/*       /user-dist/index.html   200
+/assets/*    /user-dist/assets/:splat 200
