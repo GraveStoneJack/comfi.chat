@@ -391,7 +391,7 @@ function Login({ onAuthed }) {
       });
       saveSession(data);
       onAuthed(data.user);
-      navigate('/app/chat');
+      window.location.href = '/chat.html';
     } catch (err) {
       setError(err.message || 'Login failed');
     } finally {

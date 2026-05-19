@@ -76,7 +76,7 @@
                 sessionStorage.setItem('authToken', data.token);
                 sessionStorage.setItem('user', JSON.stringify(data.user));
                 sessionStorage.setItem('tempUser', JSON.stringify({ username: data.user.username, ...data.user }));
-                window.location.href = '/app/chat';
+                window.location.href = '/chat.html';
             } catch (_) {
                 note.textContent = 'Sign in failed. Please try again.';
             }
