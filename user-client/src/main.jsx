@@ -92,10 +92,23 @@ function getSession() {
   }
 }
 
+function chatIdentityFromUser(user) {
+  if (!user) return null;
+  return {
+    username: user.username,
+    displayName: user.displayName,
+    profilePicture: user.profilePicture,
+    age: user.age,
+    gender: user.gender,
+    sexuality: user.sexuality,
+    lookingFor: user.lookingFor || []
+  };
+}
+
 function saveSession({ token, user }) {
   sessionStorage.setItem(SESSION_TOKEN, token);
   sessionStorage.setItem(SESSION_USER, JSON.stringify(user));
-  sessionStorage.setItem('tempUser', JSON.stringify({ username: user.username }));
+  sessionStorage.setItem('tempUser', JSON.stringify(chatIdentityFromUser(user)));
 }
 
 function clearSession() {
@@ -226,6 +239,17 @@ function SelectField({ label, name, value, onChange, options, required = false }
   );
 }
 
+function ProfileAvatar({ user, size = 'md' }) {
+  const name = user?.displayName || user?.username || 'Comfi user';
+  const initial = name.slice(0, 1).toUpperCase();
+  const picture = user?.profilePicture && user.profilePicture !== 'default-profile.png' ? user.profilePicture : '';
+  return picture ? (
+    <img className={`profile-avatar ${size}`} src={picture} alt={`${name} profile`} />
+  ) : (
+    <span className={`profile-avatar ${size}`}>{initial}</span>
+  );
+}
+
 function Shell({ children, session, onLogout }) {
   const [themeMode, setThemeMode] = useTheme();
   const resolvedLabel = themeMode === 'auto' ? 'Auto' : titleCase(themeMode);
@@ -240,7 +264,10 @@ function Shell({ children, session, onLogout }) {
           <div className="nav-actions">
             {session.user ? (
               <>
-                <button onClick={() => navigate('/profile')}>Profile</button>
+                <button className="account-chip" onClick={() => navigate('/profile')}>
+                  <ProfileAvatar user={session.user} size="xs" />
+                  <span>{session.user.displayName || session.user.username}</span>
+                </button>
                 <button onClick={onLogout}>Logout</button>
               </>
             ) : (
@@ -554,6 +581,7 @@ function Profile({ session, onAuthed }) {
           body: JSON.stringify(payload)
         });
         sessionStorage.setItem(SESSION_USER, JSON.stringify(saved));
+        sessionStorage.setItem('tempUser', JSON.stringify(chatIdentityFromUser(saved)));
         onAuthed(saved);
         setNotice('Profile saved.');
       } else {
@@ -1022,15 +1050,19 @@ function ChatShell() {
   return (
     <section className="react-chat-shell">
       <header className="react-chat-header">
-        <div>
+        <div className="chat-title-block">
+          <ProfileAvatar user={currentUser} size="lg" />
+          <div>
           <p className="eyebrow">Comfi chat</p>
           <h1>Chat</h1>
-          <p className="muted">Live presence, conversation history, photos, and safety tools are ready.</p>
+            <p className="muted">Signed in as {currentUser.displayName || currentUser.username}. Others can see your profile picture in chat lists and headers.</p>
+          </div>
         </div>
         <div className="react-chat-top-actions">
           <div className={`connection-pill ${state.connection.status}`}>
             {state.connection.status === CHAT_STATUS.connected ? 'Connected' : titleCase(state.connection.status)}
           </div>
+          <button className="secondary" onClick={() => navigate('/profile')}>Edit profile</button>
           <label className="toggle-pill">
             <input type="checkbox" checked={!!state.preferences.soundEnabled} onChange={e => updatePreference({ soundEnabled: e.target.checked })} />
             Sound
@@ -1081,8 +1113,11 @@ function ChatShell() {
                   key={user._id || user.username}
                   onClick={() => openPeer(user)}
                 >
-                  <strong>{user.username}</strong>
-                  <span>{[user.age, user.gender, user.country].filter(Boolean).join(' | ') || 'Online'}</span>
+                  <ProfileAvatar user={user} size="sm" />
+                  <span className="chat-list-copy">
+                    <strong>{user.displayName || user.username}</strong>
+                    <span>{[user.age, user.gender, user.country].filter(Boolean).join(' | ') || 'Online'}</span>
+                  </span>
                 </button>
               ))}
             </div>
@@ -1098,8 +1133,11 @@ function ChatShell() {
                   key={conversation.username}
                   onClick={() => openExistingConversation(conversation)}
                 >
-                  <strong>{conversation.username}{conversation.unread ? ' •' : ''}</strong>
-                  <span>{conversation.lastMessage || 'Open conversation'}</span>
+                  <ProfileAvatar user={conversation.profile || { username: conversation.username }} size="sm" />
+                  <span className="chat-list-copy">
+                    <strong>{conversation.profile?.displayName || conversation.username}{conversation.unread ? ' •' : ''}</strong>
+                    <span>{conversation.lastMessage || 'Open conversation'}</span>
+                  </span>
                 </button>
               ))}
             </div>
@@ -1110,9 +1148,12 @@ function ChatShell() {
           {activeConversation ? (
             <>
               <div className="react-chat-thread-header">
-                <div>
-                  <h2>{activeConversation.profile?.displayName || activeConversation.username}</h2>
-                  <p>{[activeConversation.profile?.age, activeConversation.profile?.country].filter(Boolean).join(' | ')}</p>
+                <div className="thread-profile-card">
+                  <ProfileAvatar user={activeConversation.profile || { username: activeConversation.username }} size="lg" />
+                  <div>
+                    <h2>{activeConversation.profile?.displayName || activeConversation.username}</h2>
+                    <p>{[activeConversation.profile?.age, activeConversation.profile?.gender, activeConversation.profile?.country].filter(Boolean).join(' | ') || 'Active chat'}</p>
+                  </div>
                 </div>
                 <div className="react-chat-actions">
                   <button className="secondary" onClick={() => setSearchOpen(prev => !prev)}>Search</button>
@@ -1242,7 +1283,11 @@ function App() {
   const [session, setSession] = useState(getSession);
   useDocumentMeta(getRouteMeta(route.path));
 
-  function onLogout() {
+  async function onLogout() {
+    const username = session.user?.username;
+    if (username) {
+      try { await api(`/api/logoff/${encodeURIComponent(username)}`, { method: 'POST', body: JSON.stringify({}) }); } catch (_) {}
+    }
     clearSession();
     setSession({ token: null, user: null });
     navigate('/login');
