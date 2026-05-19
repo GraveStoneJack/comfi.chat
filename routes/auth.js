@@ -93,6 +93,7 @@ router.post('/email/finalize', async (req, res) => {
             eyeColor,
             ethnicity,
             hobbies,
+            transgender,
             sexuality,
             lookingFor
         } = req.body || {};
@@ -125,6 +126,7 @@ router.post('/email/finalize', async (req, res) => {
             eyeColor,
             ethnicity,
             hobbies: parseList(hobbies),
+            transgender,
             sexuality: cleanSexuality,
             lookingFor: parseList(lookingFor)
         });
