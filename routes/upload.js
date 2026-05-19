@@ -6,6 +6,15 @@ const Media = require('../models/Media');
 
 const router = express.Router();
 
+function mediaBuffer(bytes) {
+    if (!bytes) return null;
+    if (Buffer.isBuffer(bytes)) return bytes;
+    if (bytes.buffer && Buffer.isBuffer(bytes.buffer)) return bytes.buffer;
+    if (bytes.buffer) return Buffer.from(bytes.buffer);
+    if (Array.isArray(bytes.data)) return Buffer.from(bytes.data);
+    return Buffer.from(bytes);
+}
+
 const uploadsDir = path.join(__dirname, '..', 'uploads');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
@@ -68,31 +77,51 @@ router.post('/', upload.single('file'), (req, res) => {
     }
 });
 
-// Public resolver: return file bytes from local uploads (no DB fallback)
-router.get('/resolve', (req, res) => {
+// Public resolver: local disk first, then MongoDB copy (Render disk is ephemeral)
+router.get('/resolve', async (req, res) => {
     try {
         const src = (req.query && req.query.src) ? String(req.query.src) : '';
         if (!src) return res.status(400).send('Missing src');
-        // Accept absolute or relative; normalize to local file path under uploadsDir
         const match = /\/uploads\/([^?#]+)/.exec(src);
-        if (!match) return res.status(400).send('Unsupported source');
-        const filename = match[1];
-        const filePath = path.join(uploadsDir, filename);
-        if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
-        const ext = path.extname(filename).toLowerCase();
-        const contentType = {
-            '.jpg': 'image/jpeg',
-            '.jpeg': 'image/jpeg',
-            '.png': 'image/png',
-            '.gif': 'image/gif',
-            '.webp': 'image/webp',
-            '.avif': 'image/avif'
-        }[ext] || 'application/octet-stream';
-        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        fs.createReadStream(filePath).pipe(res);
+        const filename = match ? match[1] : null;
+        const sendHeaders = (contentType, cacheControl) => {
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Content-Type', contentType);
+            res.setHeader('Cache-Control', cacheControl);
+        };
+        if (filename) {
+            const filePath = path.join(uploadsDir, filename);
+            if (fs.existsSync(filePath)) {
+                const ext = path.extname(filename).toLowerCase();
+                const contentType = {
+                    '.jpg': 'image/jpeg',
+                    '.jpeg': 'image/jpeg',
+                    '.png': 'image/png',
+                    '.gif': 'image/gif',
+                    '.webp': 'image/webp',
+                    '.avif': 'image/avif'
+                }[ext] || 'application/octet-stream';
+                sendHeaders(contentType, 'public, max-age=31536000, immutable');
+                return fs.createReadStream(filePath).pipe(res);
+            }
+        }
+        let mediaDoc = null;
+        if (filename) {
+            mediaDoc = await Media.findOne({ filename, deletedAt: { $exists: false } }).sort({ createdAt: -1 }).lean();
+        }
+        if (!mediaDoc) {
+            const normalized = filename ? `/uploads/${filename}` : src;
+            mediaDoc = await Media.findOne({
+                $or: [{ originalUrl: normalized }, { originalUrl: src }],
+                deletedAt: { $exists: false }
+            }).sort({ createdAt: -1 }).lean();
+        }
+        if (!mediaDoc || !mediaDoc.bytes) return res.status(404).send('Not found');
+        const bytes = mediaBuffer(mediaDoc.bytes);
+        if (!bytes) return res.status(404).send('Not found');
+        sendHeaders(mediaDoc.contentType || 'application/octet-stream', 'public, max-age=31536000, immutable');
+        return res.end(bytes);
     } catch (e) {
         console.error('[Upload] resolve error:', e);
         res.status(500).send('Failed to resolve');
