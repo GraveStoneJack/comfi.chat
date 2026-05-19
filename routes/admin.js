@@ -891,7 +891,7 @@ router.get('/registered-users', async (req, res) => {
 			User.countDocuments({}),
 			User.countDocuments({ isOnline: true }),
 			User.find(query)
-				.select('username email displayName age gender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies isOnline lastActive accountCreated createdAt updatedAt')
+				.select('username email displayName age gender transgender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies isOnline lastActive accountCreated createdAt updatedAt')
 				.sort({ accountCreated: -1, createdAt: -1 })
 				.skip((page - 1) * limit)
 				.limit(limit)
@@ -956,7 +956,7 @@ router.get('/registered-users', async (req, res) => {
 router.get('/registered-users/:id', async (req, res) => {
 	try {
 		const user = await User.findById(req.params.id)
-			.select('username email displayName age gender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies isOnline lastActive accountCreated createdAt updatedAt')
+			.select('username email displayName age gender transgender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies isOnline lastActive accountCreated createdAt updatedAt')
 			.lean();
 		if (!user) return res.status(404).json({ error: 'Registered user not found' });
 		const [conversations, images, reportsAgainst, blocksAgainst] = await Promise.all([
@@ -974,7 +974,7 @@ router.get('/registered-users/:id', async (req, res) => {
 
 router.patch('/registered-users/:id', async (req, res) => {
 	try {
-		const allowed = ['displayName', 'age', 'gender', 'sexuality', 'lookingFor', 'profilePicture', 'hairType', 'hairColor', 'eyeColor', 'ethnicity', 'hobbies'];
+		const allowed = ['displayName', 'age', 'gender', 'transgender', 'sexuality', 'lookingFor', 'profilePicture', 'hairType', 'hairColor', 'eyeColor', 'ethnicity', 'hobbies'];
 		const update = {};
 		for (const key of allowed) {
 			if (key in req.body) update[key] = req.body[key];
@@ -989,7 +989,7 @@ router.patch('/registered-users/:id', async (req, res) => {
 			return res.status(400).json({ error: 'displayName, age, gender, and sexuality are required' });
 		}
 		const saved = await User.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true })
-			.select('username email displayName age gender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies isOnline lastActive accountCreated createdAt updatedAt')
+			.select('username email displayName age gender transgender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies isOnline lastActive accountCreated createdAt updatedAt')
 			.lean();
 		if (!saved) return res.status(404).json({ error: 'Registered user not found' });
 		await recordAction(req, {

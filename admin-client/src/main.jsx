@@ -65,13 +65,28 @@ const NAV_GROUPS = [
 ];
 
 const COLORS = ['#9b5cff', '#d79aff', '#7dd3fc', '#34d399', '#f59e0b', '#fb7185', '#a78bfa', '#22d3ee'];
-const GENDER_OPTIONS = ['male', 'female', 'non-binary', 'other', 'prefer not to say'];
-const SEXUALITY_OPTIONS = ['straight', 'gay', 'lesbian', 'bisexual', 'other', 'prefer not to say'];
+const GENDER_OPTIONS = ['male', 'female', 'non-binary', 'genderfluid', 'agender', 'demiboy', 'demigirl', 'other', 'prefer-not-to-say'];
+const TRANSGENDER_OPTIONS = ['yes', 'no', 'prefer-not-to-say'];
+const SEXUALITY_OPTIONS = ['straight', 'gay', 'lesbian', 'bisexual', 'pansexual', 'questioning', 'asexual', 'other', 'prefer-not-to-say'];
 const LOOKING_FOR_OPTIONS = ['friendship', 'dating', 'relationship', 'casual', 'networking'];
 const HAIR_TYPE_OPTIONS = ['straight', 'wavy', 'curly', 'coily', 'other'];
 const HAIR_COLOR_OPTIONS = ['black', 'brown', 'blonde', 'red', 'grey', 'white', 'other'];
 const EYE_COLOR_OPTIONS = ['brown', 'blue', 'green', 'hazel', 'grey', 'other'];
-const ETHNICITY_OPTIONS = ['asian', 'black', 'hispanic', 'white', 'mixed', 'other'];
+const ETHNICITY_OPTIONS = [
+  'african-black',
+  'arab',
+  'central-asian',
+  'east-asian',
+  'south-asian',
+  'middle-eastern-west-asian',
+  'latino-hispanic',
+  'native-american',
+  'pacific-islander',
+  'white-european',
+  'mixed-multiracial',
+  'other',
+  'prefer-not-to-say'
+];
 
 async function api(path, options = {}) {
   const headers = options.body instanceof FormData ? options.headers : { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -111,7 +126,12 @@ function formatDate(value) {
 }
 
 function titleCase(value) {
-  return String(value || '').replace(/\b\w/g, char => char.toUpperCase());
+  return String(value || '').replace(/-/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function withSelectedOption(value, options) {
+  if (!value) return options;
+  return options.includes(value) ? options : [value, ...options];
 }
 
 function formatDateInput(value) {
@@ -628,8 +648,9 @@ function RegisteredUsersPage({ openLightbox }) {
                     <small>Joined {formatDate(user.accountCreated || user.createdAt)} · Last active {formatDate(user.lastActive)}</small>
                     <div className="mini-tags">
                       <span>{user.age || 'age unknown'}</span>
-                      <span>{user.gender || 'gender unknown'}</span>
-                      <span>{user.sexuality || 'sexuality unknown'}</span>
+                      <span>{user.gender ? titleCase(user.gender) : 'gender unknown'}</span>
+                      <span>{user.sexuality ? titleCase(user.sexuality) : 'sexuality unknown'}</span>
+                      {user.ethnicity && <span>{titleCase(user.ethnicity)}</span>}
                       {user.isOnline && <span className="good">online</span>}
                     </div>
                   </div>
@@ -731,6 +752,7 @@ function RegisteredUserDetail({ detail, openLightbox, onSaved }) {
         <label>Display name<input value={form.displayName} onChange={e => update('displayName', e.target.value)} required maxLength="50" /></label>
         <label>Age<input type="number" min="13" max="100" value={form.age} onChange={e => update('age', e.target.value)} required /></label>
         <label>Gender<SelectValue value={form.gender} options={GENDER_OPTIONS} onChange={value => update('gender', value)} required /></label>
+        <label>Transgender<SelectValue value={form.transgender} options={TRANSGENDER_OPTIONS} onChange={value => update('transgender', value)} /></label>
         <label>Sexuality<SelectValue value={form.sexuality} options={SEXUALITY_OPTIONS} onChange={value => update('sexuality', value)} required /></label>
         <label>Looking for<input value={form.lookingFor} onChange={e => update('lookingFor', e.target.value)} placeholder="friendship, dating" /></label>
         <label>Profile picture URL<input value={form.profilePicture} onChange={e => update('profilePicture', e.target.value)} placeholder="https://..." /></label>
@@ -777,6 +799,7 @@ function registeredFormFromUser(user) {
     displayName: user.displayName || '',
     age: user.age || '',
     gender: user.gender || '',
+    transgender: user.transgender || '',
     sexuality: user.sexuality || '',
     lookingFor: Array.isArray(user.lookingFor) ? user.lookingFor.join(', ') : '',
     profilePicture: user.profilePicture || '',
@@ -789,10 +812,11 @@ function registeredFormFromUser(user) {
 }
 
 function SelectValue({ value, options, onChange, required = false }) {
+  const mergedOptions = withSelectedOption(value, options);
   return (
     <select value={value || ''} onChange={event => onChange(event.target.value)} required={required}>
       <option value="">Select</option>
-      {options.map(option => <option key={option} value={option}>{titleCase(option)}</option>)}
+      {mergedOptions.map(option => <option key={option} value={option}>{titleCase(option)}</option>)}
     </select>
   );
 }
