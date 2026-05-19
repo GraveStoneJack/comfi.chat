@@ -47,16 +47,31 @@ import './styles.css';
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-  { id: 'users', label: 'User States', icon: Users },
+  { id: 'registeredUsers', label: 'Registered Users', icon: UserPlus },
+  { id: 'users', label: 'Identity Graph', icon: Users },
+  { id: 'chats', label: 'Chats', icon: MessageSquare },
   { id: 'reports', label: 'Reports', icon: Shield },
   { id: 'cases', label: 'Cases', icon: CheckCircle2 },
-  { id: 'storage', label: 'Storage', icon: Archive },
-  { id: 'settings', label: 'Settings', icon: Settings },
   { id: 'blocks', label: 'Blocks', icon: Blocks },
-  { id: 'chats', label: 'Chats', icon: MessageSquare }
+  { id: 'storage', label: 'Storage', icon: Archive },
+  { id: 'settings', label: 'Settings', icon: Settings }
+];
+
+const NAV_GROUPS = [
+  { label: 'Overview', items: ['dashboard'] },
+  { label: 'People', items: ['registeredUsers', 'users', 'chats'] },
+  { label: 'Safety', items: ['reports', 'cases', 'blocks'] },
+  { label: 'Operations', items: ['storage', 'settings'] }
 ];
 
 const COLORS = ['#9b5cff', '#d79aff', '#7dd3fc', '#34d399', '#f59e0b', '#fb7185', '#a78bfa', '#22d3ee'];
+const GENDER_OPTIONS = ['male', 'female', 'non-binary', 'other', 'prefer not to say'];
+const SEXUALITY_OPTIONS = ['straight', 'gay', 'lesbian', 'bisexual', 'other', 'prefer not to say'];
+const LOOKING_FOR_OPTIONS = ['friendship', 'dating', 'relationship', 'casual', 'networking'];
+const HAIR_TYPE_OPTIONS = ['straight', 'wavy', 'curly', 'coily', 'other'];
+const HAIR_COLOR_OPTIONS = ['black', 'brown', 'blonde', 'red', 'grey', 'white', 'other'];
+const EYE_COLOR_OPTIONS = ['brown', 'blue', 'green', 'hazel', 'grey', 'other'];
+const ETHNICITY_OPTIONS = ['asian', 'black', 'hispanic', 'white', 'mixed', 'other'];
 
 async function api(path, options = {}) {
   const headers = options.body instanceof FormData ? options.headers : { 'Content-Type': 'application/json', ...(options.headers || {}) };
@@ -260,6 +275,7 @@ function Shell({ me, onLogout, theme, setTheme }) {
   }
   const content = {
     dashboard: <Dashboard onUserFilter={openUsersWithFilter} />,
+    registeredUsers: <RegisteredUsersPage openLightbox={setLightbox} />,
     users: <UsersPage openLightbox={setLightbox} initialFilter={userFilter} onClearInitialFilter={() => setUserFilter(null)} />,
     reports: <ReportsPage />,
     cases: <CasesPage />,
@@ -280,15 +296,21 @@ function Shell({ me, onLogout, theme, setTheme }) {
           </div>
         </div>
         <nav>
-          {NAV.map(item => {
-            const Icon = item.icon;
-            return (
-              <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>
-                <Icon size={18} />
-                {item.label}
-              </button>
-            );
-          })}
+          {NAV_GROUPS.map(group => (
+            <div className="nav-group" key={group.label}>
+              <span className="nav-group-label">{group.label}</span>
+              {group.items.map(id => {
+                const item = NAV.find(entry => entry.id === id);
+                const Icon = item.icon;
+                return (
+                  <button key={item.id} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>
+                    <Icon size={18} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
         </nav>
         <div className="sidebar-footer">
           <div className="admin-pill">
@@ -555,6 +577,223 @@ function AttentionList({ title, items = [], labelKey, valueKey = 'count' }) {
         )) : <Empty label="No signals yet" />}
       </div>
     </Panel>
+  );
+}
+
+function RegisteredUsersPage({ openLightbox }) {
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [selected, setSelected] = useState(null);
+  const [refresh, setRefresh] = useState(0);
+  const { loading, data, error } = useAsync(
+    () => api(`/api/admin/registered-users?limit=300&status=${encodeURIComponent(status)}&search=${encodeURIComponent(search)}`),
+    [search, status, refresh]
+  );
+  const detail = useAsync(
+    () => selected ? api(`/api/admin/registered-users/${selected._id}`) : Promise.resolve(null),
+    [selected?._id, refresh]
+  );
+  const rows = data?.rows || [];
+  const kpis = data?.kpis || {};
+  return (
+    <div className="page-stack">
+      <Toolbar>
+        <SearchBox value={search} onChange={setSearch} placeholder="Search registered users, emails, display names..." />
+        <div className="segmented-control">
+          {['all', 'online', 'offline'].map(option => (
+            <button key={option} className={status === option ? 'active' : ''} onClick={() => setStatus(option)}>
+              {titleCase(option)}
+            </button>
+          ))}
+        </div>
+        <button className="ghost" onClick={() => setRefresh(x => x + 1)}>Refresh</button>
+      </Toolbar>
+      <section className="kpi-grid registered-kpis">
+        <KpiCard icon={UserPlus} label="Registered accounts" value={formatNumber(kpis.registeredTotal)} hint="Total verified userbase" />
+        <KpiCard icon={Activity} label="Online now" value={formatNumber(kpis.onlineTotal)} hint="Registered users currently active" />
+        <KpiCard icon={Search} label="Current result" value={formatNumber(data?.pagination?.total)} hint="Matching this view" />
+      </section>
+      {loading && <Loading label="Loading registered userbase..." />}
+      {error && <ErrorState message={error} />}
+      {data && (
+        <div className="split-layout registered-user-layout">
+          <Panel title="Registered Userbase" subtitle={`${rows.length} accounts loaded`}>
+            <div className="registered-user-list">
+              {rows.map(user => (
+                <button key={user._id} className={selected?._id === user._id ? 'registered-user-card active' : 'registered-user-card'} onClick={() => setSelected(user)}>
+                  <AdminAvatar user={user} />
+                  <div>
+                    <strong>{user.displayName || user.username}</strong>
+                    <span>@{user.username} · {user.email}</span>
+                    <small>Joined {formatDate(user.accountCreated || user.createdAt)} · Last active {formatDate(user.lastActive)}</small>
+                    <div className="mini-tags">
+                      <span>{user.age || 'age unknown'}</span>
+                      <span>{user.gender || 'gender unknown'}</span>
+                      <span>{user.sexuality || 'sexuality unknown'}</span>
+                      {user.isOnline && <span className="good">online</span>}
+                    </div>
+                  </div>
+                  <div className="registered-metrics">
+                    <strong>{formatNumber(user.messagesCount)}</strong>
+                    <span>messages</span>
+                  </div>
+                </button>
+              ))}
+              {!rows.length && <Empty label="No registered users match this view." />}
+            </div>
+          </Panel>
+          <Panel title="Account Management" subtitle={selected ? selected.email : 'Select a registered account'}>
+            {!selected && <Empty label="Pick a user to inspect profile data, moderation signals, conversations, and media." />}
+            {selected && detail.loading && <Loading label="Loading registered account..." />}
+            {selected && detail.data && (
+              <RegisteredUserDetail
+                detail={detail.data}
+                openLightbox={openLightbox}
+                onSaved={saved => {
+                  setSelected(saved);
+                  setRefresh(x => x + 1);
+                }}
+              />
+            )}
+          </Panel>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AdminAvatar({ user }) {
+  const name = user?.displayName || user?.username || '?';
+  const picture = user?.profilePicture && user.profilePicture !== 'default-profile.png' ? user.profilePicture : '';
+  return picture ? (
+    <img className="admin-avatar-img" src={picture} alt={`${name} profile`} />
+  ) : (
+    <div className="avatar">{name.slice(0, 1).toUpperCase()}</div>
+  );
+}
+
+function RegisteredUserDetail({ detail, openLightbox, onSaved }) {
+  const [form, setForm] = useState(() => registeredFormFromUser(detail.user));
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setForm(registeredFormFromUser(detail.user));
+    setNotice('');
+    setError('');
+  }, [detail.user._id]);
+
+  function update(key, value) {
+    setForm(prev => ({ ...prev, [key]: value }));
+  }
+
+  async function save(event) {
+    event.preventDefault();
+    setSaving(true);
+    setNotice('');
+    setError('');
+    try {
+      const saved = await api(`/api/admin/registered-users/${detail.user._id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          ...form,
+          age: Number(form.age),
+          lookingFor: form.lookingFor.split(',').map(item => item.trim()).filter(Boolean),
+          hobbies: form.hobbies.split(',').map(item => item.trim()).filter(Boolean)
+        })
+      });
+      setNotice('Registered profile saved.');
+      onSaved(saved);
+    } catch (err) {
+      setError(err.message || 'Failed to save registered profile');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="detail-stack">
+      <div className="profile-strip">
+        <AdminAvatar user={detail.user} />
+        <div>
+          <h3>{detail.user.displayName || detail.user.username}</h3>
+          <p>@{detail.user.username} · {detail.user.email} · {detail.user.isOnline ? 'Online' : 'Offline'}</p>
+        </div>
+      </div>
+      <div className="stat-row">
+        <Stat label="Conversations" value={(detail.conversations || []).length} />
+        <Stat label="Images" value={(detail.images || []).length} />
+        <Stat label="Reports" value={(detail.reportsAgainst || []).length} />
+        <Stat label="Blocked by" value={(detail.blocksAgainst || []).length} />
+      </div>
+      <form className="form-grid" onSubmit={save}>
+        <label>Display name<input value={form.displayName} onChange={e => update('displayName', e.target.value)} required maxLength="50" /></label>
+        <label>Age<input type="number" min="13" max="100" value={form.age} onChange={e => update('age', e.target.value)} required /></label>
+        <label>Gender<SelectValue value={form.gender} options={GENDER_OPTIONS} onChange={value => update('gender', value)} required /></label>
+        <label>Sexuality<SelectValue value={form.sexuality} options={SEXUALITY_OPTIONS} onChange={value => update('sexuality', value)} required /></label>
+        <label>Looking for<input value={form.lookingFor} onChange={e => update('lookingFor', e.target.value)} placeholder="friendship, dating" /></label>
+        <label>Profile picture URL<input value={form.profilePicture} onChange={e => update('profilePicture', e.target.value)} placeholder="https://..." /></label>
+        <label>Hair type<SelectValue value={form.hairType} options={HAIR_TYPE_OPTIONS} onChange={value => update('hairType', value)} /></label>
+        <label>Hair color<SelectValue value={form.hairColor} options={HAIR_COLOR_OPTIONS} onChange={value => update('hairColor', value)} /></label>
+        <label>Eye color<SelectValue value={form.eyeColor} options={EYE_COLOR_OPTIONS} onChange={value => update('eyeColor', value)} /></label>
+        <label>Ethnicity<SelectValue value={form.ethnicity} options={ETHNICITY_OPTIONS} onChange={value => update('ethnicity', value)} /></label>
+        <label>Hobbies<input value={form.hobbies} onChange={e => update('hobbies', e.target.value)} placeholder="music, gaming" /></label>
+        <div className="action-row">
+          <button className="primary" disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button>
+        </div>
+      </form>
+      {notice && <div className="alert success">{notice}</div>}
+      {error && <div className="alert error">{error}</div>}
+      <section>
+        <h4>Conversations</h4>
+        <DataTable
+          rows={detail.conversations || []}
+          columns={[
+            ['with', 'With'],
+            ['messagesCount', 'Messages'],
+            ['imagesCount', 'Images'],
+            [row => formatDate(row.lastAt), 'Last active']
+          ]}
+        />
+      </section>
+      <section>
+        <h4>Media Shared</h4>
+        <MediaGrid items={detail.images || []} openLightbox={openLightbox} />
+      </section>
+      <section>
+        <h4>Reports and Blocks</h4>
+        <div className="grid two compact">
+          <MiniFeed title="Reports Against" items={detail.reportsAgainst} render={r => `${r.reportingUser} reported ${r.reportedUser}: ${r.reason}`} />
+          <MiniFeed title="Blocks Against" items={detail.blocksAgainst} render={b => `${b.blockerUsername} blocked ${b.blockedUsername}`} />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function registeredFormFromUser(user) {
+  return {
+    displayName: user.displayName || '',
+    age: user.age || '',
+    gender: user.gender || '',
+    sexuality: user.sexuality || '',
+    lookingFor: Array.isArray(user.lookingFor) ? user.lookingFor.join(', ') : '',
+    profilePicture: user.profilePicture || '',
+    hairType: user.hairType || '',
+    hairColor: user.hairColor || '',
+    eyeColor: user.eyeColor || '',
+    ethnicity: user.ethnicity || '',
+    hobbies: Array.isArray(user.hobbies) ? user.hobbies.join(', ') : ''
+  };
+}
+
+function SelectValue({ value, options, onChange, required = false }) {
+  return (
+    <select value={value || ''} onChange={event => onChange(event.target.value)} required={required}>
+      <option value="">Select</option>
+      {options.map(option => <option key={option} value={option}>{titleCase(option)}</option>)}
+    </select>
   );
 }
 

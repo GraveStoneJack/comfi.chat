@@ -288,7 +288,21 @@ label small {
 
 .sidebar nav {
   display: grid;
-  gap: 8px;
+  gap: 18px;
+}
+
+.nav-group {
+  display: grid;
+  gap: 7px;
+}
+
+.nav-group-label {
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
 }
 
 .sidebar nav button {
@@ -348,6 +362,10 @@ label small {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 16px;
+}
+
+.kpi-grid.registered-kpis {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .kpi-card {
@@ -480,6 +498,10 @@ label small {
   align-items: start;
 }
 
+.registered-user-layout {
+  grid-template-columns: minmax(430px, 0.95fr) minmax(620px, 1.25fr);
+}
+
 .chat-moderation-layout {
   display: grid;
   grid-template-columns: minmax(360px, 0.78fr) minmax(640px, 1.42fr);
@@ -506,6 +528,7 @@ label small {
 }
 
 .identity-list,
+.registered-user-list,
 .report-list,
 .detail-stack,
 .message-feed,
@@ -515,6 +538,7 @@ label small {
 }
 
 .identity-card,
+.registered-user-card,
 .report-card {
   position: relative;
   border: 1px solid var(--border);
@@ -525,6 +549,49 @@ label small {
   background: var(--surface-strong);
   display: grid;
   gap: 8px;
+}
+
+.registered-user-card {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.registered-user-card span,
+.registered-user-card small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.registered-user-card strong,
+.registered-user-card span,
+.registered-user-card small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.registered-user-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(155, 92, 255, 0.12);
+}
+
+.registered-metrics {
+  min-width: 86px;
+  border-radius: 16px;
+  padding: 10px;
+  text-align: center;
+  color: var(--accent);
+  background: rgba(155, 92, 255, 0.1);
+}
+
+.registered-metrics strong,
+.registered-metrics span {
+  display: block;
+}
+
+.registered-metrics strong {
+  font-size: 22px;
 }
 
 .identity-card svg {
@@ -578,6 +645,15 @@ label small {
   height: 58px;
   font-size: 22px;
   font-weight: 900;
+}
+
+.admin-avatar-img {
+  width: 58px;
+  height: 58px;
+  flex: 0 0 auto;
+  border-radius: 18px;
+  object-fit: cover;
+  box-shadow: 0 14px 38px rgba(155, 92, 255, 0.24);
 }
 
 .stat-row {
@@ -1176,6 +1252,10 @@ th {
 
 .alert.error {
   color: var(--danger);
+}
+
+.alert.success {
+  color: var(--good);
 }
 
 .spinner {

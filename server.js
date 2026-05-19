@@ -20,6 +20,7 @@ const { router: adminAuthRouter } = require('./routes/adminAuth');
 const adminRouter = require('./routes/admin');
 const Message = require('./models/Message');
 const TempUser = require('./models/TempUser');
+const User = require('./models/User');
 const LoginEvent = require('./models/LoginEvent');
 
 dotenv.config();
@@ -242,7 +243,10 @@ app.get(['/chat.js', '/styles.css'], (req, res) => {
 app.post('/api/logoff/:username', async (req, res) => {
     try {
         const { username } = req.params;
-        await TempUser.findOneAndUpdate({ username }, { isOnline: false, lastSeen: new Date() });
+        await Promise.all([
+            TempUser.findOneAndUpdate({ username }, { isOnline: false, lastSeen: new Date() }),
+            User.findOneAndUpdate({ username }, { isOnline: false, lastActive: new Date() })
+        ]);
         // Preserve messages for audit/admin purposes. Only record a logout event.
         try {
             await LoginEvent.create({

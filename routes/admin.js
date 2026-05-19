@@ -872,6 +872,138 @@ router.post('/messages/clear', async (req, res) => {
 	}
 });
 
+router.get('/registered-users', async (req, res) => {
+	try {
+		const limit = normalizeLimit(req.query.limit, 100, 500);
+		const page = normalizePage(req.query.page);
+		const search = String(req.query.search || '').trim();
+		const status = String(req.query.status || 'all');
+		const query = {};
+		if (search) {
+			const regex = new RegExp(escapeRegExp(search), 'i');
+			query.$or = [{ username: regex }, { email: regex }, { displayName: regex }];
+		}
+		if (status === 'online') query.isOnline = true;
+		if (status === 'offline') query.isOnline = { $ne: true };
+
+		const [total, registeredTotal, onlineTotal, rows] = await Promise.all([
+			User.countDocuments(query),
+			User.countDocuments({}),
+			User.countDocuments({ isOnline: true }),
+			User.find(query)
+				.select('username email displayName age gender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies isOnline lastActive accountCreated createdAt updatedAt')
+				.sort({ accountCreated: -1, createdAt: -1 })
+				.skip((page - 1) * limit)
+				.limit(limit)
+				.lean()
+		]);
+
+		const usernames = rows.map(user => user.username);
+		const [messageRows, reportRows, blockRows] = await Promise.all([
+			Message.aggregate([
+				{ $match: activeMessageMatch({ $or: [{ sender: { $in: usernames } }, { recipient: { $in: usernames } }] }) },
+				{ $project: {
+					username: { $cond: [{ $in: ['$sender', usernames] }, '$sender', '$recipient'] },
+					isSender: { $in: ['$sender', usernames] },
+					hasImage: { $or: [
+						{ $regexMatch: { input: '$message', regex: '^\\[image\\]', options: 'i' } },
+						{ $regexMatch: { input: '$message', regex: '\\.(png|jpe?g|gif|webp|avif)(\\?.*)?$', options: 'i' } }
+					] },
+					timestamp: 1
+				} },
+				{ $group: {
+					_id: '$username',
+					messagesCount: { $sum: 1 },
+					imagesCount: { $sum: { $cond: [{ $and: ['$isSender', '$hasImage'] }, 1, 0] } },
+					lastMessageAt: { $max: '$timestamp' }
+				} }
+			]),
+			Report.aggregate([
+				{ $match: { reportedUser: { $in: usernames } } },
+				{ $group: { _id: '$reportedUser', reportsCount: { $sum: 1 } } }
+			]),
+			ModerationBlock.aggregate([
+				{ $match: { blockedUsername: { $in: usernames } } },
+				{ $group: { _id: '$blockedUsername', blockedByCount: { $sum: 1 } } }
+			])
+		]);
+
+		const messagesByUser = new Map(messageRows.map(row => [row._id, row]));
+		const reportsByUser = new Map(reportRows.map(row => [row._id, row.reportsCount]));
+		const blocksByUser = new Map(blockRows.map(row => [row._id, row.blockedByCount]));
+
+		res.json({
+			rows: rows.map(user => {
+				const metrics = messagesByUser.get(user.username) || {};
+				return {
+					...user,
+					messagesCount: metrics.messagesCount || 0,
+					imagesCount: metrics.imagesCount || 0,
+					lastMessageAt: metrics.lastMessageAt || null,
+					reportsCount: reportsByUser.get(user.username) || 0,
+					blockedByCount: blocksByUser.get(user.username) || 0
+				};
+			}),
+			pagination: { page, limit, total },
+			kpis: { registeredTotal, onlineTotal }
+		});
+	} catch (e) {
+		console.error('[Admin] registered users error', e);
+		res.status(500).json({ error: 'Failed to list registered users' });
+	}
+});
+
+router.get('/registered-users/:id', async (req, res) => {
+	try {
+		const user = await User.findById(req.params.id)
+			.select('username email displayName age gender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies isOnline lastActive accountCreated createdAt updatedAt')
+			.lean();
+		if (!user) return res.status(404).json({ error: 'Registered user not found' });
+		const [conversations, images, reportsAgainst, blocksAgainst] = await Promise.all([
+			getConversationsForUser(user.username, null),
+			getImagesForUser(user.username, null, 80),
+			Report.find({ reportedUser: user.username }).sort({ createdAt: -1 }).limit(25).lean(),
+			ModerationBlock.find({ blockedUsername: user.username }).sort({ createdAt: -1 }).limit(25).lean()
+		]);
+		res.json({ user, conversations, images, reportsAgainst, blocksAgainst });
+	} catch (e) {
+		console.error('[Admin] registered user detail error', e);
+		res.status(500).json({ error: 'Failed to load registered user' });
+	}
+});
+
+router.patch('/registered-users/:id', async (req, res) => {
+	try {
+		const allowed = ['displayName', 'age', 'gender', 'sexuality', 'lookingFor', 'profilePicture', 'hairType', 'hairColor', 'eyeColor', 'ethnicity', 'hobbies'];
+		const update = {};
+		for (const key of allowed) {
+			if (key in req.body) update[key] = req.body[key];
+		}
+		if (typeof update.displayName === 'string') update.displayName = update.displayName.trim();
+		if (typeof update.sexuality === 'string') update.sexuality = update.sexuality.trim();
+		if (typeof update.hobbies === 'string') update.hobbies = update.hobbies.split(',').map(s => s.trim()).filter(Boolean);
+		if (typeof update.lookingFor === 'string') update.lookingFor = update.lookingFor.split(',').map(s => s.trim()).filter(Boolean);
+		if (Array.isArray(update.hobbies)) update.hobbies = update.hobbies.map(s => String(s).trim()).filter(Boolean);
+		if (Array.isArray(update.lookingFor)) update.lookingFor = update.lookingFor.map(s => String(s).trim()).filter(Boolean);
+		if (!update.displayName || !update.age || !update.gender || !update.sexuality) {
+			return res.status(400).json({ error: 'displayName, age, gender, and sexuality are required' });
+		}
+		const saved = await User.findByIdAndUpdate(req.params.id, update, { new: true, runValidators: true })
+			.select('username email displayName age gender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies isOnline lastActive accountCreated createdAt updatedAt')
+			.lean();
+		if (!saved) return res.status(404).json({ error: 'Registered user not found' });
+		await recordAction(req, {
+			actionType: 'update_registered_user',
+			targetUser: saved.username,
+			metadata: { fields: Object.keys(update) }
+		});
+		res.json(saved);
+	} catch (e) {
+		console.error('[Admin] registered user update error', e);
+		res.status(500).json({ error: 'Failed to update registered user' });
+	}
+});
+
 // List unique identities that have messages (empty when no chats yet)
 router.get('/users/all', async (_req, res) => {
 	try {

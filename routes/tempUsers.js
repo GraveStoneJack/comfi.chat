@@ -3,6 +3,30 @@ const express = require('express');
 const router = express.Router();
 const TempUser = require('../models/TempUser');
 const LoginEvent = require('../models/LoginEvent');
+const User = require('../models/User');
+
+function publicUserProfile(user) {
+    return {
+        _id: user._id,
+        username: user.username,
+        displayName: user.displayName,
+        age: user.age,
+        gender: user.gender,
+        sexuality: user.sexuality,
+        lookingFor: user.lookingFor || [],
+        profilePicture: user.profilePicture,
+        hairType: user.hairType,
+        hairColor: user.hairColor,
+        eyeColor: user.eyeColor,
+        ethnicity: user.ethnicity,
+        hobbies: user.hobbies || [],
+        country: user.country,
+        countryCode: user.countryCode,
+        isOnline: !!user.isOnline,
+        lastSeen: user.lastSeen || user.lastActive || user.updatedAt,
+        accountType: 'registered'
+    };
+}
 
 // Create temporary user
 router.post('/create', async (req, res) => {
@@ -141,8 +165,19 @@ async function handleStatus(req, res) {
         );
 
         if (!updatedUser) {
-            console.log('[TempUser Status] User not found:', req.params.username);
-            return res.status(404).json({ error: 'User not found' });
+            const registeredUser = await User.findOneAndUpdate(
+                { username: req.params.username },
+                {
+                    isOnline: req.body.isOnline,
+                    lastActive: new Date()
+                },
+                { new: true }
+            ).lean();
+            if (!registeredUser) {
+                console.log('[TempUser Status] User not found:', req.params.username);
+                return res.status(404).json({ error: 'User not found' });
+            }
+            return res.json(publicUserProfile(registeredUser));
         }
 
         console.log('[TempUser Status] Successfully updated user:', updatedUser);
@@ -170,8 +205,21 @@ async function handleStatus(req, res) {
 // Get online users - add sorting by lastSeen
 router.get('/online', async (req, res) => {
     try {
-        const onlineUsers = await TempUser.find({ isOnline: true })
-            .sort({ lastSeen: -1 }); // Sort by most recently active
+        const [tempUsers, registeredUsers] = await Promise.all([
+            TempUser.find({ isOnline: true }).sort({ lastSeen: -1 }).lean(),
+            User.find({ isOnline: true })
+                .select('username displayName age gender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies country countryCode isOnline lastActive updatedAt')
+                .sort({ lastActive: -1 })
+                .lean()
+        ]);
+
+        const tempUsernames = new Set(tempUsers.map(user => user.username));
+        const onlineUsers = [
+            ...tempUsers.map(user => ({ ...user, accountType: 'guest' })),
+            ...registeredUsers
+                .filter(user => !tempUsernames.has(user.username))
+                .map(publicUserProfile)
+        ].sort((a, b) => new Date(b.lastSeen || b.lastActive || 0) - new Date(a.lastSeen || a.lastActive || 0));
 
         console.log('[TempUser Online] Fetched online users:', {
             count: onlineUsers.length,

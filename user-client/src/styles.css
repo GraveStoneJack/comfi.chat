@@ -103,6 +103,48 @@ button:disabled {
   color: #622083;
 }
 
+.account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.profile-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  object-fit: cover;
+  background: linear-gradient(135deg, #d79aff, #9b4dca);
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 10px 24px rgba(155, 77, 202, 0.24);
+}
+
+.profile-avatar.xs {
+  width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
+}
+
+.profile-avatar.sm {
+  width: 42px;
+  height: 42px;
+  font-size: 1rem;
+}
+
+.profile-avatar.md {
+  width: 54px;
+  height: 54px;
+  font-size: 1.25rem;
+}
+
+.profile-avatar.lg {
+  width: 68px;
+  height: 68px;
+  font-size: 1.5rem;
+}
+
 .hero,
 .stack {
   max-width: 680px;
@@ -302,6 +344,14 @@ label.file-button {
   gap: 18px;
 }
 
+.chat-title-block,
+.thread-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
 .react-chat-header h1 {
   font-size: clamp(2.2rem, 4vw, 3.8rem);
 }
@@ -423,8 +473,22 @@ label.file-button {
 
 .chat-list-item {
   border: 1px solid transparent;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-list-copy {
+  min-width: 0;
   display: grid;
   gap: 4px;
+}
+
+.chat-list-copy strong,
+.chat-list-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chat-list-item.active {
