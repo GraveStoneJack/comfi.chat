@@ -12,6 +12,8 @@ import {
   fetchHistory,
   getApiBase,
   getImageCandidates,
+  normalizeProfilePictureForSave,
+  resolveProfilePictureUrl,
   getActiveConversation,
   getVisibleConversations,
   getVisibleRoster,
@@ -249,7 +251,9 @@ function SelectField({ label, name, value, onChange, options, required = false }
 function ProfileAvatar({ user, size = 'md' }) {
   const name = user?.displayName || user?.username || 'Comfi user';
   const initial = name.slice(0, 1).toUpperCase();
-  const picture = user?.profilePicture && user.profilePicture !== 'default-profile.png' ? user.profilePicture : '';
+  const picture = user?.profilePicture && user.profilePicture !== 'default-profile.png'
+    ? resolveProfilePictureUrl(user.profilePicture)
+    : '';
   return picture ? (
     <img className={`profile-avatar ${size}`} src={picture} alt={`${name} profile`} />
   ) : (
@@ -543,8 +547,7 @@ function Profile({ session, onAuthed }) {
       body.append('file', file);
       const data = await api('/api/upload', { method: 'POST', body });
       const rawUrl = data.fileUrl || '';
-      const url = rawUrl.startsWith('http') || rawUrl.startsWith('data:') ? rawUrl : `${API_BASE}${rawUrl}`;
-      setProfile(prev => ({ ...prev, profilePicture: url }));
+      setProfile(prev => ({ ...prev, profilePicture: normalizeProfilePictureForSave(rawUrl) || rawUrl }));
     } catch (err) {
       setError(err.message || 'Upload failed');
     } finally {
@@ -566,7 +569,7 @@ function Profile({ session, onAuthed }) {
       eyeColor: profile.eyeColor || undefined,
       ethnicity: profile.ethnicity || undefined,
       hobbies: profile.hobbies,
-      profilePicture: profile.profilePicture || undefined
+      profilePicture: normalizeProfilePictureForSave(profile.profilePicture) || undefined
     };
   }
 
@@ -633,7 +636,7 @@ function Profile({ session, onAuthed }) {
         <p className="muted">This profile will become the source of truth for the chat experience as the React migration continues.</p>
         <div className="avatar-card">
           {profile.profilePicture ? (
-            <img src={profile.profilePicture} alt="Profile preview" />
+            <img src={resolveProfilePictureUrl(profile.profilePicture)} alt="Profile preview" />
           ) : (
             <div className="avatar-placeholder">{(profile.displayName || profile.username || 'C').slice(0, 1).toUpperCase()}</div>
           )}

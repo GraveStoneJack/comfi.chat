@@ -24,9 +24,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     let registeredUser = JSON.parse(sessionStorage.getItem('user') || 'null');
     const tempSession = JSON.parse(sessionStorage.getItem('tempUser') || 'null');
 
+    function uploadsPathFromUrl(url) {
+        if (!url) return '';
+        const match = /\/uploads\/([^?#]+)/i.exec(String(url));
+        return match ? `/uploads/${match[1]}` : '';
+    }
+
     function resolveProfilePicture(url) {
         if (!url || url === 'default-profile.png') return '';
-        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
+        if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+        const uploadsPath = uploadsPathFromUrl(url);
+        if (uploadsPath) {
+            return `${API_URL}/api/upload/resolve?src=${encodeURIComponent(uploadsPath)}`;
+        }
+        if (url.startsWith('http')) return url;
         return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
     }
 

@@ -8,9 +8,28 @@ function getQueryParams() {
     return out;
 }
 
+function uploadsPathFromUrl(url) {
+    if (!url) return '';
+    const match = /\/uploads\/([^?#]+)/i.exec(String(url));
+    return match ? `/uploads/${match[1]}` : '';
+}
+
+function normalizeProfilePictureForSave(url) {
+    if (!url || url === 'default-profile.png') return undefined;
+    const uploadsPath = uploadsPathFromUrl(url);
+    if (uploadsPath) return uploadsPath;
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+    return url;
+}
+
 function resolveProfilePicture(url) {
     if (!url || url === 'default-profile.png') return '';
-    if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
+    if (url.startsWith('data:') || url.startsWith('blob:')) return url;
+    const uploadsPath = uploadsPathFromUrl(url);
+    if (uploadsPath) {
+        return `${API_URL}/api/upload/resolve?src=${encodeURIComponent(uploadsPath)}`;
+    }
+    if (url.startsWith('http')) return url;
     return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
@@ -68,7 +87,7 @@ function collectProfilePayload(avatar) {
         eyeColor: document.getElementById('eyeColor').value || undefined,
         ethnicity: document.getElementById('ethnicity').value || undefined,
         hobbies: document.getElementById('hobbies').value,
-        profilePicture: avatar.dataset.url || undefined
+        profilePicture: normalizeProfilePictureForSave(avatar.dataset.url) || undefined
     };
 }
 
@@ -157,9 +176,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: fd });
             if (!res.ok) throw new Error('Upload failed');
             const data = await res.json();
-            const resolved = resolveProfilePicture(data.fileUrl || '');
-            avatar.src = resolved;
-            avatar.dataset.url = resolved;
+            const stored = data.fileUrl || '';
+            avatar.src = resolveProfilePicture(stored);
+            avatar.dataset.url = stored;
         } catch (_e1) {
             alert('Upload failed. Please try a smaller image.');
         }
