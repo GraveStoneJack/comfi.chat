@@ -156,6 +156,38 @@ body.dark .auth-section h2 { color: #eae0ff; text-shadow: none; }
     background-color: #c53929;
 }
 
+.signin-btn {
+    background: linear-gradient(135deg, #9b4dca 0%, #6d28d9 100%);
+    color: #fff;
+    text-decoration: none;
+}
+
+.signin-btn:hover {
+    color: #fff;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(155, 77, 202, 0.35);
+}
+
+.auth-switch {
+    margin: 4px 0 0;
+    color: #664673;
+    font-size: 0.95rem;
+}
+
+.auth-switch a {
+    color: #9b4dca;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+body.dark .auth-switch {
+    color: #cfc6da;
+}
+
+body.dark .auth-switch a {
+    color: #d9b8ff;
+}
+
 .or-divider {
     margin: 20px 0;
     color: #3b0337;

@@ -5,6 +5,10 @@ const TempUser = require('../models/TempUser');
 const LoginEvent = require('../models/LoginEvent');
 const User = require('../models/User');
 
+function escapeRegExp(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function publicUserProfile(user) {
     return {
         _id: user._id,
@@ -33,7 +37,8 @@ router.post('/create', async (req, res) => {
     try {
         console.log('[TempUser Create] Request body:', req.body);
 
-        const { username, age, gender, country, countryCode, deviceId } = req.body;
+        const username = String(req.body.username || '').trim();
+        const { age, gender, country, countryCode, deviceId } = req.body;
 
         // Validation logging
         console.log('[TempUser Create] Validating fields:', {
@@ -77,8 +82,20 @@ router.post('/create', async (req, res) => {
             });
         }
 
+        const registeredUser = await User.findOne({
+            username: { $regex: new RegExp(`^${escapeRegExp(username)}$`, 'i') }
+        }).select('username').lean();
+        if (registeredUser) {
+            return res.status(409).json({
+                error: 'This username belongs to a registered account. Please sign in instead.',
+                code: 'username_registered'
+            });
+        }
+
         // Check if username already exists - allow reclaim by same device within hold window
-        const existingUser = await TempUser.findOne({ username });
+        const existingUser = await TempUser.findOne({
+            username: { $regex: new RegExp(`^${escapeRegExp(username)}$`, 'i') }
+        });
         if (existingUser) {
             // If same deviceId and within 1 hour of lastSeen, allow reuse and update record
             const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);

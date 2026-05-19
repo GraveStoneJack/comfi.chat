@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="ComfiChat">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#9b4dca" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#2f0642" media="(prefers-color-scheme: dark)">
+    <title>ComfiChat Sign In</title>
+    <meta name="description" content="Sign in to your ComfiChat account.">
+    <meta name="robots" content="noindex,follow">
+    <link rel="canonical" href="https://comfi.chat/login.html">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <div class="theme-toggle">
+        <button id="theme-toggle-btn" class="theme-toggle-btn"><i class="fas fa-circle-half-stroke"></i> Auto</button>
+    </div>
+    <div class="container" style="max-width:520px;">
+        <header>
+            <h1>Welcome back</h1>
+            <p>Sign in with the email and password you used to register.</p>
+        </header>
+        <main>
+            <form id="login-form" style="display:flex;flex-direction:column;gap:14px;">
+                <input id="email" type="email" placeholder="Email" required autocomplete="email">
+                <input id="password" type="password" placeholder="Password" required autocomplete="current-password">
+                <button class="submit-btn" type="submit">Sign in</button>
+            </form>
+            <p class="auth-switch" style="margin-top:18px;">Need an account? <a href="/signup.html">Create one</a></p>
+            <div id="login-note" style="margin-top:10px;font-size:14px;opacity:0.8;"></div>
+        </main>
+    </div>
+    <script>
+    const API_URL = 'https://luxeonchat-backend.onrender.com';
+    document.addEventListener('DOMContentLoaded', () => {
+        const themeBtn = document.getElementById('theme-toggle-btn');
+        const THEME_KEY = 'comfi.theme';
+        const getSystemPref = () => (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+        const applyTheme = (mode) => {
+            const resolved = mode === 'auto' ? getSystemPref() : mode;
+            document.body.classList.toggle('dark', resolved === 'dark');
+            if (themeBtn) themeBtn.innerHTML = `<i class="fas ${resolved === 'dark' ? 'fa-moon' : 'fa-sun'}"></i> ${mode === 'auto' ? 'Auto' : (resolved === 'dark' ? 'Dark' : 'Light')}`;
+        };
+        let themeMode = localStorage.getItem(THEME_KEY) || 'auto';
+        applyTheme(themeMode);
+        themeBtn?.addEventListener('click', () => {
+            themeMode = themeMode === 'auto' ? 'light' : (themeMode === 'light' ? 'dark' : 'auto');
+            localStorage.setItem(THEME_KEY, themeMode);
+            applyTheme(themeMode);
+        });
+
+        const form = document.getElementById('login-form');
+        const note = document.getElementById('login-note');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            note.textContent = '';
+            try {
+                const res = await fetch(`${API_URL}/api/users/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    note.textContent = data.error || 'Sign in failed';
+                    return;
+                }
+                sessionStorage.setItem('authToken', data.token);
+                sessionStorage.setItem('user', JSON.stringify(data.user));
+                sessionStorage.setItem('tempUser', JSON.stringify({ username: data.user.username, ...data.user }));
+                window.location.href = '/app/chat';
+            } catch (_) {
+                note.textContent = 'Sign in failed. Please try again.';
+            }
+        });
+    });
+    </script>
+</body>
+</html>
