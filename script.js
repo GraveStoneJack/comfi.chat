@@ -213,6 +213,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.log('User created successfully:', data);
                     sessionStorage.setItem('tempUser', JSON.stringify(data));
                     window.location.href = '/chat';
+                } else if (data.code === 'username_registered') {
+                    alert('This username belongs to a registered account. Please sign in instead.');
+                    window.location.href = '/login';
                 } else {
                     console.error('Server error:', data);
                     alert(data.error || 'Error creating temporary user');

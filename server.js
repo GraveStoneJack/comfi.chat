@@ -238,6 +238,9 @@ app.get(['/legacy-chat', '/legacy-chat.html'], (_req, res) => {
 app.get(['/chat.js', '/styles.css'], (req, res) => {
     res.sendFile(path.join(__dirname, req.path.slice(1)));
 });
+app.get(['/login.html'], (_req, res) => {
+    res.sendFile(path.join(__dirname, 'login.html'));
+});
 
 // Explicit logoff endpoint: mark offline and remove messages for this user
 app.post('/api/logoff/:username', async (req, res) => {
