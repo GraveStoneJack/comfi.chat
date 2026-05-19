@@ -20,13 +20,78 @@ document.addEventListener('DOMContentLoaded', async () => {
         return id;
     }
     // Check if user is logged in (registered user or temp)
-    const registeredUser = JSON.parse(sessionStorage.getItem('user') || 'null');
     const authToken = sessionStorage.getItem('authToken');
+    let registeredUser = JSON.parse(sessionStorage.getItem('user') || 'null');
     const tempSession = JSON.parse(sessionStorage.getItem('tempUser') || 'null');
-    const currentUser = tempSession || (registeredUser ? { username: registeredUser.username } : null);
+
+    function resolveProfilePicture(url) {
+        if (!url || url === 'default-profile.png') return '';
+        if (url.startsWith('http') || url.startsWith('data:') || url.startsWith('blob:')) return url;
+        return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+
+    async function fetchRegisteredProfile(token, fallback) {
+        try {
+            const res = await fetch(`${API_URL}/api/users/me`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            if (!res.ok) return fallback;
+            const me = await res.json();
+            sessionStorage.setItem('user', JSON.stringify(me));
+            sessionStorage.setItem('tempUser', JSON.stringify({
+                username: me.username,
+                displayName: me.displayName,
+                profilePicture: me.profilePicture,
+                gender: me.gender,
+                age: me.age
+            }));
+            return me;
+        } catch (_e) {
+            return fallback;
+        }
+    }
+
+    function setupRegisteredAccountBar(user) {
+        const profileBtn = document.getElementById('my-profile-btn');
+        const profileLabel = document.getElementById('my-profile-label');
+        const profileAvatarEl = document.getElementById('my-profile-avatar');
+        if (!profileBtn || !user) return;
+        profileBtn.hidden = false;
+        const label = user.displayName || user.username || 'My profile';
+        if (profileLabel) profileLabel.textContent = label;
+        const pic = resolveProfilePicture(user.profilePicture);
+        if (profileAvatarEl) {
+            profileAvatarEl.textContent = '';
+            profileAvatarEl.classList.remove('has-image', 'initial');
+            if (pic) {
+                profileAvatarEl.style.backgroundImage = `url("${pic.replace(/"/g, '%22')}")`;
+                profileAvatarEl.classList.add('has-image');
+            } else {
+                profileAvatarEl.style.backgroundImage = '';
+                profileAvatarEl.textContent = (label.trim()[0] || '?').toUpperCase();
+                profileAvatarEl.classList.add('initial');
+            }
+        }
+        profileBtn.addEventListener('click', () => {
+            window.location.href = '/profile.html';
+        });
+    }
+
+    if (authToken && registeredUser) {
+        registeredUser = await fetchRegisteredProfile(authToken, registeredUser);
+    }
+
+    const isRegisteredAccount = Boolean(authToken && registeredUser);
+    const currentUser = isRegisteredAccount
+        ? registeredUser
+        : (tempSession || null);
     if (!currentUser) {
         window.location.href = '/';
         return;
+    }
+
+    if (isRegisteredAccount) {
+        setupRegisteredAccountBar(registeredUser);
     }
 
     let currentChatUser = null;
@@ -922,6 +987,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 // Clear session storage and release per-username blocklist
                 sessionStorage.removeItem('tempUser');
+                sessionStorage.removeItem('authToken');
+                sessionStorage.removeItem('user');
                 try { localStorage.removeItem(getBlocklistKey()); } catch(_e) {}
 
                 // Add a small delay before redirecting to ensure requests complete
@@ -934,6 +1001,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Still clear session and redirect even if there's an error
                 clearInterval(onlineUsersInterval);
                 sessionStorage.removeItem('tempUser');
+                sessionStorage.removeItem('authToken');
+                sessionStorage.removeItem('user');
                 window.location.href = '/';
             } finally {
                 logoutBtn.disabled = false;

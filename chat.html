@@ -32,8 +32,12 @@
         <button id="theme-toggle-btn" class="theme-toggle-btn"><i class="fas fa-circle-half-stroke"></i> Auto</button>
     </div>
     <div class="chat-container">
-        <div class="logout-container">
-            <button id="logout-btn" class="logout-btn">
+        <div class="account-actions">
+            <button id="my-profile-btn" class="profile-btn" type="button" hidden>
+                <span id="my-profile-avatar" class="account-avatar" aria-hidden="true"></span>
+                <span id="my-profile-label">My profile</span>
+            </button>
+            <button id="logout-btn" class="logout-btn" type="button">
                 <i class="fas fa-sign-out-alt"></i> Logout
             </button>
         </div>
