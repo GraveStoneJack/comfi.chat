@@ -958,7 +958,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             users.forEach(u => { if (u && u.username) usernameToDeviceId.set(u.username, u.deviceId || null); });
             onlineUsers = users
                 .filter(user => user.username !== currentUser.username)
-                .filter(user => user.deviceId && !blocked.has(user.deviceId));
+                .filter(user => !user.deviceId || !blocked.has(user.deviceId));
             updateOnlineUsers();
             populateCountryFilter();
         } catch (error) {
@@ -1041,10 +1041,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <span class="presence-indicator ${user.isActive ? 'active' : 'inactive'}"></span>
                     </div>
                     <div class="user-details">
-                        ${user.age} |
-                        <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
-                            alt="${user.country}" class="flag-icon">
-                            ${user.country}
+                        ${user.displayName && user.displayName !== user.username ? `${user.displayName} · ` : ''}${user.age || '—'}${user.countryCode ? ` | <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png" alt="${user.country || ''}" class="flag-icon"> ${user.country || ''}` : ''}
                     </div>
                 </div>
             `;
