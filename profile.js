@@ -130,6 +130,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const isLoggedInProfile = Boolean(authToken);
     const provider = params.provider || (isLoggedInProfile ? 'registered' : 'email-verified');
 
+    function setButtonBusy(button, label) {
+        if (!button) return;
+        button.classList.add('is-busy');
+        button.setAttribute('aria-busy', 'true');
+        if (label) button.textContent = label;
+    }
+
     function showView() {
         profileView.classList.remove('hidden');
         profileEditor.classList.add('hidden');
@@ -332,6 +339,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     viewBackChat.addEventListener('click', () => {
+        setButtonBusy(viewBackChat, 'Opening chat...');
         window.location.href = '/chat.html';
     });
 
@@ -387,11 +395,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     goChatBtn.addEventListener('click', () => {
         if (isLoggedInProfile && currentProfile) {
+            setButtonBusy(goChatBtn, 'Cancelling...');
             populateProfileForm(currentProfile);
             renderReadonlyProfile(currentProfile);
-            showView();
+            window.setTimeout(() => {
+                showView();
+                goChatBtn.classList.remove('is-busy');
+                goChatBtn.removeAttribute('aria-busy');
+                goChatBtn.textContent = 'Cancel';
+            }, 120);
             return;
         }
+        setButtonBusy(goChatBtn, 'Opening chat...');
         window.location.href = '/chat';
     });
 
