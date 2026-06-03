@@ -13,7 +13,8 @@ function uploadsPathFromUrl(value) {
 }
 
 function normalizePhotoUrl(value) {
-    if (!value || value === 'default-profile.png') return undefined;
+    if (value === null || value === 'default-profile.png') return 'default-profile.png';
+    if (!value) return undefined;
     const uploadsPath = uploadsPathFromUrl(value);
     if (uploadsPath) return uploadsPath;
     return String(value);
@@ -23,7 +24,10 @@ function normalizeProfilePhotos(value) {
     const list = Array.isArray(value)
         ? value
         : (typeof value === 'string' && value.trim() ? value.split(',') : []);
-    return list.map(item => normalizePhotoUrl(String(item).trim())).filter(Boolean).slice(0, 10);
+    return list
+        .map(item => normalizePhotoUrl(String(item).trim()))
+        .filter(item => item && item !== 'default-profile.png')
+        .slice(0, 10);
 }
 
 function publicUserProfile(user) {
@@ -192,7 +196,7 @@ router.put('/me', authMiddleware, async (req, res) => {
         for (const key of allowed) {
             if (key in req.body) update[key] = req.body[key];
         }
-        if ('profilePicture' in update) update.profilePicture = normalizePhotoUrl(update.profilePicture);
+        if ('profilePicture' in update) update.profilePicture = normalizePhotoUrl(update.profilePicture) || 'default-profile.png';
         if ('profilePhotos' in update) update.profilePhotos = normalizeProfilePhotos(update.profilePhotos);
         if (typeof update.hobbies === 'string') update.hobbies = update.hobbies.split(',').map(s => s.trim()).filter(Boolean);
         if (typeof update.lookingFor === 'string') update.lookingFor = update.lookingFor.split(',').map(s => s.trim()).filter(Boolean);

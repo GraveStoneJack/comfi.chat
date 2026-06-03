@@ -28,14 +28,18 @@ function uploadsPathFromUrl(value) {
 }
 
 function normalizePhotoUrl(value) {
-    if (!value || value === 'default-profile.png') return undefined;
+    if (value === null || value === 'default-profile.png') return 'default-profile.png';
+    if (!value) return undefined;
     const uploadsPath = uploadsPathFromUrl(value);
     if (uploadsPath) return uploadsPath;
     return String(value);
 }
 
 function normalizeProfilePhotos(value) {
-    return parseList(value).map(item => normalizePhotoUrl(item)).filter(Boolean).slice(0, 10);
+    return parseList(value)
+        .map(item => normalizePhotoUrl(item))
+        .filter(item => item && item !== 'default-profile.png')
+        .slice(0, 10);
 }
 
 function getBaseUrl(req) {

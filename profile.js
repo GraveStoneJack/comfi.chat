@@ -1,6 +1,8 @@
 // profile.js
 const API_URL = 'https://luxeonchat-backend.onrender.com';
 const MAX_PROFILE_PHOTOS = 10;
+const DEFAULT_PROFILE_PICTURE = 'default-profile.png';
+const DEFAULT_AVATAR_SRC = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop stop-color='%23f5efff' offset='0'/><stop stop-color='%23efe6ff' offset='1'/></linearGradient></defs><rect width='400' height='400' fill='url(%23g)'/><circle cx='200' cy='150' r='70' fill='%23d3c6f3'/><path d='M80 320c20-70 90-90 120-90s100 20 120 90' fill='%23d3c6f3'/></svg>";
 
 function getQueryParams() {
     const params = new URLSearchParams(location.search);
@@ -16,7 +18,8 @@ function uploadsPathFromUrl(url) {
 }
 
 function normalizeProfilePictureForSave(url) {
-    if (!url || url === 'default-profile.png') return undefined;
+    if (url === DEFAULT_PROFILE_PICTURE) return DEFAULT_PROFILE_PICTURE;
+    if (!url) return undefined;
     const uploadsPath = uploadsPathFromUrl(url);
     if (uploadsPath) return uploadsPath;
     if (url.startsWith('data:') || url.startsWith('blob:')) return url;
@@ -31,7 +34,7 @@ function normalizePhotoListForSave(list) {
 }
 
 function resolveProfilePicture(url) {
-    if (!url || url === 'default-profile.png') return '';
+    if (!url || url === DEFAULT_PROFILE_PICTURE) return '';
     if (url.startsWith('data:') || url.startsWith('blob:')) return url;
     const uploadsPath = uploadsPathFromUrl(url);
     if (uploadsPath) {
@@ -93,6 +96,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const fileInput = document.getElementById('file-input');
     const avatar = document.getElementById('avatar');
     const uploadBtn = document.getElementById('upload-btn');
+    const removeAvatarBtn = document.getElementById('remove-avatar-btn');
     const goChatBtn = document.getElementById('go-chat');
     const saveBtn = document.getElementById('save-profile');
     const usernameInput = document.getElementById('username');
@@ -159,7 +163,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return [
             profile.profilePicture,
             ...(Array.isArray(profile.profilePhotos) ? profile.profilePhotos : [])
-        ].filter(Boolean);
+        ].filter(photo => photo && photo !== DEFAULT_PROFILE_PICTURE);
     }
 
     function renderReadonlyProfile(profile) {
@@ -234,8 +238,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         setSelectValue(document.getElementById('ethnicity'), user.ethnicity);
         document.getElementById('hobbies').value = Array.isArray(user.hobbies) ? user.hobbies.join(', ') : (user.hobbies || '');
         const pic = resolveProfilePicture(user.profilePicture);
-        avatar.dataset.url = user.profilePicture || '';
-        if (pic) avatar.src = pic;
+        avatar.dataset.url = user.profilePicture || DEFAULT_PROFILE_PICTURE;
+        avatar.src = pic || DEFAULT_AVATAR_SRC;
         galleryPhotos = normalizePhotoListForSave(user.profilePhotos || []);
         renderGalleryEditor();
     }
@@ -277,7 +281,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             eyeColor: document.getElementById('eyeColor').value || undefined,
             ethnicity: document.getElementById('ethnicity').value || undefined,
             hobbies: document.getElementById('hobbies').value,
-            profilePicture: normalizeProfilePictureForSave(avatar.dataset.url) || undefined,
+            profilePicture: normalizeProfilePictureForSave(avatar.dataset.url) || DEFAULT_PROFILE_PICTURE,
             profilePhotos: normalizePhotoListForSave(galleryPhotos)
         };
     }
@@ -358,6 +362,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     uploadBtn.addEventListener('click', (e) => { e.preventDefault(); fileInput.click(); });
+    removeAvatarBtn.addEventListener('click', () => {
+        avatar.src = DEFAULT_AVATAR_SRC;
+        avatar.dataset.url = DEFAULT_PROFILE_PICTURE;
+    });
+
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
