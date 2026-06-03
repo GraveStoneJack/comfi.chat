@@ -270,7 +270,9 @@ function ProfilePreviewModal({ profile, loading, error, onClose, onStartChat }) 
 
   if (!profile && !loading && !error) return null;
   const displayName = profile?.displayName || profile?.username || 'Comfi user';
-  const photos = profile ? [profile.profilePicture, ...(profile.profilePhotos || [])].filter(Boolean) : [];
+  const photos = profile
+    ? [profile.profilePicture, ...(profile.profilePhotos || [])].filter(photo => photo && photo !== 'default-profile.png')
+    : [];
   const activePhoto = photos[activePhotoIndex];
   return (
     <div className="profile-preview-backdrop" onClick={onClose}>
@@ -634,7 +636,7 @@ function Profile({ session, onAuthed }) {
       eyeColor: profile.eyeColor || undefined,
       ethnicity: profile.ethnicity || undefined,
       hobbies: profile.hobbies,
-      profilePicture: normalizeProfilePictureForSave(profile.profilePicture) || undefined
+      profilePicture: normalizeProfilePictureForSave(profile.profilePicture) || 'default-profile.png'
     };
   }
 
@@ -700,7 +702,7 @@ function Profile({ session, onAuthed }) {
         <h1>{isEditing ? 'Edit your profile' : 'Create your profile'}</h1>
         <p className="muted">This profile will become the source of truth for the chat experience as the React migration continues.</p>
         <div className="avatar-card">
-          {profile.profilePicture ? (
+          {profile.profilePicture && profile.profilePicture !== 'default-profile.png' ? (
             <img src={resolveProfilePictureUrl(profile.profilePicture)} alt="Profile preview" />
           ) : (
             <div className="avatar-placeholder">{(profile.displayName || profile.username || 'C').slice(0, 1).toUpperCase()}</div>
@@ -709,6 +711,9 @@ function Profile({ session, onAuthed }) {
             {uploading ? 'Uploading...' : 'Upload photo'}
             <input type="file" accept="image/*" onChange={upload} disabled={uploading} />
           </label>
+          <button type="button" className="secondary" onClick={() => setProfile(prev => ({ ...prev, profilePicture: 'default-profile.png' }))}>
+            Remove photo
+          </button>
         </div>
       </div>
 

@@ -452,7 +452,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function profilePhotosFor(user) {
-        return [user.profilePicture, ...((Array.isArray(user.profilePhotos) ? user.profilePhotos : []))].filter(Boolean);
+        return [user.profilePicture, ...((Array.isArray(user.profilePhotos) ? user.profilePhotos : []))]
+            .filter(photo => photo && photo !== 'default-profile.png');
     }
 
     function profileChip(text) {

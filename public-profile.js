@@ -53,7 +53,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let activePhotoIndex = 0;
     const displayName = profile.displayName || profile.username || 'Comfi user';
-    const photos = [profile.profilePicture, ...(profile.profilePhotos || [])].filter(Boolean);
+    const photos = [profile.profilePicture, ...(profile.profilePhotos || [])]
+        .filter(photo => photo && photo !== 'default-profile.png');
     const viewPhoto = document.getElementById('view-photo');
     const fallback = document.getElementById('view-photo-fallback');
     const thumbnails = document.getElementById('profile-thumbnails');
