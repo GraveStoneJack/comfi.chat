@@ -19,6 +19,7 @@ function publicUserProfile(user) {
         sexuality: user.sexuality,
         lookingFor: user.lookingFor || [],
         profilePicture: user.profilePicture,
+        profilePhotos: user.profilePhotos || [],
         hairType: user.hairType,
         hairColor: user.hairColor,
         eyeColor: user.eyeColor,
@@ -225,7 +226,7 @@ router.get('/online', async (req, res) => {
         const [tempUsers, registeredUsers] = await Promise.all([
             TempUser.find({ isOnline: true }).sort({ lastSeen: -1 }).lean(),
             User.find({ isOnline: true })
-                .select('username displayName age gender sexuality lookingFor profilePicture hairType hairColor eyeColor ethnicity hobbies country countryCode isOnline lastActive updatedAt')
+                .select('username displayName age gender sexuality lookingFor profilePicture profilePhotos hairType hairColor eyeColor ethnicity hobbies country countryCode isOnline lastActive updatedAt')
                 .sort({ lastActive: -1 })
                 .lean()
         ]);

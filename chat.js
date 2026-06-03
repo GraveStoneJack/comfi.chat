@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 username: me.username,
                 displayName: me.displayName,
                 profilePicture: me.profilePicture,
+                profilePhotos: me.profilePhotos || [],
                 gender: me.gender,
                 age: me.age
             }));
@@ -437,6 +438,112 @@ document.addEventListener('DOMContentLoaded', async () => {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    function titleCase(value) {
+        if (!value) return '';
+        return String(value).split('-').map(part => part ? `${part[0].toUpperCase()}${part.slice(1)}` : '').join(' ');
+    }
+
+    async function fetchPublicProfile(username) {
+        const response = await fetch(`${API_URL}/api/users/public/${encodeURIComponent(username)}`);
+        if (!response.ok) throw new Error('Profile not found');
+        return response.json();
+    }
+
+    function profilePhotosFor(user) {
+        return [user.profilePicture, ...((Array.isArray(user.profilePhotos) ? user.profilePhotos : []))].filter(Boolean);
+    }
+
+    function profileChip(text) {
+        return text ? `<span class="chat-profile-chip">${sanitizeHTML(text)}</span>` : '';
+    }
+
+    function renderProfilePopup(profile) {
+        const popup = document.getElementById('profile-popup');
+        const body = document.getElementById('profile-popup-body');
+        if (!popup || !body) return;
+        const displayName = profile.displayName || profile.username || 'Comfi user';
+        const photos = profilePhotosFor(profile);
+        const firstPhoto = photos[0] ? resolveProfilePicture(photos[0]) : '';
+        const details = {
+            Hair: [titleCase(profile.hairType), titleCase(profile.hairColor)].filter(Boolean).join(' / ') || 'Not shared',
+            Eyes: titleCase(profile.eyeColor) || 'Not shared',
+            Ethnicity: titleCase(profile.ethnicity) || 'Not shared',
+            Transgender: titleCase(profile.transgender) || 'Not shared'
+        };
+        body.innerHTML = `
+            <div class="chat-profile-card">
+                <div class="chat-profile-stage">
+                    ${firstPhoto
+                        ? `<img id="chat-profile-photo" src="${firstPhoto}" alt="${sanitizeHTML(displayName)} profile photo">`
+                        : `<div id="chat-profile-fallback" class="chat-profile-fallback">${sanitizeHTML((displayName[0] || 'C').toUpperCase())}</div>`}
+                    <div id="chat-profile-thumbs" class="chat-profile-thumbs ${photos.length <= 1 ? 'hidden' : ''}"></div>
+                </div>
+                <div class="chat-profile-details">
+                    <span class="chat-profile-username">@${sanitizeHTML(profile.username || '')}</span>
+                    <h2>${sanitizeHTML(displayName)}</h2>
+                    <div class="chat-profile-chips">
+                        ${[
+                            profile.age ? `${profile.age}` : '',
+                            titleCase(profile.gender),
+                            titleCase(profile.sexuality),
+                            profile.country
+                        ].filter(Boolean).map(profileChip).join('')}
+                    </div>
+                    <div class="chat-profile-chips">
+                        ${(profile.lookingFor || []).map(item => profileChip(`Looking for ${titleCase(item).toLowerCase()}`)).join('')}
+                    </div>
+                    <div class="chat-profile-chips">
+                        ${(profile.hobbies || []).map(profileChip).join('')}
+                    </div>
+                    <div class="chat-profile-grid">
+                        ${Object.entries(details).map(([label, value]) => `<div class="chat-profile-detail"><span>${label}</span><strong>${sanitizeHTML(value)}</strong></div>`).join('')}
+                    </div>
+                    <div class="actions">
+                        <a class="btn-secondary" href="/u/${encodeURIComponent(profile.username || '')}" target="_blank" rel="noopener">Open public page</a>
+                        <button class="submit-btn" id="chat-profile-start" type="button">Chat</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        const thumbs = document.getElementById('chat-profile-thumbs');
+        const mainPhoto = document.getElementById('chat-profile-photo');
+        photos.forEach((photo, index) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = index === 0 ? 'active' : '';
+            btn.innerHTML = `<img src="${resolveProfilePicture(photo)}" alt="Photo ${index + 1}">`;
+            btn.addEventListener('click', () => {
+                if (mainPhoto) mainPhoto.src = resolveProfilePicture(photo);
+                thumbs.querySelectorAll('button').forEach(item => item.classList.remove('active'));
+                btn.classList.add('active');
+            });
+            thumbs.appendChild(btn);
+        });
+        const startBtn = document.getElementById('chat-profile-start');
+        if (startBtn) {
+            startBtn.addEventListener('click', () => {
+                popup.style.display = 'none';
+                const peer = onlineUsers.find(user => user.username === profile.username) || activeChats.find(user => user.username === profile.username) || profile;
+                openChat(peer);
+            });
+        }
+        popup.style.display = 'block';
+    }
+
+    async function openProfilePopup(user) {
+        try {
+            const profile = user.accountType === 'guest' ? user : await fetchPublicProfile(user.username);
+            renderProfilePopup({ ...user, ...profile });
+        } catch (error) {
+            console.error('Failed to load profile:', error);
+            if (user && (user.age || user.gender || user.displayName)) {
+                renderProfilePopup(user);
+                return;
+            }
+            alert('Could not load this profile.');
+        }
     }
 
     // Image helpers
@@ -1037,14 +1144,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             userElement.innerHTML = `
                 <div class="user-info">
                     <div class="user-name">
-                        ${user.username}
+                        ${sanitizeHTML(user.displayName || user.username)}
                         <span class="presence-indicator ${user.isActive ? 'active' : 'inactive'}"></span>
                     </div>
                     <div class="user-details">
-                        ${user.displayName && user.displayName !== user.username ? `${user.displayName} · ` : ''}${user.age || '—'}${user.countryCode ? ` | <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png" alt="${user.country || ''}" class="flag-icon"> ${user.country || ''}` : ''}
+                        ${user.displayName && user.displayName !== user.username ? `@${sanitizeHTML(user.username)} · ` : ''}${user.age || '—'}${user.countryCode ? ` | <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png" alt="${sanitizeHTML(user.country || '')}" class="flag-icon"> ${sanitizeHTML(user.country || '')}` : ''}
+                    </div>
+                    <div class="profile-inline-actions">
+                        <button class="view-profile-btn" type="button">View profile</button>
                     </div>
                 </div>
             `;
+            userElement.querySelector('.view-profile-btn').addEventListener('click', (event) => {
+                event.stopPropagation();
+                openProfilePopup(user);
+            });
             userElement.addEventListener('click', () => openChat(user));
             fragment.appendChild(userElement);
         });
@@ -1121,17 +1235,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('chats-tab').classList.add('active');
 
         chatHeader.innerHTML = `
-            <h2>${user.username}</h2>
+            <h2>${sanitizeHTML(user.displayName || user.username)}</h2>
             <div class="user-info">
-                ${user.age} |
-                <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
-                    alt="${user.country}" class="flag-icon">
-                    ${user.country}
+                ${user.age || '—'}${user.countryCode ? ` | <img src="https://flagcdn.com/w160/${user.countryCode.toLowerCase()}.png"
+                    alt="${sanitizeHTML(user.country || '')}" class="flag-icon">
+                    ${sanitizeHTML(user.country || '')}` : ''}
             </div>
         `;
 
         const chatActions = document.querySelector('.chat-actions');
         chatActions.innerHTML = `
+            <button id="view-profile-btn" class="action-btn">View profile</button>
             <button id="block-user-btn" class="action-btn">Block</button>
             <button id="report-user-btn" class="action-btn">Report</button>
         `;
@@ -1198,6 +1312,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         updateActiveChats();
 
         // Reattach event listeners
+        document.getElementById('view-profile-btn').addEventListener('click', () => openProfilePopup(user));
+
         document.getElementById('block-user-btn').addEventListener('click', () => {
             const confirmMsg = `Block ${user.username}? They won't be able to message you from this device.`;
             if (confirm(confirmMsg)) {
@@ -1220,6 +1336,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (reportCancelBtn) reportCancelBtn.addEventListener('click', () => { if (reportPopup) reportPopup.style.display = 'none'; });
+    const profilePopup = document.getElementById('profile-popup');
+    const profilePopupClose = document.getElementById('profile-popup-close');
+    if (profilePopupClose) profilePopupClose.addEventListener('click', () => { if (profilePopup) profilePopup.style.display = 'none'; });
+    if (profilePopup) {
+        profilePopup.addEventListener('click', (event) => {
+            if (event.target === profilePopup) profilePopup.style.display = 'none';
+        });
+    }
 
     reportForm.addEventListener('submit', async (e) => {
         e.preventDefault();

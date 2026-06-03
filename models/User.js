@@ -35,6 +35,14 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: 'default-profile.png' // Default profile picture
     },
+    profilePhotos: {
+        type: [String],
+        default: [],
+        validate: {
+            validator: photos => !photos || photos.length <= 10,
+            message: 'Profile photos cannot exceed 10 images'
+        }
+    },
     weight: {
         kg: { type: Number, min: 30, max: 300 },
         lbs: { type: Number, min: 66, max: 660 }

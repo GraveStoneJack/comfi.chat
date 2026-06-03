@@ -1,5 +1,6 @@
 // profile.js
 const API_URL = 'https://luxeonchat-backend.onrender.com';
+const MAX_PROFILE_PHOTOS = 10;
 
 function getQueryParams() {
     const params = new URLSearchParams(location.search);
@@ -22,6 +23,13 @@ function normalizeProfilePictureForSave(url) {
     return url;
 }
 
+function normalizePhotoListForSave(list) {
+    return (Array.isArray(list) ? list : [])
+        .map(item => normalizeProfilePictureForSave(item))
+        .filter(Boolean)
+        .slice(0, MAX_PROFILE_PHOTOS);
+}
+
 function resolveProfilePicture(url) {
     if (!url || url === 'default-profile.png') return '';
     if (url.startsWith('data:') || url.startsWith('blob:')) return url;
@@ -31,6 +39,14 @@ function resolveProfilePicture(url) {
     }
     if (url.startsWith('http')) return url;
     return `${API_URL}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
+function titleCase(value) {
+    if (!value) return '';
+    return String(value)
+        .split('-')
+        .map(part => part ? `${part[0].toUpperCase()}${part.slice(1)}` : '')
+        .join(' ');
 }
 
 function setSelectValue(el, value) {
@@ -51,56 +67,11 @@ function setMultiSelectValues(el, values) {
     }
 }
 
-function populateProfileForm(user, avatar) {
-    document.getElementById('username').value = user.username || '';
-    document.getElementById('displayName').value = user.displayName || '';
-    setSelectValue(document.getElementById('age'), user.age);
-    setSelectValue(document.getElementById('gender'), user.gender);
-    setSelectValue(document.getElementById('transgender'), user.transgender);
-    setSelectValue(document.getElementById('sexuality'), user.sexuality);
-    setMultiSelectValues(document.getElementById('lookingFor'), user.lookingFor);
-    setSelectValue(document.getElementById('hairType'), user.hairType);
-    setSelectValue(document.getElementById('hairColor'), user.hairColor);
-    setSelectValue(document.getElementById('eyeColor'), user.eyeColor);
-    setSelectValue(document.getElementById('ethnicity'), user.ethnicity);
-    const hobbies = Array.isArray(user.hobbies) ? user.hobbies.join(', ') : (user.hobbies || '');
-    document.getElementById('hobbies').value = hobbies;
-
-    const pic = resolveProfilePicture(user.profilePicture);
-    if (pic) {
-        avatar.src = pic;
-        avatar.dataset.url = pic;
-    }
-}
-
-function collectProfilePayload(avatar) {
-    return {
-        username: document.getElementById('username').value.trim(),
-        displayName: document.getElementById('displayName').value.trim(),
-        age: parseInt(document.getElementById('age').value, 10),
-        gender: document.getElementById('gender').value,
-        transgender: document.getElementById('transgender').value || undefined,
-        sexuality: document.getElementById('sexuality').value || undefined,
-        lookingFor: Array.from(document.getElementById('lookingFor').selectedOptions).map((o) => o.value),
-        hairType: document.getElementById('hairType').value || undefined,
-        hairColor: document.getElementById('hairColor').value || undefined,
-        eyeColor: document.getElementById('eyeColor').value || undefined,
-        ethnicity: document.getElementById('ethnicity').value || undefined,
-        hobbies: document.getElementById('hobbies').value,
-        profilePicture: normalizeProfilePictureForSave(avatar.dataset.url) || undefined
-    };
-}
-
-function validateProfilePayload(payload, isEditMode) {
-    if (!payload.displayName || !payload.age || !payload.gender || !payload.sexuality) {
-        alert('Please fill in display name, age, gender, and sexuality.');
-        return false;
-    }
-    if (!isEditMode && !payload.username) {
-        alert('Please fill in username.');
-        return false;
-    }
-    return true;
+function chip(text) {
+    const span = document.createElement('span');
+    span.className = 'profile-chip';
+    span.textContent = text;
+    return span;
 }
 
 function persistUserSession(user, token) {
@@ -110,6 +81,7 @@ function persistUserSession(user, token) {
         username: user.username,
         displayName: user.displayName,
         profilePicture: user.profilePicture,
+        profilePhotos: user.profilePhotos || [],
         gender: user.gender,
         age: user.age
     }));
@@ -126,6 +98,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     const usernameInput = document.getElementById('username');
     const profileTitle = document.getElementById('profile-title');
     const profileSubtitle = document.getElementById('profile-subtitle');
+    const profileView = document.getElementById('profile-view');
+    const profileEditor = document.getElementById('profile-editor');
+    const editProfileBtn = document.getElementById('edit-profile-btn');
+    const viewBackChat = document.getElementById('view-back-chat');
+    const publicLink = document.getElementById('view-public-link');
+    const galleryFileInput = document.getElementById('gallery-file-input');
+    const galleryUploadBtn = document.getElementById('gallery-upload-btn');
+    const galleryEditorGrid = document.getElementById('gallery-editor-grid');
+    const galleryCount = document.getElementById('gallery-count');
+    const viewPhoto = document.getElementById('view-photo');
+    const viewPhotoFallback = document.getElementById('view-photo-fallback');
+    const galleryPrev = document.getElementById('gallery-prev');
+    const galleryNext = document.getElementById('gallery-next');
+    const thumbnails = document.getElementById('profile-thumbnails');
+    const galleryEmpty = document.getElementById('view-gallery-empty');
+
+    let currentProfile = null;
+    let galleryPhotos = [];
+    let activePhotoIndex = 0;
 
     for (let i = 13; i <= 100; i++) {
         const opt = document.createElement('option');
@@ -136,13 +127,176 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const params = getQueryParams();
     const authToken = sessionStorage.getItem('authToken');
-    const isEditMode = Boolean(authToken);
-    const provider = params.provider || (isEditMode ? 'registered' : 'email-verified');
+    const isLoggedInProfile = Boolean(authToken);
+    const provider = params.provider || (isLoggedInProfile ? 'registered' : 'email-verified');
 
-    if (isEditMode) {
-        if (profileTitle) profileTitle.textContent = 'Your profile';
-        if (profileSubtitle) profileSubtitle.textContent = 'View and update how others see you on ComfiChat.';
-        if (saveBtn) saveBtn.textContent = 'Save profile';
+    function showView() {
+        profileView.classList.remove('hidden');
+        profileEditor.classList.add('hidden');
+        profileTitle.textContent = 'Your profile';
+        profileSubtitle.textContent = 'This is how other people will see you on ComfiChat.';
+    }
+
+    function showEditor() {
+        profileView.classList.add('hidden');
+        profileEditor.classList.remove('hidden');
+        profileTitle.textContent = isLoggedInProfile ? 'Edit your profile' : 'Create your profile';
+        profileSubtitle.textContent = isLoggedInProfile
+            ? 'Update your details and profile photos.'
+            : 'Complete your details so others can recognize you.';
+        saveBtn.textContent = isLoggedInProfile ? 'Save profile' : 'Save & Continue';
+        goChatBtn.textContent = isLoggedInProfile ? 'Cancel' : 'Back to chat';
+    }
+
+    function allDisplayPhotos(profile) {
+        return [
+            profile.profilePicture,
+            ...(Array.isArray(profile.profilePhotos) ? profile.profilePhotos : [])
+        ].filter(Boolean);
+    }
+
+    function renderReadonlyProfile(profile) {
+        const displayName = profile.displayName || profile.username || 'Comfi user';
+        const photos = allDisplayPhotos(profile);
+        activePhotoIndex = Math.min(activePhotoIndex, Math.max(photos.length - 1, 0));
+        document.getElementById('view-display-name').textContent = displayName;
+        document.getElementById('view-username').textContent = profile.username ? `@${profile.username}` : '';
+        document.getElementById('view-hair').textContent = [titleCase(profile.hairType), titleCase(profile.hairColor)].filter(Boolean).join(' / ') || 'Not shared';
+        document.getElementById('view-eyes').textContent = titleCase(profile.eyeColor) || 'Not shared';
+        document.getElementById('view-ethnicity').textContent = titleCase(profile.ethnicity) || 'Not shared';
+        document.getElementById('view-transgender').textContent = titleCase(profile.transgender) || 'Not shared';
+        if (publicLink && profile.username) publicLink.href = `/u/${encodeURIComponent(profile.username)}`;
+
+        const chips = document.getElementById('view-chips');
+        chips.innerHTML = '';
+        [
+            profile.age ? `${profile.age}` : '',
+            titleCase(profile.gender),
+            titleCase(profile.sexuality),
+            profile.country
+        ].filter(Boolean).forEach(item => chips.appendChild(chip(item)));
+
+        const lookingFor = document.getElementById('view-looking-for');
+        lookingFor.innerHTML = '';
+        (profile.lookingFor || []).forEach(item => lookingFor.appendChild(chip(`Looking for ${titleCase(item).toLowerCase()}`)));
+
+        const hobbies = document.getElementById('view-hobbies');
+        hobbies.innerHTML = '';
+        (Array.isArray(profile.hobbies) ? profile.hobbies : []).forEach(item => hobbies.appendChild(chip(item)));
+
+        if (photos.length) {
+            viewPhoto.classList.remove('hidden');
+            viewPhotoFallback.classList.add('hidden');
+            viewPhoto.src = resolveProfilePicture(photos[activePhotoIndex]);
+            viewPhoto.alt = `${displayName} profile photo ${activePhotoIndex + 1}`;
+        } else {
+            viewPhoto.classList.add('hidden');
+            viewPhotoFallback.classList.remove('hidden');
+            viewPhotoFallback.textContent = (displayName[0] || 'C').toUpperCase();
+        }
+
+        thumbnails.innerHTML = '';
+        photos.forEach((photo, index) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = index === activePhotoIndex ? 'active' : '';
+            btn.innerHTML = `<img src="${resolveProfilePicture(photo)}" alt="Photo ${index + 1}">`;
+            btn.addEventListener('click', () => {
+                activePhotoIndex = index;
+                renderReadonlyProfile(profile);
+            });
+            thumbnails.appendChild(btn);
+        });
+        thumbnails.classList.toggle('hidden', photos.length <= 1);
+        galleryPrev.classList.toggle('hidden', photos.length <= 1);
+        galleryNext.classList.toggle('hidden', photos.length <= 1);
+        galleryEmpty.classList.toggle('hidden', (profile.profilePhotos || []).length > 0);
+    }
+
+    function populateProfileForm(user) {
+        document.getElementById('username').value = user.username || '';
+        document.getElementById('displayName').value = user.displayName || '';
+        setSelectValue(document.getElementById('age'), user.age);
+        setSelectValue(document.getElementById('gender'), user.gender);
+        setSelectValue(document.getElementById('transgender'), user.transgender);
+        setSelectValue(document.getElementById('sexuality'), user.sexuality);
+        setMultiSelectValues(document.getElementById('lookingFor'), user.lookingFor);
+        setSelectValue(document.getElementById('hairType'), user.hairType);
+        setSelectValue(document.getElementById('hairColor'), user.hairColor);
+        setSelectValue(document.getElementById('eyeColor'), user.eyeColor);
+        setSelectValue(document.getElementById('ethnicity'), user.ethnicity);
+        document.getElementById('hobbies').value = Array.isArray(user.hobbies) ? user.hobbies.join(', ') : (user.hobbies || '');
+        const pic = resolveProfilePicture(user.profilePicture);
+        avatar.dataset.url = user.profilePicture || '';
+        if (pic) avatar.src = pic;
+        galleryPhotos = normalizePhotoListForSave(user.profilePhotos || []);
+        renderGalleryEditor();
+    }
+
+    function renderGalleryEditor() {
+        galleryCount.textContent = galleryPhotos.length;
+        galleryUploadBtn.disabled = galleryPhotos.length >= MAX_PROFILE_PHOTOS;
+        galleryEditorGrid.innerHTML = '';
+        if (!galleryPhotos.length) {
+            const empty = document.createElement('p');
+            empty.className = 'profile-gallery-empty';
+            empty.textContent = 'No gallery photos yet.';
+            galleryEditorGrid.appendChild(empty);
+            return;
+        }
+        galleryPhotos.forEach((photo, index) => {
+            const item = document.createElement('div');
+            item.className = 'gallery-editor-item';
+            item.innerHTML = `<img src="${resolveProfilePicture(photo)}" alt="Gallery photo ${index + 1}"><button type="button" aria-label="Remove photo"><i class="fas fa-times"></i></button>`;
+            item.querySelector('button').addEventListener('click', () => {
+                galleryPhotos.splice(index, 1);
+                renderGalleryEditor();
+            });
+            galleryEditorGrid.appendChild(item);
+        });
+    }
+
+    function collectProfilePayload() {
+        return {
+            username: document.getElementById('username').value.trim(),
+            displayName: document.getElementById('displayName').value.trim(),
+            age: parseInt(document.getElementById('age').value, 10),
+            gender: document.getElementById('gender').value,
+            transgender: document.getElementById('transgender').value || undefined,
+            sexuality: document.getElementById('sexuality').value || undefined,
+            lookingFor: Array.from(document.getElementById('lookingFor').selectedOptions).map((o) => o.value),
+            hairType: document.getElementById('hairType').value || undefined,
+            hairColor: document.getElementById('hairColor').value || undefined,
+            eyeColor: document.getElementById('eyeColor').value || undefined,
+            ethnicity: document.getElementById('ethnicity').value || undefined,
+            hobbies: document.getElementById('hobbies').value,
+            profilePicture: normalizeProfilePictureForSave(avatar.dataset.url) || undefined,
+            profilePhotos: normalizePhotoListForSave(galleryPhotos)
+        };
+    }
+
+    function validateProfilePayload(payload) {
+        if (!payload.displayName || !payload.age || !payload.gender || !payload.sexuality) {
+            alert('Please fill in display name, age, gender, and sexuality.');
+            return false;
+        }
+        if (!isLoggedInProfile && !payload.username) {
+            alert('Please fill in username.');
+            return false;
+        }
+        return true;
+    }
+
+    async function uploadFile(file) {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+        return data.fileUrl || '';
+    }
+
+    if (isLoggedInProfile) {
         if (usernameInput) {
             usernameInput.readOnly = true;
             usernameInput.title = 'Username cannot be changed';
@@ -158,48 +312,97 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             if (!res.ok) throw new Error('Failed to load profile');
-            const me = await res.json();
-            populateProfileForm(me, avatar);
+            currentProfile = await res.json();
+            persistUserSession(currentProfile, authToken);
+            populateProfileForm(currentProfile);
+            renderReadonlyProfile(currentProfile);
+            showView();
         } catch (err) {
             console.error('Load profile error', err);
             alert('Could not load your profile. Please try again from chat.');
+            showEditor();
         }
+    } else {
+        showEditor();
     }
+
+    editProfileBtn.addEventListener('click', () => {
+        if (currentProfile) populateProfileForm(currentProfile);
+        showEditor();
+    });
+
+    viewBackChat.addEventListener('click', () => {
+        window.location.href = '/chat.html';
+    });
+
+    galleryPrev.addEventListener('click', () => {
+        const photos = allDisplayPhotos(currentProfile || {});
+        if (!photos.length) return;
+        activePhotoIndex = (activePhotoIndex - 1 + photos.length) % photos.length;
+        renderReadonlyProfile(currentProfile);
+    });
+
+    galleryNext.addEventListener('click', () => {
+        const photos = allDisplayPhotos(currentProfile || {});
+        if (!photos.length) return;
+        activePhotoIndex = (activePhotoIndex + 1) % photos.length;
+        renderReadonlyProfile(currentProfile);
+    });
 
     uploadBtn.addEventListener('click', (e) => { e.preventDefault(); fileInput.click(); });
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-        const fd = new FormData();
-        fd.append('file', file);
         try {
-            const res = await fetch(`${API_URL}/api/upload`, { method: 'POST', body: fd });
-            if (!res.ok) throw new Error('Upload failed');
-            const data = await res.json();
-            const stored = data.fileUrl || '';
+            const stored = await uploadFile(file);
             avatar.src = resolveProfilePicture(stored);
             avatar.dataset.url = stored;
         } catch (_e1) {
             alert('Upload failed. Please try a smaller image.');
+        } finally {
+            fileInput.value = '';
+        }
+    });
+
+    galleryUploadBtn.addEventListener('click', () => galleryFileInput.click());
+    galleryFileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        const slots = MAX_PROFILE_PHOTOS - galleryPhotos.length;
+        if (files.length > slots) {
+            alert(`You can add ${slots} more profile photo${slots === 1 ? '' : 's'}.`);
+        }
+        try {
+            for (const file of files.slice(0, slots)) {
+                const stored = await uploadFile(file);
+                if (stored) galleryPhotos.push(stored);
+            }
+            renderGalleryEditor();
+        } catch (_e) {
+            alert('One of the uploads failed. Please try a smaller image.');
+        } finally {
+            galleryFileInput.value = '';
         }
     });
 
     goChatBtn.addEventListener('click', () => {
-        window.location.href = isEditMode ? '/chat.html' : '/chat';
+        if (isLoggedInProfile && currentProfile) {
+            populateProfileForm(currentProfile);
+            renderReadonlyProfile(currentProfile);
+            showView();
+            return;
+        }
+        window.location.href = '/chat';
     });
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const payload = collectProfilePayload(avatar);
-        if (!validateProfilePayload(payload, isEditMode)) return;
+        const payload = collectProfilePayload();
+        if (!validateProfilePayload(payload)) return;
 
         try {
-            if (isEditMode) {
-                const { username, provider: _p, providerId: _id, ...updateBody } = {
-                    ...payload,
-                    provider,
-                    providerId: params.providerId
-                };
+            if (isLoggedInProfile) {
+                const { username, ...updateBody } = payload;
                 const res = await fetch(`${API_URL}/api/users/me`, {
                     method: 'PUT',
                     headers: {
@@ -213,9 +416,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                     alert(data.error || 'Failed to update profile');
                     return;
                 }
+                currentProfile = data;
                 persistUserSession(data, authToken);
-                alert('Profile saved.');
-                window.location.href = '/chat.html';
+                populateProfileForm(data);
+                activePhotoIndex = 0;
+                renderReadonlyProfile(data);
+                showView();
                 return;
             }
 
@@ -251,7 +457,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.location.href = '/chat';
         } catch (err) {
             console.error('Profile save error', err);
-            alert(isEditMode ? 'Failed to update profile' : 'Registration failed');
+            alert(isLoggedInProfile ? 'Failed to update profile' : 'Registration failed');
         }
     });
 });

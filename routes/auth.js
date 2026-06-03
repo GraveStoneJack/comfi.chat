@@ -21,6 +21,23 @@ function parseList(value) {
     return [];
 }
 
+function uploadsPathFromUrl(value) {
+    if (!value) return '';
+    const match = /\/uploads\/([^?#]+)/i.exec(String(value));
+    return match ? `/uploads/${match[1]}` : '';
+}
+
+function normalizePhotoUrl(value) {
+    if (!value || value === 'default-profile.png') return undefined;
+    const uploadsPath = uploadsPathFromUrl(value);
+    if (uploadsPath) return uploadsPath;
+    return String(value);
+}
+
+function normalizeProfilePhotos(value) {
+    return parseList(value).map(item => normalizePhotoUrl(item)).filter(Boolean).slice(0, 10);
+}
+
 function getBaseUrl(req) {
     // Prefer FRONTEND_URL if set to ensure email links open on the correct host
     const host = process.env.FRONTEND_URL || process.env.PUBLIC_URL || `${req.protocol}://${req.get('host')}`;
@@ -88,6 +105,7 @@ router.post('/email/finalize', async (req, res) => {
             gender,
             displayName,
             profilePicture,
+            profilePhotos,
             hairType,
             hairColor,
             eyeColor,
@@ -120,7 +138,8 @@ router.post('/email/finalize', async (req, res) => {
             age,
             gender,
             displayName: cleanDisplayName,
-            profilePicture,
+            profilePicture: normalizePhotoUrl(profilePicture),
+            profilePhotos: normalizeProfilePhotos(profilePhotos),
             hairType,
             hairColor,
             eyeColor,
