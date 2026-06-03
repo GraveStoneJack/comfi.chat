@@ -55,7 +55,39 @@
         .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
         .btn-secondary { background: rgba(155, 77, 202, 0.12); color: #9b4dca; border: 1px solid rgba(155,77,202,0.35); padding: 12px 16px; border-radius: 25px; font-weight: 600; }
         body.dark .btn-secondary { color: #d9b8ff; border-color: rgba(215,154,255,0.35); background: rgba(215,154,255,0.10); }
-        @media (max-width: 900px) { .profile-grid { grid-template-columns: 1fr; } }
+        .hidden { display: none !important; }
+        .profile-view { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 20px; align-items: stretch; }
+        .profile-photo-stage { position: relative; min-height: 520px; border-radius: 22px; overflow: hidden; background: rgba(59,3,55,0.08); border: 1px solid rgba(59,3,55,0.12); }
+        .profile-photo-stage img { width: 100%; height: 100%; min-height: 520px; object-fit: cover; display: block; }
+        .profile-photo-fallback { height: 100%; min-height: 520px; display: flex; align-items: center; justify-content: center; font-size: 84px; font-weight: 800; color: white; background: linear-gradient(135deg, #d79aff 0%, #7c3aed 100%); }
+        .gallery-nav { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; pointer-events: none; padding: 12px; }
+        .gallery-nav button { pointer-events: auto; width: 42px; height: 42px; border-radius: 50%; border: 0; background: rgba(255,255,255,0.75); color: #3b0337; cursor: pointer; box-shadow: 0 6px 18px rgba(47,6,66,0.18); }
+        .profile-thumbnails { position: absolute; left: 14px; right: 14px; bottom: 14px; display: flex; gap: 8px; overflow-x: auto; padding: 8px; border-radius: 16px; background: rgba(255,255,255,0.68); backdrop-filter: blur(8px); }
+        .profile-thumbnails button { width: 54px; height: 54px; border-radius: 12px; border: 2px solid transparent; padding: 0; overflow: hidden; cursor: pointer; flex: 0 0 auto; background: rgba(155,77,202,0.15); }
+        .profile-thumbnails button.active { border-color: #9b4dca; }
+        .profile-thumbnails img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
+        .profile-readonly-card { display: flex; flex-direction: column; gap: 18px; }
+        .profile-name-row { display: flex; justify-content: space-between; gap: 14px; align-items: flex-start; }
+        .profile-name-row h2 { font-size: clamp(2rem, 5vw, 4rem); margin: 0; line-height: 1; }
+        .profile-username { color: #8a5ba3; font-weight: 700; }
+        .profile-chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+        .profile-chip { display: inline-flex; padding: 8px 12px; border-radius: 999px; background: rgba(155,77,202,0.12); color: #3b0337; font-weight: 700; }
+        .profile-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .profile-detail { padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.62); border: 1px solid rgba(59,3,55,0.1); }
+        .profile-detail span { display: block; color: #8a5ba3; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+        .profile-gallery-empty { padding: 16px; border: 1px dashed rgba(155,77,202,0.35); border-radius: 14px; color: #6b4b74; }
+        .gallery-manager { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(59,3,55,0.12); }
+        .gallery-upload-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(86px, 1fr)); gap: 10px; }
+        .gallery-editor-item { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: rgba(155,77,202,0.12); }
+        .gallery-editor-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .gallery-editor-item button { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 0; background: rgba(238,82,83,0.92); color: #fff; cursor: pointer; }
+        body.dark .profile-photo-stage { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
+        body.dark .gallery-nav button, body.dark .profile-thumbnails { background: rgba(20,20,20,0.72); color: #fff; }
+        body.dark .profile-chip { background: rgba(215,154,255,0.16); color: #f3e7ff; }
+        body.dark .profile-detail { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
+        body.dark .profile-username, body.dark .profile-detail span, body.dark .profile-gallery-empty { color: #d9b8ff; }
+        @media (max-width: 900px) { .profile-grid, .profile-view, .profile-detail-grid { grid-template-columns: 1fr; } .profile-photo-stage, .profile-photo-stage img, .profile-photo-fallback { min-height: 420px; } }
     </style>
     <link rel="preconnect" href="https://flagcdn.com">
     <link rel="dns-prefetch" href="https://flagcdn.com">
@@ -81,12 +113,55 @@
             <h1 id="profile-title">Create or Update Your Profile</h1>
             <p id="profile-subtitle">Complete your details so others can recognize you.</p>
         </header>
-        <div class="profile-grid">
+        <section id="profile-view" class="profile-view hidden" aria-live="polite">
+            <div class="profile-photo-stage">
+                <img id="view-photo" alt="Profile photo">
+                <div id="view-photo-fallback" class="profile-photo-fallback hidden">C</div>
+                <div class="gallery-nav">
+                    <button id="gallery-prev" type="button" aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button>
+                    <button id="gallery-next" type="button" aria-label="Next photo"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                <div id="profile-thumbnails" class="profile-thumbnails"></div>
+            </div>
+            <div class="profile-card profile-readonly-card">
+                <div class="profile-name-row">
+                    <div>
+                        <span id="view-username" class="profile-username"></span>
+                        <h2 id="view-display-name">Your profile</h2>
+                    </div>
+                    <button id="edit-profile-btn" class="submit-btn" type="button"><i class="fas fa-pen"></i> Edit</button>
+                </div>
+                <div id="view-chips" class="profile-chip-row"></div>
+                <div id="view-looking-for" class="profile-chip-row"></div>
+                <div id="view-hobbies" class="profile-chip-row"></div>
+                <div class="profile-detail-grid">
+                    <div class="profile-detail"><span>Hair</span><strong id="view-hair"></strong></div>
+                    <div class="profile-detail"><span>Eyes</span><strong id="view-eyes"></strong></div>
+                    <div class="profile-detail"><span>Ethnicity</span><strong id="view-ethnicity"></strong></div>
+                    <div class="profile-detail"><span>Transgender</span><strong id="view-transgender"></strong></div>
+                </div>
+                <p id="view-gallery-empty" class="profile-gallery-empty hidden">No gallery photos yet. Add photos in edit mode so people can browse them.</p>
+                <div class="actions">
+                    <button type="button" id="view-back-chat" class="btn-secondary">Back to chat</button>
+                    <a id="view-public-link" class="btn-secondary" href="#" target="_blank" rel="noopener">Public link</a>
+                </div>
+            </div>
+        </section>
+        <div class="profile-grid" id="profile-editor">
             <div class="profile-card">
                 <img id="avatar" class="avatar" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 400 400'><defs><linearGradient id='g' x1='0' x2='1' y1='0' y2='1'><stop stop-color='%23f5efff' offset='0'/><stop stop-color='%23efe6ff' offset='1'/></linearGradient></defs><rect width='400' height='400' fill='url(%23g)'/><circle cx='200' cy='150' r='70' fill='%23d3c6f3'/><path d='M80 320c20-70 90-90 120-90s100 20 120 90' fill='%23d3c6f3'/></svg>" alt="Profile picture placeholder">
                 <input id="file-input" class="file-input" type="file" accept="image/*">
                 <button id="upload-btn" class="submit-btn upload-btn"><i class="fas fa-upload"></i> Upload Photo</button>
                 <small id="upload-hint">Max 5MB. PNG, JPG, GIF, WEBP.</small>
+                <div class="gallery-manager">
+                    <div class="gallery-upload-row">
+                        <strong>Profile gallery</strong>
+                        <small><span id="gallery-count">0</span>/10 photos</small>
+                    </div>
+                    <input id="gallery-file-input" class="file-input" type="file" accept="image/*" multiple>
+                    <button id="gallery-upload-btn" class="btn-secondary" type="button"><i class="fas fa-images"></i> Add photos</button>
+                    <div id="gallery-editor-grid" class="gallery-grid"></div>
+                </div>
             </div>
             <div class="profile-card">
                 <form id="profile-form">

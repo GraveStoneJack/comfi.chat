@@ -6,6 +6,10 @@
     box-sizing: border-box;
 }
 
+.hidden {
+    display: none !important;
+}
+
 body {
     font-family: 'Poppins', sans-serif;
     background: linear-gradient(135deg, #d79aff 0%, #2f0642 99%, #3b0337 100%);
@@ -1203,6 +1207,192 @@ body.dark .message.system .message-content { color: rgba(255, 255, 255, 0.65); }
 /* highlight for search jump */
 .search-hit {
     box-shadow: 0 0 0 3px rgba(155, 77, 202, 0.25) inset;
+}
+
+.profile-inline-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.view-profile-btn {
+    border: none;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #9b4dca;
+    background: rgba(155, 77, 202, 0.12);
+    cursor: pointer;
+}
+
+.profile-popup .popup-content {
+    width: min(920px, 94vw);
+    max-height: 90vh;
+    overflow: auto;
+    position: relative;
+}
+
+.profile-popup-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 0;
+    background: rgba(59, 3, 55, 0.12);
+    color: inherit;
+    cursor: pointer;
+    z-index: 2;
+}
+
+.chat-profile-card {
+    display: grid;
+    grid-template-columns: minmax(220px, 340px) 1fr;
+    gap: 18px;
+    align-items: stretch;
+}
+
+.chat-profile-stage {
+    position: relative;
+    min-height: 420px;
+    border-radius: 20px;
+    overflow: hidden;
+    background: rgba(155, 77, 202, 0.12);
+}
+
+.chat-profile-stage img {
+    width: 100%;
+    height: 100%;
+    min-height: 420px;
+    object-fit: cover;
+    display: block;
+}
+
+.chat-profile-fallback {
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 72px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, #d79aff 0%, #7c3aed 100%);
+}
+
+.chat-profile-thumbs {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.72);
+}
+
+.chat-profile-thumbs button {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    border: 2px solid transparent;
+    padding: 0;
+    overflow: hidden;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+
+.chat-profile-thumbs button.active {
+    border-color: #9b4dca;
+}
+
+.chat-profile-thumbs img {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    object-fit: cover;
+}
+
+.chat-profile-details h2 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    margin: 0 0 4px;
+}
+
+.chat-profile-username {
+    color: #8a5ba3;
+    font-weight: 800;
+}
+
+.chat-profile-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 14px 0;
+}
+
+.chat-profile-chip {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(155, 77, 202, 0.12);
+    color: #3b0337;
+    font-weight: 700;
+}
+
+.chat-profile-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.chat-profile-detail {
+    padding: 12px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.62);
+    border: 1px solid rgba(59, 3, 55, 0.1);
+}
+
+.chat-profile-detail span {
+    display: block;
+    color: #8a5ba3;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+body.dark .view-profile-btn,
+body.dark .profile-popup-close {
+    background: rgba(215, 154, 255, 0.16);
+    color: #f3e7ff;
+}
+
+body.dark .chat-profile-thumbs {
+    background: rgba(20, 20, 20, 0.72);
+}
+
+body.dark .chat-profile-chip {
+    color: #f3e7ff;
+    background: rgba(215, 154, 255, 0.16);
+}
+
+body.dark .chat-profile-detail {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+body.dark .chat-profile-username,
+body.dark .chat-profile-detail span {
+    color: #d9b8ff;
+}
+
+@media (max-width: 760px) {
+    .chat-profile-card,
+    .chat-profile-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* File Upload Button */

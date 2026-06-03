@@ -6,6 +6,51 @@ const LoginEvent = require('../models/LoginEvent');
 
 const router = express.Router();
 
+function uploadsPathFromUrl(value) {
+    if (!value) return '';
+    const match = /\/uploads\/([^?#]+)/i.exec(String(value));
+    return match ? `/uploads/${match[1]}` : '';
+}
+
+function normalizePhotoUrl(value) {
+    if (!value || value === 'default-profile.png') return undefined;
+    const uploadsPath = uploadsPathFromUrl(value);
+    if (uploadsPath) return uploadsPath;
+    return String(value);
+}
+
+function normalizeProfilePhotos(value) {
+    const list = Array.isArray(value)
+        ? value
+        : (typeof value === 'string' && value.trim() ? value.split(',') : []);
+    return list.map(item => normalizePhotoUrl(String(item).trim())).filter(Boolean).slice(0, 10);
+}
+
+function publicUserProfile(user) {
+    return {
+        _id: user._id,
+        username: user.username,
+        displayName: user.displayName,
+        age: user.age,
+        gender: user.gender,
+        transgender: user.transgender,
+        sexuality: user.sexuality,
+        lookingFor: user.lookingFor || [],
+        profilePicture: user.profilePicture,
+        profilePhotos: user.profilePhotos || [],
+        hairType: user.hairType,
+        hairColor: user.hairColor,
+        eyeColor: user.eyeColor,
+        ethnicity: user.ethnicity,
+        hobbies: user.hobbies || [],
+        country: user.country,
+        countryCode: user.countryCode,
+        isOnline: !!user.isOnline,
+        lastSeen: user.lastActive || user.updatedAt,
+        accountType: 'registered'
+    };
+}
+
 function signToken(payload) {
     const secret = process.env.JWT_SECRET || 'dev-secret-change-me';
     return jwt.sign(payload, secret, { expiresIn: '30d' });
@@ -35,6 +80,7 @@ router.post('/register', async (req, res) => {
             age,
             gender,
             profilePicture,
+            profilePhotos,
             hairType,
             hairColor,
             eyeColor,
@@ -64,7 +110,8 @@ router.post('/register', async (req, res) => {
             displayName: cleanDisplayName,
             age,
             gender,
-            profilePicture,
+            profilePicture: normalizePhotoUrl(profilePicture),
+            profilePhotos: normalizeProfilePhotos(profilePhotos),
             hairType,
             hairColor,
             eyeColor,
@@ -139,12 +186,14 @@ router.get('/me', authMiddleware, async (req, res) => {
 router.put('/me', authMiddleware, async (req, res) => {
     try {
         const allowed = [
-            'displayName','age','gender','transgender','profilePicture','hairType','hairColor','eyeColor','ethnicity','hobbies','sexuality','lookingFor','weight','height'
+            'displayName','age','gender','transgender','profilePicture','profilePhotos','hairType','hairColor','eyeColor','ethnicity','hobbies','sexuality','lookingFor','weight','height'
         ];
         const update = {};
         for (const key of allowed) {
             if (key in req.body) update[key] = req.body[key];
         }
+        if ('profilePicture' in update) update.profilePicture = normalizePhotoUrl(update.profilePicture);
+        if ('profilePhotos' in update) update.profilePhotos = normalizeProfilePhotos(update.profilePhotos);
         if (typeof update.hobbies === 'string') update.hobbies = update.hobbies.split(',').map(s => s.trim()).filter(Boolean);
         if (typeof update.lookingFor === 'string') update.lookingFor = update.lookingFor.split(',').map(s => s.trim()).filter(Boolean);
         const saved = await User.findByIdAndUpdate(req.user.id, update, { new: true }).lean();
@@ -159,8 +208,7 @@ router.get('/public/:username', async (req, res) => {
     try {
         const u = await User.findOne({ username: req.params.username }).lean();
         if (!u) return res.status(404).json({ error: 'User not found' });
-        const { password, googleId, appleId, ...rest } = u;
-        return res.json(rest);
+        return res.json(publicUserProfile(u));
     } catch (e) {
         console.error('[Users] public profile error:', e);
         return res.status(500).json({ error: 'Failed to fetch profile' });

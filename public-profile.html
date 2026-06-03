@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ComfiChat - Profile</title>
+    <meta name="robots" content="noindex,follow">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" href="data:,">
+    <style>
+        .public-profile-wrapper { width: 100%; display: flex; justify-content: center; padding: 24px; }
+        .public-profile-surface {
+            width: min(1100px, 96vw);
+            background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(240,230,255,0.9) 100%);
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.35);
+            box-shadow: 0 15px 40px rgba(47,6,66,0.35);
+            padding: 24px;
+        }
+        body.dark .public-profile-surface { background: linear-gradient(135deg, rgba(30,30,30,0.9) 0%, rgba(20,20,20,0.9) 100%); border-color: rgba(255,255,255,0.12); }
+        .public-profile-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 18px; }
+        .profile-view { display: grid; grid-template-columns: minmax(280px, 380px) 1fr; gap: 20px; }
+        .profile-photo-stage { position: relative; min-height: 520px; border-radius: 22px; overflow: hidden; background: rgba(155,77,202,0.12); }
+        .profile-photo-stage img { width: 100%; height: 100%; min-height: 520px; object-fit: cover; display: block; }
+        .profile-photo-fallback { min-height: 520px; display: flex; align-items: center; justify-content: center; font-size: 84px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #d79aff, #7c3aed); }
+        .gallery-nav { position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between; padding: 12px; pointer-events: none; }
+        .gallery-nav button { pointer-events: auto; width: 42px; height: 42px; border: 0; border-radius: 50%; background: rgba(255,255,255,0.78); cursor: pointer; }
+        .profile-thumbnails { position: absolute; left: 14px; right: 14px; bottom: 14px; display: flex; gap: 8px; overflow-x: auto; padding: 8px; border-radius: 16px; background: rgba(255,255,255,0.72); backdrop-filter: blur(8px); }
+        .profile-thumbnails button { width: 54px; height: 54px; flex: 0 0 auto; border-radius: 12px; overflow: hidden; border: 2px solid transparent; padding: 0; cursor: pointer; }
+        .profile-thumbnails button.active { border-color: #9b4dca; }
+        .profile-thumbnails img { width: 100%; height: 100%; min-height: 0; object-fit: cover; }
+        .profile-card { background: rgba(255,255,255,0.65); border-radius: 18px; padding: 20px; border: 1px solid rgba(59,3,55,0.14); }
+        body.dark .profile-card { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
+        .profile-username { color: #8a5ba3; font-weight: 700; }
+        .profile-card h1 { font-size: clamp(2rem, 5vw, 4rem); margin: 0 0 14px; line-height: 1; }
+        .profile-chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .profile-chip { display: inline-flex; padding: 8px 12px; border-radius: 999px; background: rgba(155,77,202,0.12); color: #3b0337; font-weight: 700; }
+        body.dark .profile-chip { color: #f3e7ff; background: rgba(215,154,255,0.16); }
+        .profile-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 18px; }
+        .profile-detail { padding: 12px; border-radius: 14px; background: rgba(255,255,255,0.62); border: 1px solid rgba(59,3,55,0.1); }
+        body.dark .profile-detail { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.12); }
+        .profile-detail span { display: block; color: #8a5ba3; font-size: 12px; font-weight: 800; text-transform: uppercase; margin-bottom: 4px; }
+        .hidden { display: none !important; }
+        @media (max-width: 900px) { .profile-view, .profile-detail-grid { grid-template-columns: 1fr; } .profile-photo-stage, .profile-photo-stage img, .profile-photo-fallback { min-height: 420px; } }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const THEME_KEY = 'comfi.theme';
+            const mode = localStorage.getItem(THEME_KEY) || 'auto';
+            const dark = mode === 'dark' || (mode === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            document.body.classList.toggle('dark', dark);
+        });
+    </script>
+</head>
+<body>
+    <main class="public-profile-wrapper">
+        <div class="public-profile-surface">
+            <header class="public-profile-header">
+                <div>
+                    <p class="profile-username">ComfiChat profile</p>
+                    <h1 id="page-title">Profile</h1>
+                </div>
+                <a class="btn-secondary" href="/chat.html">Open chat</a>
+            </header>
+            <section id="profile-root" class="profile-view">
+                <div class="profile-photo-stage">
+                    <img id="view-photo" alt="Profile photo">
+                    <div id="view-photo-fallback" class="profile-photo-fallback hidden">C</div>
+                    <div class="gallery-nav">
+                        <button id="gallery-prev" type="button" aria-label="Previous photo"><i class="fas fa-chevron-left"></i></button>
+                        <button id="gallery-next" type="button" aria-label="Next photo"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div id="profile-thumbnails" class="profile-thumbnails"></div>
+                </div>
+                <div class="profile-card">
+                    <span id="view-username" class="profile-username"></span>
+                    <h1 id="view-display-name">Loading...</h1>
+                    <div id="view-chips" class="profile-chip-row"></div>
+                    <div id="view-looking-for" class="profile-chip-row"></div>
+                    <div id="view-hobbies" class="profile-chip-row"></div>
+                    <div class="profile-detail-grid">
+                        <div class="profile-detail"><span>Hair</span><strong id="view-hair"></strong></div>
+                        <div class="profile-detail"><span>Eyes</span><strong id="view-eyes"></strong></div>
+                        <div class="profile-detail"><span>Ethnicity</span><strong id="view-ethnicity"></strong></div>
+                        <div class="profile-detail"><span>Transgender</span><strong id="view-transgender"></strong></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+    <script src="/public-profile.js"></script>
+</body>
+</html>

@@ -9,6 +9,7 @@ http://comfi.chat/*        https://comfi.chat/:splat    301!
 /chat        /chat.html        200
 /profile     /profile.html     200
 /verify      /verify.html      200
+/u/*         /public-profile.html 200
 
 # React user app routes (served from built bundle)
 /app/*       /user-dist/index.html   200

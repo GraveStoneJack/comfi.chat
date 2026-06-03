@@ -101,6 +101,7 @@ function chatIdentityFromUser(user) {
     username: user.username,
     displayName: user.displayName,
     profilePicture: user.profilePicture,
+    profilePhotos: user.profilePhotos || [],
     age: user.age,
     gender: user.gender,
     sexuality: user.sexuality,
@@ -258,6 +259,70 @@ function ProfileAvatar({ user, size = 'md' }) {
     <img className={`profile-avatar ${size}`} src={picture} alt={`${name} profile`} />
   ) : (
     <span className={`profile-avatar ${size}`}>{initial}</span>
+  );
+}
+
+function ProfilePreviewModal({ profile, loading, error, onClose, onStartChat }) {
+  const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+  useEffect(() => {
+    setActivePhotoIndex(0);
+  }, [profile?.username]);
+
+  if (!profile && !loading && !error) return null;
+  const displayName = profile?.displayName || profile?.username || 'Comfi user';
+  const photos = profile ? [profile.profilePicture, ...(profile.profilePhotos || [])].filter(Boolean) : [];
+  const activePhoto = photos[activePhotoIndex];
+  return (
+    <div className="profile-preview-backdrop" onClick={onClose}>
+      <div className="profile-preview-modal" onClick={event => event.stopPropagation()}>
+        <button className="profile-preview-close" onClick={onClose} aria-label="Close profile">x</button>
+        {loading && <div className="notice">Loading profile...</div>}
+        {error && <div className="notice error">{error}</div>}
+        {profile && (
+          <div className="profile-preview-card">
+            <div className="profile-preview-stage">
+              {activePhoto ? (
+                <img src={resolveProfilePictureUrl(activePhoto)} alt={`${displayName} profile`} />
+              ) : (
+                <div className="profile-preview-fallback">{displayName.slice(0, 1).toUpperCase()}</div>
+              )}
+              {photos.length > 1 && (
+                <div className="profile-preview-thumbs">
+                  {photos.map((photo, index) => (
+                    <button key={`${photo}-${index}`} className={index === activePhotoIndex ? 'active' : ''} onClick={() => setActivePhotoIndex(index)}>
+                      <img src={resolveProfilePictureUrl(photo)} alt={`Profile ${index + 1}`} />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="profile-preview-copy">
+              <span className="eyebrow">@{profile.username}</span>
+              <h2>{displayName}</h2>
+              <div className="profile-preview-chips">
+                {[profile.age, formatGenderLabel(profile), titleCase(profile.sexuality), profile.country].filter(Boolean).map(item => <span key={item}>{item}</span>)}
+              </div>
+              <div className="profile-preview-chips">
+                {(profile.lookingFor || []).map(item => <span key={item}>Looking for {titleCase(item).toLowerCase()}</span>)}
+              </div>
+              <div className="profile-preview-chips">
+                {(profile.hobbies || []).map(item => <span key={item}>{item}</span>)}
+              </div>
+              <div className="profile-preview-grid">
+                <div><span>Hair</span><strong>{[titleCase(profile.hairType), titleCase(profile.hairColor)].filter(Boolean).join(' / ') || 'Not shared'}</strong></div>
+                <div><span>Eyes</span><strong>{titleCase(profile.eyeColor) || 'Not shared'}</strong></div>
+                <div><span>Ethnicity</span><strong>{titleCase(profile.ethnicity) || 'Not shared'}</strong></div>
+                <div><span>Transgender</span><strong>{titleCase(profile.transgender) || 'Not shared'}</strong></div>
+              </div>
+              <div className="profile-preview-actions">
+                <a className="secondary" href={`/u/${encodeURIComponent(profile.username)}`} target="_blank" rel="noreferrer">Open public page</a>
+                <button className="primary" onClick={() => onStartChat(profile)}>Chat</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -735,6 +800,7 @@ function ChatShell() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [reportForm, setReportForm] = useState({ open: false, reason: 'harassment', additionalInfo: '', alsoBlock: false });
   const [actionNotice, setActionNotice] = useState('');
+  const [profilePreview, setProfilePreview] = useState({ open: false, profile: null, loading: false, error: '' });
   const imageExpiryTimers = useRef(new Map());
   const sendTimestamps = useRef([]);
   const soundRef = useRef(null);
@@ -834,6 +900,23 @@ function ChatShell() {
 
   function openExistingConversation(conversation) {
     openPeer(conversation.profile || { username: conversation.username });
+  }
+
+  async function openProfilePreview(peer) {
+    if (!peer?.username) return;
+    setProfilePreview({ open: true, profile: peer, loading: peer.accountType !== 'guest', error: '' });
+    if (peer.accountType === 'guest') return;
+    try {
+      const publicProfile = await api(`/api/users/public/${encodeURIComponent(peer.username)}`);
+      setProfilePreview({ open: true, profile: { ...peer, ...publicProfile }, loading: false, error: '' });
+    } catch (err) {
+      setProfilePreview({ open: true, profile: peer, loading: false, error: err.message || 'Failed to load profile.' });
+    }
+  }
+
+  function startChatFromProfile(profile) {
+    setProfilePreview({ open: false, profile: null, loading: false, error: '' });
+    openPeer(profile);
   }
 
   function closeMobileThread() {
@@ -1125,17 +1208,19 @@ function ChatShell() {
               {state.ui.rosterError && <div className="notice error">{state.ui.rosterError}</div>}
               {visibleRoster.length === 0 && <div className="empty-chat-list">No users online yet.</div>}
               {visibleRoster.map(user => (
-                <button
+                <div
                   className={`chat-list-item ${activeConversation?.username === user.username ? 'active' : ''}`}
                   key={user._id || user.username}
-                  onClick={() => openPeer(user)}
                 >
-                  <ProfileAvatar user={user} size="sm" />
-                  <span className="chat-list-copy">
+                  <button className="chat-list-main" onClick={() => openPeer(user)}>
+                    <ProfileAvatar user={user} size="sm" />
+                  </button>
+                  <button className="chat-list-copy chat-list-copy-button" onClick={() => openPeer(user)}>
                     <strong>{user.displayName || user.username}</strong>
                     <span>{[user.age, formatGenderLabel(user), user.country].filter(Boolean).join(' | ') || 'Online'}</span>
-                  </span>
-                </button>
+                  </button>
+                  <button className="secondary profile-row-button" onClick={() => openProfilePreview(user)}>Profile</button>
+                </div>
               ))}
             </div>
           </div>
@@ -1173,6 +1258,7 @@ function ChatShell() {
                   </div>
                 </div>
                 <div className="react-chat-actions">
+                  <button className="secondary" onClick={() => openProfilePreview(activeConversation.profile || { username: activeConversation.username })}>View profile</button>
                   <button className="secondary" onClick={() => setSearchOpen(prev => !prev)}>Search</button>
                   <button className="secondary" onClick={() => setReportForm(prev => ({ ...prev, open: !prev.open }))}>Report</button>
                   <button className="secondary" onClick={blockActivePeer}>Block</button>
@@ -1282,6 +1368,15 @@ function ChatShell() {
           )}
         </main>
       </div>
+      {profilePreview.open && (
+        <ProfilePreviewModal
+          profile={profilePreview.profile}
+          loading={profilePreview.loading}
+          error={profilePreview.error}
+          onClose={() => setProfilePreview({ open: false, profile: null, loading: false, error: '' })}
+          onStartChat={startChatFromProfile}
+        />
+      )}
     </section>
   );
 }
