@@ -192,6 +192,75 @@ body.dark .auth-switch a {
     color: #d9b8ff;
 }
 
+.signup-aside {
+    margin-top: 28px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(59, 3, 55, 0.12);
+    text-align: left;
+}
+
+.signup-aside h2 {
+    font-size: 1.1rem;
+    color: #2f0642;
+    margin-bottom: 10px;
+}
+
+.signup-aside p {
+    color: #664673;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.signup-aside ul {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.signup-aside li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: #3b0337;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.signup-aside li i {
+    color: #9b4dca;
+    margin-top: 3px;
+    flex-shrink: 0;
+}
+
+.signup-aside a {
+    color: #9b4dca;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.signup-aside a:hover {
+    text-decoration: underline;
+}
+
+.signup-aside-hint {
+    margin-bottom: 0;
+    font-size: 0.9rem;
+}
+
+body.dark .signup-aside {
+    border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark .signup-aside h2 { color: #eae0ff; }
+body.dark .signup-aside p,
+body.dark .signup-aside li { color: #cfc6da; }
+body.dark .signup-aside li i,
+body.dark .signup-aside a { color: #d9b8ff; }
+
 .or-divider {
     margin: 20px 0;
     color: #3b0337;
@@ -271,9 +340,25 @@ body.dark footer { border-top-color: rgba(255,255,255,0.08); }
     font-size: 1.35rem;
 }
 
+.content-container h3 {
+    color: #2f0642;
+    margin: 16px 0 6px;
+    font-size: 1.05rem;
+}
+
 .content-container p,
 .content-container li {
     color: #3b0337;
+}
+
+.content-container a {
+    color: #9b4dca;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.content-container a:hover {
+    text-decoration: underline;
 }
 
 .content-container ul {
@@ -307,11 +392,16 @@ body.dark footer { border-top-color: rgba(255,255,255,0.08); }
 }
 
 body.dark .content-container h2,
+body.dark .content-container h3,
 body.dark .content-container p,
 body.dark .content-container li,
 body.dark .content-container .page-nav a,
 body.dark .effective-date {
     color: #eae0ff;
+}
+
+body.dark .content-container a {
+    color: #d9b8ff;
 }
 
 /* Talk to Strangers form styles */
@@ -916,6 +1006,52 @@ body.dark .default-message p { color: #cfc6da; }
 .default-message p {
     color: #666;
 }
+
+.welcome-points {
+    list-style: none;
+    padding: 0;
+    margin: 22px auto 0;
+    max-width: 360px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.welcome-points li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    color: #3b0337;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.welcome-points i {
+    font-size: 18px;
+    margin: 2px 0 0;
+    color: #9b4dca;
+    flex-shrink: 0;
+}
+
+.welcome-hint {
+    margin-top: 22px;
+    font-size: 0.9rem;
+}
+
+.welcome-hint a {
+    color: #9b4dca;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.welcome-hint a:hover {
+    text-decoration: underline;
+}
+
+body.dark .welcome-points li { color: #cfc6da; }
+body.dark .welcome-points i { color: #d9b8ff; }
+body.dark .welcome-hint a { color: #d9b8ff; }
 
 .chat-area .chat-header,
 .chat-area .chat-actions,
